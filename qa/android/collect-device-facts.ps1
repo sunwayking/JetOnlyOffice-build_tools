@@ -14,6 +14,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+Import-Module (Join-Path $PSScriptRoot "device-facts.psm1") -Force
 
 function Invoke-Adb {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
@@ -51,10 +52,7 @@ function Get-PackageFacts {
                 if ($LASTEXITCODE -ne 0) {
                     throw "apksigner failed: $($signerOutput -join [Environment]::NewLine)"
                 }
-                $certificate = [regex]::Match(
-                    ($signerOutput -join "`n"),
-                    'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})'
-                ).Groups[1].Value.ToLowerInvariant()
+                $certificate = Get-ApkSignerCertificateSha256 -SignerOutput $signerOutput
             }
             finally {
                 Remove-Item -LiteralPath $temporaryApk -Force -ErrorAction SilentlyContinue
