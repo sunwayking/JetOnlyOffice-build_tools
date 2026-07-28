@@ -314,9 +314,14 @@ def build(args):
   output, output_relative = prepare_fresh_output(
     args.output, artifact_directory, "offline build output"
   )
-  work_directory = artifact_directory / "work"
-  work_directory.mkdir(parents=True, exist_ok=True)
-  with locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest) as cache_view:
+  with tempfile.TemporaryDirectory(
+    dir=artifact_directory, prefix=".build-stage-"
+  ) as staging_directory, tempfile.TemporaryDirectory(
+    dir=artifact_directory, prefix=".build-work-"
+  ) as work_directory, locked_cache_view(
+    toolchain_lock, cache_directory, bootstrap_manifest
+  ) as cache_view:
+    staging_directory = Path(staging_directory)
     command = [
       args.docker,
       "run",
@@ -363,9 +368,9 @@ def build(args):
       "--mount",
       "type=bind,src=" + cache_view.as_posix() + ",dst=/input/cache,readonly",
       "--mount",
-      "type=bind,src=" + artifact_directory.as_posix() + ",dst=/output",
+      "type=bind,src=" + staging_directory.as_posix() + ",dst=/output",
       "--mount",
-      "type=bind,src=" + work_directory.as_posix() + ",dst=/work",
+      "type=bind,src=" + Path(work_directory).as_posix() + ",dst=/work",
       "--mount",
       "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
       builder["reference"] + "@" + builder["digest"],
@@ -373,14 +378,19 @@ def build(args):
       "/jetonlyoffice/container/build-baseline.sh",
     ]
     run_external(command, "offline build container", exit_code=4)
-  output = require_file(output, "offline build output", exit_code=4)
-  try:
-    manifest = load_json(output)
-    validate_contract(manifest, "build-manifest", args.schema_dir)
-  except ContractError as error:
-    raise BaselineError(f"offline build output is invalid: {error}", 4) from error
-  verify_build_bindings(manifest, source_lock, toolchain_lock, image_lock, 4)
-  verify_manifest_files(manifest, artifact_directory, "offline build output")
+    staged_output = require_file(
+      staging_directory / output_relative, "offline build output", exit_code=4
+    )
+    try:
+      manifest = load_json(staged_output)
+      validate_contract(manifest, "build-manifest", args.schema_dir)
+    except ContractError as error:
+      raise BaselineError(f"offline build output is invalid: {error}", 4) from error
+    verify_build_bindings(manifest, source_lock, toolchain_lock, image_lock, 4)
+    verify_manifest_files(manifest, staging_directory, "offline build output")
+    promote_manifest_files(
+      manifest, staging_directory, artifact_directory, output, "offline build output"
+    )
 
 
 def verify_manifest_files(manifest, root, description):
@@ -406,6 +416,29 @@ def verify_manifest_files(manifest, root, description):
         f"{description} digest mismatch for {record['path']}: expected {record['sha256']}, got {digest}",
         3,
       )
+
+
+def promote_manifest_files(manifest, staging_root, artifact_root, output, description):
+  staging_root = Path(staging_root).resolve()
+  artifact_root = Path(artifact_root).resolve()
+  records = manifest.get("files", manifest.get("artifacts", []))
+  promotions = []
+  for record in records:
+    source = (staging_root / record["path"]).resolve()
+    destination = (artifact_root / record["path"]).resolve()
+    try:
+      source.relative_to(staging_root)
+      destination.relative_to(artifact_root)
+    except ValueError as error:
+      raise BaselineError(f"{description} path escapes its root: {record['path']}", 2) from error
+    if destination.exists() or destination.is_symlink():
+      raise BaselineError(f"{description} destination already exists: {destination}", 4)
+    promotions.append((source, destination))
+
+  for source, destination in promotions:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(source, destination)
+  write_canonical(output, manifest)
 
 
 def package(args):
@@ -448,10 +481,15 @@ def package(args):
   cache_directory = Path(args.cache_directory).resolve()
   if not cache_directory.is_dir():
     raise BaselineError(f"locked package cache is missing: {cache_directory}", 3)
-  work_directory = artifact_directory / "package-work"
-  work_directory.mkdir(parents=True, exist_ok=True)
   container_scripts = Path(__file__).resolve().parent / "container"
-  with locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest) as cache_view:
+  with tempfile.TemporaryDirectory(
+    dir=artifact_directory, prefix=".package-stage-"
+  ) as staging_directory, tempfile.TemporaryDirectory(
+    dir=artifact_directory, prefix=".package-work-"
+  ) as work_directory, locked_cache_view(
+    toolchain_lock, cache_directory, bootstrap_manifest
+  ) as cache_view:
+    staging_directory = Path(staging_directory)
     command = [
       args.docker,
       "run",
@@ -484,7 +522,7 @@ def package(args):
       "--env",
       "JETONLYOFFICE_ARTIFACT_MANIFEST_PATH=/artifacts/" + output_relative,
       "--mount",
-      "type=bind,src=" + artifact_directory.as_posix() + ",dst=/artifacts",
+      "type=bind,src=" + staging_directory.as_posix() + ",dst=/artifacts",
       "--mount",
       "type=bind,src=" + build_output_directory.as_posix() + ",dst=/artifacts/build-output,readonly",
       "--mount",
@@ -492,7 +530,7 @@ def package(args):
       "--mount",
       "type=bind,src=" + cache_view.as_posix() + ",dst=/input/cache,readonly",
       "--mount",
-      "type=bind,src=" + work_directory.as_posix() + ",dst=/work",
+      "type=bind,src=" + Path(work_directory).as_posix() + ",dst=/work",
       "--mount",
       "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
       builder["reference"] + "@" + builder["digest"],
@@ -500,17 +538,22 @@ def package(args):
       "/jetonlyoffice/container/package-baseline.sh",
     ]
     run_external(command, "offline package container", exit_code=4)
-  output = require_file(output, "offline package output", exit_code=4)
-  try:
-    manifest = load_json(output)
-    validate_contract(manifest, "artifact-manifest", args.schema_dir)
-  except ContractError as error:
-    raise BaselineError(f"offline package output is invalid: {error}", 4) from error
-  if manifest["sourceLockSha256"] != canonical_sha256(source_lock):
-    raise BaselineError("artifact manifest source lock does not match the lock", 4)
-  if manifest["buildManifestSha256"] != canonical_sha256(build_manifest):
-    raise BaselineError("artifact manifest build input does not match the build manifest", 4)
-  verify_manifest_files(manifest, artifact_directory, "packaged artifact")
+    staged_output = require_file(
+      staging_directory / output_relative, "offline package output", exit_code=4
+    )
+    try:
+      manifest = load_json(staged_output)
+      validate_contract(manifest, "artifact-manifest", args.schema_dir)
+    except ContractError as error:
+      raise BaselineError(f"offline package output is invalid: {error}", 4) from error
+    if manifest["sourceLockSha256"] != canonical_sha256(source_lock):
+      raise BaselineError("artifact manifest source lock does not match the lock", 4)
+    if manifest["buildManifestSha256"] != canonical_sha256(build_manifest):
+      raise BaselineError("artifact manifest build input does not match the build manifest", 4)
+    verify_manifest_files(manifest, staging_directory, "packaged artifact")
+    promote_manifest_files(
+      manifest, staging_directory, artifact_directory, output, "packaged artifact"
+    )
 
 
 def verify(args):

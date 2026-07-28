@@ -176,10 +176,23 @@ def fake_docker(root, build_manifest):
   driver = root / "fake-docker.py"
   driver.write_text(
     "import json, pathlib, shutil, sys\n"
-    f"artifact = pathlib.Path({str(output.parent / 'build-output' / 'documentserver.bin')!r})\n"
+    "arguments = sys.argv[1:]\n"
+    "mounts = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--mount']\n"
+    "environments = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--env']\n"
+    "def mount_source(destination):\n"
+    "  for mount in mounts:\n"
+    "    fields = dict(field.split('=', 1) for field in mount.split(',') if '=' in field)\n"
+    "    if fields.get('dst') == destination:\n"
+    "      return pathlib.Path(fields['src'])\n"
+    "  raise RuntimeError('mount is missing: ' + destination)\n"
+    "output_root = mount_source('/output')\n"
+    "manifest_path = next(value.split('=', 1)[1] for value in environments if value.startswith('JETONLYOFFICE_BUILD_MANIFEST_PATH='))\n"
+    "manifest = output_root / pathlib.PurePosixPath(manifest_path).relative_to('/output')\n"
+    "artifact = output_root / 'build-output' / 'documentserver.bin'\n"
     "artifact.parent.mkdir(parents=True, exist_ok=True)\n"
     "artifact.write_bytes(b'x')\n"
-    f"shutil.copyfile({str(template)!r}, {str(output)!r})\n"
+    "manifest.parent.mkdir(parents=True, exist_ok=True)\n"
+    f"shutil.copyfile({str(template)!r}, manifest)\n"
     f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
     encoding="utf-8",
   )
@@ -209,11 +222,23 @@ def fake_package_docker(root, manifest):
   driver = root / "fake-package-docker.py"
   driver.write_text(
     "import json, pathlib, shutil, sys\n"
+    "arguments = sys.argv[1:]\n"
+    "mounts = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--mount']\n"
+    "environments = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--env']\n"
+    "def mount_source(destination):\n"
+    "  for mount in mounts:\n"
+    "    fields = dict(field.split('=', 1) for field in mount.split(',') if '=' in field)\n"
+    "    if fields.get('dst') == destination:\n"
+    "      return pathlib.Path(fields['src'])\n"
+    "  raise RuntimeError('mount is missing: ' + destination)\n"
     f"source = pathlib.Path({str(staged_root / 'artifacts')!r})\n"
-    f"destination = pathlib.Path({str(output.parent)!r})\n"
+    "destination = mount_source('/artifacts')\n"
+    "manifest_path = next(value.split('=', 1)[1] for value in environments if value.startswith('JETONLYOFFICE_ARTIFACT_MANIFEST_PATH='))\n"
+    "manifest = destination / pathlib.PurePosixPath(manifest_path).relative_to('/artifacts')\n"
     "destination.mkdir(parents=True, exist_ok=True)\n"
     "shutil.copytree(source, destination, dirs_exist_ok=True)\n"
-    f"shutil.copyfile({str(template)!r}, {str(output)!r})\n"
+    "manifest.parent.mkdir(parents=True, exist_ok=True)\n"
+    f"shutil.copyfile({str(template)!r}, manifest)\n"
     f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
     encoding="utf-8",
   )
@@ -551,8 +576,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       packaged["buildManifestSha256"] = canonical_sha256(build_manifest)
       docker, output, log = fake_package_docker(root, packaged)
 
-      result = subprocess.run(
-        [
+      command = [
           "pwsh",
           "-NoProfile",
           "-File",
@@ -565,7 +589,9 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-ArtifactDirectory", str(root / "artifacts"),
           "-CacheDirectory", str(root / "cache"),
           "-DockerExecutable", str(docker),
-        ],
+      ]
+      result = subprocess.run(
+        command,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
@@ -585,6 +611,16 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       self.assertTrue(
         any("dst=/artifacts/build-manifest.json,readonly" in item for item in arguments)
       )
+      second = subprocess.run(
+        command,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+      self.assertEqual(4, second.returncode, second.stderr)
+      self.assertIn("packaged artifact destination already exists", second.stderr)
+      self.assertFalse(output.exists())
 
   def test_package_rejects_stale_manifest_when_container_produces_no_output(self):
     with tempfile.TemporaryDirectory() as directory:
@@ -628,8 +664,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       write_json(output, stale_manifest)
       docker, _ = fake_noop_docker(root, "fake-noop-package-docker")
 
-      result = subprocess.run(
-        [
+      command = [
           "pwsh",
           "-NoProfile",
           "-File",
@@ -643,7 +678,9 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-CacheDirectory", str(root / "cache"),
           "-DockerExecutable", str(docker),
           "-OutputPath", str(output),
-        ],
+      ]
+      result = subprocess.run(
+        command,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
@@ -684,8 +721,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         }],
       }
       docker, output, log = fake_docker(root, manifest)
-      result = subprocess.run(
-        [
+      command = [
           "pwsh",
           "-NoProfile",
           "-File",
@@ -699,7 +735,9 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-ArtifactDirectory", str(root / "artifacts"),
           "-DockerExecutable", str(docker),
           "-OutputPath", str(output),
-        ],
+      ]
+      result = subprocess.run(
+        command,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
@@ -717,6 +755,16 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         if item == "--mount" and "readonly" in arguments[index + 1]
       ]
       self.assertEqual(3, len(readonly_mounts))
+      second = subprocess.run(
+        command,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+      self.assertEqual(4, second.returncode, second.stderr)
+      self.assertIn("offline build output destination already exists", second.stderr)
+      self.assertFalse(output.exists())
 
   def test_build_rejects_stale_manifest_when_container_produces_no_output(self):
     with tempfile.TemporaryDirectory() as directory:

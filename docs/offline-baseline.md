@@ -31,10 +31,13 @@ Their containers use the digest-pinned builder image with `--pull never`,
 `--network none`, `--platform linux/amd64`, a read-only root filesystem, and
 read-only source, cache, and driver mounts.
 
-Before each container invocation, the expected output manifest must resolve
-inside the artifact root and any previous manifest at that path is removed.
-The command succeeds only when this invocation creates a new manifest whose
-JSON contract, lock bindings, file sizes, and file SHA-256 values all validate.
+Each container invocation receives new staging and work directories. The
+expected output manifest must resolve inside the artifact root and any
+previous manifest at that path is removed. Files are validated entirely in
+staging, promoted only when every JSON contract, lock binding, size, and
+SHA-256 check passes, and the canonical manifest is written last. Existing
+destination files cause a blocking failure instead of being reused or
+overwritten.
 
 `verify.ps1` checks every packaged file, compares DEB, rootfs, and OCI
 SHA-256 values against an independent clean build, binds the requested OCI
