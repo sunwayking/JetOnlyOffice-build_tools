@@ -1,4 +1,18 @@
-<h1>ONLYOFFICE Build Tools</h1>
+<h1>JetOnlyOffice Build Tools</h1>
+
+This fork is the authoritative coordination repository for the JetOnlyOffice
+source lock, reproducible build pipeline, product design decisions, test
+corpora, and release evidence. Development targets the protected `develop`
+branch. A coordinated release promotes all four product forks together; this
+repository must not be built from a floating upstream branch.
+
+JetOnlyOffice architecture and Mobile Web design records are indexed in
+[`docs/README.md`](docs/README.md). The upstream build-tools documentation is
+retained below for provenance; JetOnlyOffice release builds use only the
+locked `bootstrap-source.ps1`, `build.ps1`, `package.ps1`, and `verify.ps1`
+entrypoints once their release gates are complete.
+
+<h2>Upstream documentation</h2>
 
 Welcome to the ```build_tools``` repository! This powerful toolkit simplifies the process of compiling [ONLYOFFICE](https://github.com/ONLYOFFICE) products from source on Linux.
 
