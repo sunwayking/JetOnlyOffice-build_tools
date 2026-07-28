@@ -206,13 +206,13 @@ def build_manifest():
 def artifact_manifest():
   records = [
     ("checksums", "checksums", "checksums.sha256"),
-    ("cyclonedx-deb", "cyclonedx", "sbom/deb.cdx.json"),
+    ("cyclonedx", "cyclonedx", "sbom/release.cdx.json"),
     ("deb", "deb", "packages/jetonlyoffice.deb"),
     ("oci", "oci", "images/jetonlyoffice.oci.tar"),
     ("provenance", "provenance", "provenance/intoto.jsonl"),
     ("rootfs", "rootfs", "packages/rootfs.tar.zst"),
     ("source", "source", "sources/jetonlyoffice-source.tar.zst"),
-    ("spdx-deb", "spdx", "sbom/deb.spdx.json"),
+    ("spdx", "spdx", "sbom/release.spdx.json"),
   ]
   return {
     "schemaVersion": 1,
@@ -223,15 +223,17 @@ def artifact_manifest():
     "sourceLockSha256": SHA256_A,
     "buildManifestSha256": SHA256_B,
     "artifacts": [
-      {
+      dict({
         "id": identifier,
         "type": artifact_type,
         "path": path,
         "size": 10,
         "sha256": SHA256_A,
         "mediaType": "application/octet-stream",
-        "subjects": ["documentserver", "sdkjs"],
-      }
+        "subjects": ["deb", "oci", "rootfs"]
+        if artifact_type in {"spdx", "cyclonedx", "provenance"}
+        else [],
+      }, **({"ociDigest": OCI_A} if artifact_type == "oci" else {}))
       for identifier, artifact_type, path in records
     ],
   }
@@ -273,6 +275,8 @@ class ContractToolTests(unittest.TestCase):
     self.assertEqual(hashlib.sha256(expected).hexdigest(), canonical_sha256(left))
     with self.assertRaisesRegex(ContractError, "interoperable range"):
       canonical_json_bytes({"value": 9007199254740992})
+    with self.assertRaisesRegex(ContractError, "Unicode scalar values"):
+      canonical_json_bytes({"value": "\ud800"})
 
   def test_load_rejects_duplicate_keys_and_floats(self):
     with tempfile.TemporaryDirectory() as directory:
@@ -317,6 +321,16 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "release profile"):
       validate_contract(value, "build-manifest", self.schema_dir)
 
+  def test_validation_rejects_noncanonical_values_and_missing_license(self):
+    value = build_manifest()
+    value["sourceDateEpoch"] = 9007199254740992
+    with self.assertRaisesRegex(ContractError, "interoperable range"):
+      validate_contract(value, "build-manifest", self.schema_dir)
+    value = toolchain_lock()
+    del value["tools"][0]["license"]
+    with self.assertRaisesRegex(ContractError, "missing required property license"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
+
   def test_image_and_artifact_manifests_require_complete_roles(self):
     value = image_lock()
     value["images"].pop()
@@ -327,11 +341,49 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "missing required types"):
       validate_contract(value, "artifact-manifest", self.schema_dir)
 
+  def test_artifact_manifest_requires_digest_and_real_subjects(self):
+    value = artifact_manifest()
+    del next(item for item in value["artifacts"] if item["type"] == "oci")["ociDigest"]
+    with self.assertRaisesRegex(ContractError, "required for OCI artifacts"):
+      validate_contract(value, "artifact-manifest", self.schema_dir)
+    value = artifact_manifest()
+    evidence = next(item for item in value["artifacts"] if item["type"] == "spdx")
+    evidence["subjects"] = sorted([*evidence["subjects"], "missing"])
+    with self.assertRaisesRegex(ContractError, "unknown artifact ids"):
+      validate_contract(value, "artifact-manifest", self.schema_dir)
+    value = artifact_manifest()
+    next(item for item in value["artifacts"] if item["type"] == "deb")["ociDigest"] = OCI_A
+    with self.assertRaisesRegex(ContractError, "allowed only for OCI artifacts"):
+      validate_contract(value, "artifact-manifest", self.schema_dir)
+
+  def test_artifact_manifest_requires_supply_chain_coverage(self):
+    for evidence_type in ("spdx", "cyclonedx", "provenance"):
+      with self.subTest(evidence_type=evidence_type):
+        value = artifact_manifest()
+        evidence = next(item for item in value["artifacts"] if item["type"] == evidence_type)
+        evidence["subjects"].remove("rootfs")
+        with self.assertRaisesRegex(ContractError, f"{evidence_type} does not cover: rootfs"):
+          validate_contract(value, "artifact-manifest", self.schema_dir)
+
   def test_entrypoint_contract_is_fail_closed(self):
     value = load_json(self.schema_dir / "entrypoints.v1.json")
     validate_entrypoints(value)
     value["entrypoints"][1]["networkPolicy"] = "online"
     with self.assertRaisesRegex(ContractError, "not fail-closed"):
+      validate_entrypoints(value)
+
+  def test_entrypoint_contract_rejects_malformed_shapes_and_paths(self):
+    value = load_json(self.schema_dir / "entrypoints.v1.json")
+    value["entrypoints"][0]["inputs"] = ["../sources.lock.json"]
+    with self.assertRaisesRegex(ContractError, "normalized and relative"):
+      validate_entrypoints(value)
+    value = load_json(self.schema_dir / "entrypoints.v1.json")
+    value["entrypoints"][0] = "bootstrap-source"
+    with self.assertRaisesRegex(ContractError, "expected object"):
+      validate_entrypoints(value)
+    value = load_json(self.schema_dir / "entrypoints.v1.json")
+    value["unexpected"] = True
+    with self.assertRaisesRegex(ContractError, "unknown properties"):
       validate_entrypoints(value)
 
   def test_cli_writes_canonical_output_and_digest_sidecar(self):

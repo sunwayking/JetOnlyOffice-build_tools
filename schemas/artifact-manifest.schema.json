@@ -80,6 +80,9 @@
           "sha256": {
             "$ref": "common.schema.json#/$defs/sha256"
           },
+          "ociDigest": {
+            "$ref": "common.schema.json#/$defs/ociDigest"
+          },
           "mediaType": {
             "type": "string",
             "minLength": 1

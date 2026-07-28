@@ -66,7 +66,12 @@ def load_json(path):
 
 
 def _check_canonical_value(value, path="$"):
-  if value is None or isinstance(value, (str, bool)):
+  if value is None or isinstance(value, bool):
+    return
+  if isinstance(value, str):
+    for character in value:
+      if 0xD800 <= ord(character) <= 0xDFFF:
+        raise ContractError(f"{path}: strings must contain only Unicode scalar values")
     return
   if isinstance(value, int) and not isinstance(value, bool):
     if abs(value) > MAX_SAFE_INTEGER:
@@ -295,6 +300,7 @@ def _validate_build_manifest(value):
 def _validate_artifact_manifest(value):
   artifacts = value["artifacts"]
   _validate_sorted_unique(artifacts, lambda item: item["id"], "$.artifacts")
+  artifact_ids = {item["id"] for item in artifacts}
   paths = [item["path"] for item in artifacts]
   if len(paths) != len(set(paths)):
     raise ContractError("$.artifacts: paths must be unique")
@@ -316,6 +322,34 @@ def _validate_artifact_manifest(value):
     _validate_relative_path(item["path"], f"$.artifacts[{index}].path")
     if item["subjects"] != sorted(set(item["subjects"])):
       raise ContractError(f"$.artifacts[{index}].subjects: values must be sorted and unique")
+    unknown_subjects = sorted(set(item["subjects"]) - artifact_ids)
+    if unknown_subjects:
+      raise ContractError(
+        f"$.artifacts[{index}].subjects: unknown artifact ids: "
+        + ", ".join(unknown_subjects)
+      )
+    if item["id"] in item["subjects"]:
+      raise ContractError(f"$.artifacts[{index}].subjects: artifact cannot reference itself")
+    if item["type"] == "oci" and "ociDigest" not in item:
+      raise ContractError(f"$.artifacts[{index}].ociDigest: required for OCI artifacts")
+    if item["type"] != "oci" and "ociDigest" in item:
+      raise ContractError(f"$.artifacts[{index}].ociDigest: allowed only for OCI artifacts")
+
+  carrier_ids = {
+    item["id"] for item in artifacts if item["type"] in {"deb", "rootfs", "oci"}
+  }
+  for evidence_type in ("spdx", "cyclonedx", "provenance"):
+    covered = {
+      subject
+      for item in artifacts
+      if item["type"] == evidence_type
+      for subject in item["subjects"]
+    }
+    missing_coverage = sorted(carrier_ids - covered)
+    if missing_coverage:
+      raise ContractError(
+        f"$.artifacts: {evidence_type} does not cover: " + ", ".join(missing_coverage)
+      )
 
 
 SEMANTIC_VALIDATORS = {
@@ -334,16 +368,34 @@ def validate_contract(value, contract, schema_dir):
     raise ContractError("unknown contract: " + contract) from error
   store = SchemaStore(schema_dir)
   schema = store.load(schema_name)
+  _check_canonical_value(value)
   _validate_schema(value, schema, store, schema_name)
   SEMANTIC_VALIDATORS[contract](value)
 
 
 def validate_entrypoints(value):
+  _check_canonical_value(value)
+  if not isinstance(value, dict):
+    raise ContractError("entrypoint contract must be an object")
+  expected_top_level = {"schemaVersion", "entrypoints", "exitCodes"}
+  unknown_top_level = sorted(set(value) - expected_top_level)
+  if unknown_top_level:
+    raise ContractError("entrypoint contract has unknown properties: " + ", ".join(unknown_top_level))
   if value.get("schemaVersion") != 1:
     raise ContractError("entrypoint schemaVersion must be 1")
   entrypoints = value.get("entrypoints")
   if not isinstance(entrypoints, list):
     raise ContractError("entrypoints must be an array")
+  expected_entrypoint_keys = {"id", "path", "networkPolicy", "inputs", "outputs"}
+  for index, item in enumerate(entrypoints):
+    if not isinstance(item, dict):
+      raise ContractError(f"$.entrypoints[{index}]: expected object")
+    missing = sorted(expected_entrypoint_keys - set(item))
+    if missing:
+      raise ContractError(f"$.entrypoints[{index}]: missing properties: " + ", ".join(missing))
+    unknown = sorted(set(item) - expected_entrypoint_keys)
+    if unknown:
+      raise ContractError(f"$.entrypoints[{index}]: unknown properties: " + ", ".join(unknown))
   expected_ids = ["bootstrap-source", "build", "package", "verify"]
   ids = [item.get("id") for item in entrypoints]
   if ids != expected_ids:
@@ -353,6 +405,24 @@ def validate_entrypoints(value):
     raise ContractError("entrypoint network policies are not fail-closed")
   for index, item in enumerate(entrypoints):
     _validate_relative_path(item.get("path", ""), f"$.entrypoints[{index}].path")
+    for field in ("inputs", "outputs"):
+      paths = item[field]
+      if not isinstance(paths, list) or not paths:
+        raise ContractError(f"$.entrypoints[{index}].{field}: expected non-empty array")
+      if not all(isinstance(path, str) for path in paths):
+        raise ContractError(f"$.entrypoints[{index}].{field}: paths must be strings")
+      if len(paths) != len(set(paths)):
+        raise ContractError(f"$.entrypoints[{index}].{field}: paths must be unique")
+      for path_index, path in enumerate(paths):
+        _validate_relative_path(path, f"$.entrypoints[{index}].{field}[{path_index}]")
+  expected_exit_codes = {
+    "0": "success",
+    "2": "contract or invocation error",
+    "3": "locked input missing or mismatched",
+    "4": "build package or verification failure",
+  }
+  if value.get("exitCodes") != expected_exit_codes:
+    raise ContractError("entrypoint exitCodes do not match the stable contract")
 
 
 def _schema_dir_from_script():

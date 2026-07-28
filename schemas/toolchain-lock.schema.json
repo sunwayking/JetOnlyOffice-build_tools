@@ -43,7 +43,8 @@
           "platform",
           "sourceUrl",
           "sha256",
-          "size"
+          "size",
+          "license"
         ],
         "properties": {
           "id": {
