@@ -1,5 +1,3 @@
 {
-  "line-length": {
-    "code_block_line_length": 300
-  }
+  "line-length": false
 }
