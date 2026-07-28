@@ -1,0 +1,3 @@
+# DocumentServer v9.4.0 gitlink 图作为首个 source lock
+
+首个 source lock 以 DocumentServer `v9.4.0` 提交 `fb73d33c85f59d1a5d2e5a5ed05388ebc2418337` 的实际 gitlink 图为权威，锁定 core `3250a848ee4ef20c2fb8c38dc86350ec579124b8`、core-fonts `7030c6681fb5bbed560675cb42422f91df15d5c9`、dictionaries `d3223bbb777883db66ac3cd249f71c6ebdc992c7`、server `d6df308acb9877a9365c741b30741de96202816e`、web-apps `9c0ca538c3b211052347df09d2a4d6781f023403` 和 sdkjs `72b0421c0bbf9d01eed9cf14834ae47eb2df1b50`，并独立锁定 build_tools `cf4cac0846d03e2e00a6fec5d1ecd4e9463086d5`。项目不以相近版本号独立拼接 `.129` 标签，因为 sdkjs `.129` 与 DocumentServer 实际引用的源码树存在差异。

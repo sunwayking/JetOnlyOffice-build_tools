@@ -10,6 +10,8 @@ packaging, and release verification:
 - `artifact-manifest.schema.json` inventories packages and supply-chain files.
 - `command-catalog.schema.json` proves every Desktop command is Mobile-mapped or ADR-excluded.
 - `corpus-manifest.schema.json` pins the release and performance corpora.
+- `performance-samples.schema.json` records complete or infrastructure-blocked
+  Xiaomi performance measurements before recomputing gate results.
 - `gate-catalog.schema.json` freezes the source-independent release gate matrix.
 - `gate-result.schema.json` records immutable first-attempt evidence and status.
 - `release-policy.schema.json` binds the gate matrix to a source lock.
