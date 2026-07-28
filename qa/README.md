@@ -7,7 +7,7 @@ The QA layer is fail-closed. It validates command coverage and corpus bytes, run
 - `gate-catalog.v1.json` is the source-independent gate matrix.
 - A release policy binds that catalog to a release ID and source-lock SHA-256.
 - Command catalogs list every Desktop built-in command as Mobile-mapped or ADR-excluded.
-- The corpus manifest covers DOCX/ODT, XLSX/ODS, PPTX/ODP and PDF and pins every file by size and SHA-256.
+- The corpus manifest covers DOCX/ODT, XLSX/ODS, PPTX/ODP and PDF, pins every file by size and SHA-256, and reports whether all four performance profiles are actually ready.
 - Each gate result represents attempt 1 only and references content-addressed raw evidence.
 - `release-evidence.json` is recomputed from the bound policy and gate results. Missing blocking results, failures and incomplete infrastructure produce `BLOCKED`.
 
@@ -33,3 +33,5 @@ npm test
 ```
 
 Android facts are captured with `qa/android/collect-device-facts.ps1`. The target file deliberately leaves the tablet model unlocked; that state blocks tablet release gates until a real device is selected. The Xiaomi target also remains blocked until official Chrome Stable is installed and its version and signing certificate are locked.
+
+The committed corpus is currently `INFRA_INCOMPLETE`: its small files are smoke fixtures, not the ADR-0018/0053 performance corpus. Corpus byte verification can pass while readiness remains incomplete; that result must not be promoted to a performance gate pass.

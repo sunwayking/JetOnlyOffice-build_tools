@@ -424,8 +424,16 @@ def _validate_corpus_manifest(value):
   }
   missing_performance = sorted(required_performance - performance_formats)
   if missing_performance:
+    if value["readiness"] != "INFRA_INCOMPLETE":
+      raise ContractError(
+        "$.readiness: READY with missing performance formats: "
+        + ", ".join(missing_performance)
+      )
+  elif value["readiness"] != "READY":
+    raise ContractError("$.readiness: must be READY when performance corpus is complete")
+  if value["missingPerformanceFormats"] != missing_performance:
     raise ContractError(
-      "$.entries: missing performance formats: " + ", ".join(missing_performance)
+      "$.missingPerformanceFormats: must exactly match missing performance formats"
     )
 
 
