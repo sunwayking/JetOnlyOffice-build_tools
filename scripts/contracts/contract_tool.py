@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+import posixpath
 import re
 import sys
 from urllib.parse import urlparse
@@ -276,6 +277,47 @@ def _validate_environment(environment, path):
     raise ContractError(f"{path}: environment does not match the release profile")
 
 
+def _validate_file_record(record, path):
+  _validate_relative_path(record["path"], path + ".path")
+  target = record.get("symlinkTarget")
+  if record["type"] == "file":
+    if target is not None:
+      raise ContractError(path + ".symlinkTarget: allowed only for symlinks")
+    return
+  if target is None:
+    raise ContractError(path + ".symlinkTarget: required for symlinks")
+  if (
+    "\\" in target
+    or target.startswith("/")
+    or target != posixpath.normpath(target)
+    or re.match(r"^[A-Za-z]:", target)
+  ):
+    raise ContractError(path + ".symlinkTarget: must be a normalized relative target")
+  resolved = posixpath.normpath(
+    posixpath.join(posixpath.dirname(record["path"]), target)
+  )
+  if resolved == ".." or resolved.startswith("../"):
+    raise ContractError(path + ".symlinkTarget: target escapes the manifest root")
+
+
+def _validate_symlink_graph(files, path):
+  targets = {
+    item["path"]: posixpath.normpath(
+      posixpath.join(posixpath.dirname(item["path"]), item["symlinkTarget"])
+    )
+    for item in files
+    if item["type"] == "symlink"
+  }
+  for start in targets:
+    visited = set()
+    current = start
+    while current in targets:
+      if current in visited:
+        raise ContractError(f"{path}: symbolic link cycle includes {current}")
+      visited.add(current)
+      current = targets[current]
+
+
 def _validate_source_lock(value):
   repositories = value["repositories"]
   _validate_sorted_unique(repositories, lambda item: item["id"], "$.repositories")
@@ -319,6 +361,18 @@ def _validate_toolchain_lock(value):
   _validate_sorted_unique(tools, lambda item: item["id"], "$.tools")
   for index, tool in enumerate(tools):
     _validate_https(tool["sourceUrl"], f"$.tools[{index}].sourceUrl")
+    if tool["consumers"] != sorted(set(tool["consumers"])):
+      raise ContractError(
+        f"$.tools[{index}].consumers: values must be sorted and unique"
+      )
+  consumers = {
+    consumer
+    for tool in tools
+    for consumer in tool["consumers"]
+  }
+  missing = sorted({"build", "package", "runtime"} - consumers)
+  if missing:
+    raise ContractError("$.tools: missing consumers: " + ", ".join(missing))
 
 
 def _validate_image_lock(value):
@@ -360,7 +414,23 @@ def _validate_build_manifest(value):
   files = value["files"]
   _validate_sorted_unique(files, lambda item: item["path"], "$.files")
   for index, item in enumerate(files):
-    _validate_relative_path(item["path"], f"$.files[{index}].path")
+    _validate_file_record(item, f"$.files[{index}]")
+  _validate_symlink_graph(files, "$.files")
+  driver = value["packageDriver"]
+  _validate_relative_path(driver["path"], "$.packageDriver.path")
+  matches = [item for item in files if item["path"] == driver["path"]]
+  if len(matches) != 1:
+    raise ContractError("$.packageDriver.path: driver is not inventoried in files")
+  file_record = matches[0]
+  if file_record["type"] != "file":
+    raise ContractError("$.packageDriver.path: driver must be a regular file")
+  for field in ("mode", "size", "sha256"):
+    if driver[field] != file_record[field]:
+      raise ContractError(
+        f"$.packageDriver.{field}: does not match the inventoried driver"
+      )
+  if int(driver["mode"], 8) & 0o111 == 0:
+    raise ContractError("$.packageDriver.mode: driver must be executable")
 
 
 def _validate_artifact_manifest(value):

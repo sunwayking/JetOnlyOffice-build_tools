@@ -44,6 +44,8 @@
           "sourceUrl",
           "sha256",
           "size",
+          "mediaType",
+          "consumers",
           "license"
         ],
         "properties": {
@@ -83,6 +85,21 @@
           "size": {
             "type": "integer",
             "minimum": 1
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "consumers": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "build",
+                "package",
+                "runtime"
+              ]
+            }
           },
           "license": {
             "type": "string",

@@ -3,12 +3,15 @@
 import argparse
 from contextlib import contextmanager
 import hashlib
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
+from urllib.parse import urlparse
+from urllib.request import urlopen
 
 from contracts.contract_tool import ContractError, load_json, validate_contract
 from contracts.contract_tool import canonical_json_bytes, canonical_sha256
@@ -55,6 +58,130 @@ def sha256_file(path):
   return digest.hexdigest()
 
 
+def path_is_alias(path):
+  path = Path(path)
+  if path.is_symlink():
+    return True
+  is_junction = getattr(path, "is_junction", None)
+  return bool(is_junction and is_junction())
+
+
+def verify_unaliased_parents(path, root, description, exit_code):
+  root = Path(root).resolve()
+  path = Path(path)
+  if not path.is_absolute():
+    path = Path(os.path.abspath(path))
+  try:
+    relative = path.relative_to(root)
+  except ValueError as error:
+    raise BaselineError(f"{description} path escapes root: {path}", exit_code) from error
+  if ".." in relative.parts:
+    raise BaselineError(f"{description} path escapes root: {path}", exit_code)
+  current = root
+  for part in relative.parts[:-1]:
+    current /= part
+    if path_is_alias(current):
+      raise BaselineError(
+        f"{description} parent must not be a symbolic link or junction: {current}",
+        exit_code,
+      )
+    if current.exists() and not current.is_dir():
+      raise BaselineError(f"{description} parent is not a directory: {current}", exit_code)
+  return path
+
+
+def cache_toolchain_input(tool, path, cache_root):
+  path = Path(path)
+  cache_root = Path(cache_root).resolve()
+  verify_unaliased_parents(path, cache_root, "locked toolchain cache", 3)
+  if path_is_alias(path):
+    raise BaselineError(
+      f"locked toolchain cache must not be a symbolic link or junction: {path}", 3
+    )
+  if path.exists():
+    if not path.is_file():
+      raise BaselineError(f"locked toolchain cache is not a file: {path}", 3)
+    return
+
+  path.parent.mkdir(parents=True, exist_ok=True)
+  verify_unaliased_parents(path, cache_root, "locked toolchain cache", 3)
+  temporary = None
+  try:
+    with tempfile.NamedTemporaryFile(
+      dir=path.parent,
+      prefix="." + path.name + ".",
+      suffix=".part",
+      delete=False,
+    ) as stream:
+      temporary = Path(stream.name)
+      digest = hashlib.sha256()
+      size = 0
+      with urlopen(tool["sourceUrl"], timeout=60) as response:
+        final_url = response.geturl()
+        parsed_url = urlparse(final_url)
+        if parsed_url.scheme != "https":
+          raise BaselineError(
+            f"locked toolchain download redirected outside HTTPS for {tool['id']}", 3
+          )
+        if not parsed_url.netloc or parsed_url.username or parsed_url.password:
+          raise BaselineError(
+            f"locked toolchain download must use a credential-free HTTPS URL for {tool['id']}",
+            3,
+          )
+        content_length = response.headers.get("Content-Length")
+        if content_length is not None and int(content_length) != tool["size"]:
+          raise BaselineError(
+            f"locked toolchain download size header mismatch for {tool['id']}", 3
+          )
+        while True:
+          chunk = response.read(1024 * 1024)
+          if not chunk:
+            break
+          size += len(chunk)
+          if size > tool["size"]:
+            raise BaselineError(
+              f"locked toolchain download exceeded declared size for {tool['id']}", 3
+            )
+          digest.update(chunk)
+          stream.write(chunk)
+    if size != tool["size"]:
+      raise BaselineError(
+        f"locked toolchain download size mismatch for {tool['id']}: "
+        f"expected {tool['size']}, got {size}",
+        3,
+      )
+    actual_digest = digest.hexdigest()
+    if actual_digest != tool["sha256"]:
+      raise BaselineError(
+        f"locked toolchain download digest mismatch for {tool['id']}: "
+        f"expected {tool['sha256']}, got {actual_digest}",
+        3,
+      )
+    verify_unaliased_parents(path, cache_root, "locked toolchain cache", 3)
+    try:
+      os.link(temporary, path)
+    except FileExistsError:
+      if path_is_alias(path):
+        raise BaselineError(
+          f"locked toolchain cache must not be a symbolic link or junction: {path}", 3
+        )
+      if path.stat().st_size != tool["size"] or sha256_file(path) != tool["sha256"]:
+        raise BaselineError(f"concurrent toolchain cache mismatch for {tool['id']}", 3)
+    else:
+      verify_unaliased_parents(path, cache_root, "locked toolchain cache", 3)
+      temporary.unlink()
+      temporary = None
+  except BaselineError:
+    raise
+  except (OSError, ValueError) as error:
+    raise BaselineError(
+      f"locked toolchain download failed for {tool['id']}: {error}", 3
+    ) from error
+  finally:
+    if temporary is not None:
+      temporary.unlink(missing_ok=True)
+
+
 def run_external(command, description, exit_code=3):
   try:
     result = subprocess.run(
@@ -72,6 +199,55 @@ def run_external(command, description, exit_code=3):
   return result.stdout.strip()
 
 
+def verify_local_image(docker, image):
+  pinned = image["reference"] + "@" + image["digest"]
+  output = run_external(
+    [docker, "image", "inspect", pinned],
+    f"locked image inspect for {image['id']}",
+  )
+  try:
+    records = json.loads(output)
+  except json.JSONDecodeError as error:
+    raise BaselineError(
+      f"locked image inspect returned invalid JSON for {image['id']}", 3
+    ) from error
+  if not isinstance(records, list) or len(records) != 1:
+    raise BaselineError(
+      f"locked image inspect returned an unexpected record count for {image['id']}", 3
+    )
+  record = records[0]
+  if not isinstance(record, dict):
+    raise BaselineError(
+      f"locked image inspect returned an unexpected image record for {image['id']}", 3
+    )
+  platform = str(record.get("Os", "")) + "/" + str(record.get("Architecture", ""))
+  if platform != "linux/amd64":
+    raise BaselineError(
+      f"locked image platform mismatch for {image['id']}: expected linux/amd64, got {platform}",
+      3,
+    )
+  if record.get("Id") != image["configDigest"]:
+    raise BaselineError(
+      f"locked image config digest mismatch for {image['id']}", 3
+    )
+  repository_digests = record.get("RepoDigests")
+  if not isinstance(repository_digests, list) or not all(
+    isinstance(value, str) for value in repository_digests
+  ):
+    raise BaselineError(
+      f"locked image inspect returned an unexpected image record for {image['id']}", 3
+    )
+  reference = image["reference"]
+  last_slash = reference.rfind("/")
+  last_colon = reference.rfind(":")
+  repository = reference[:last_colon] if last_colon > last_slash else reference
+  expected_repository_digest = repository + "@" + image["digest"]
+  if expected_repository_digest not in repository_digests:
+    raise BaselineError(
+      f"locked image repository digest mismatch for {image['id']}", 3
+    )
+
+
 def write_canonical(path, value):
   path = Path(path)
   path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,10 +258,12 @@ def write_canonical(path, value):
 
 def prepare_fresh_output(path, root, description):
   root = Path(root).resolve()
-  output = Path(path)
-  if output.is_symlink():
-    raise BaselineError(f"{description} must not be a symbolic link: {output}", 2)
-  output = output.resolve()
+  output = Path(os.path.abspath(path))
+  verify_unaliased_parents(output, root, description, 2)
+  if path_is_alias(output):
+    raise BaselineError(
+      f"{description} must not be a symbolic link or junction: {output}", 2
+    )
   try:
     relative = output.relative_to(root)
   except ValueError as error:
@@ -112,10 +290,14 @@ def bootstrap(args):
     raise BaselineError("source and toolchain sourceDateEpoch values do not match", 3)
 
   cache_directory = Path(args.cache_directory).resolve()
+  cache_directory.mkdir(parents=True, exist_ok=True)
+  if not cache_directory.is_dir():
+    raise BaselineError(f"locked toolchain cache root is not a directory: {cache_directory}", 3)
   toolchain_files = []
   for tool in toolchain_lock["tools"]:
     relative_path = Path("toolchain") / tool["id"] / tool["sha256"]
     path = cache_directory / relative_path
+    cache_toolchain_input(tool, path, cache_directory)
     if not path.is_file():
       raise BaselineError(f"locked toolchain cache is missing: {path}", 3)
     actual_size = path.stat().st_size
@@ -145,20 +327,13 @@ def bootstrap(args):
       [docker, "pull", "--platform", "linux/amd64", pinned],
       f"locked image pull for {image['id']}",
     )
-    platform = run_external(
-      [docker, "image", "inspect", "--format", "{{.Os}}/{{.Architecture}}", pinned],
-      f"locked image inspect for {image['id']}",
-    )
-    if platform != "linux/amd64":
-      raise BaselineError(
-        f"locked image platform mismatch for {image['id']}: expected linux/amd64, got {platform}",
-        3,
-      )
+    verify_local_image(docker, image)
     image_records.append({
       "id": image["id"],
       "role": image["role"],
       "reference": image["reference"],
       "digest": image["digest"],
+      "configDigest": image["configDigest"],
     })
 
   manifest = {
@@ -179,12 +354,16 @@ def bootstrap(args):
 
 
 def verify_toolchain_files(toolchain_lock, cache_directory, manifest):
+  cache_directory = Path(cache_directory).resolve()
   expected = []
   for tool in toolchain_lock["tools"]:
     relative_path = Path("toolchain") / tool["id"] / tool["sha256"]
-    path = Path(cache_directory) / relative_path
-    if path.is_symlink():
-      raise BaselineError(f"locked toolchain cache must not be a symbolic link: {path}", 3)
+    path = cache_directory / relative_path
+    verify_unaliased_parents(path, cache_directory, "locked toolchain cache", 3)
+    if path_is_alias(path):
+      raise BaselineError(
+        f"locked toolchain cache must not be a symbolic link or junction: {path}", 3
+      )
     if not path.is_file():
       raise BaselineError(f"locked toolchain cache is missing: {path}", 3)
     if path.stat().st_size != tool["size"] or sha256_file(path) != tool["sha256"]:
@@ -200,21 +379,44 @@ def verify_toolchain_files(toolchain_lock, cache_directory, manifest):
 
 
 @contextmanager
-def locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest):
+def locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest, consumers):
+  cache_directory = Path(cache_directory).resolve()
   with tempfile.TemporaryDirectory(prefix="jetonlyoffice-locked-cache-") as directory:
     root = Path(directory)
-    for tool in toolchain_lock["tools"]:
+    selected_tools = [
+      tool for tool in toolchain_lock["tools"]
+      if set(tool["consumers"]) & set(consumers)
+    ]
+    for tool in selected_tools:
       relative = Path("toolchain") / tool["id"] / tool["sha256"]
-      source = Path(cache_directory) / relative
+      source = cache_directory / relative
+      verify_unaliased_parents(source, cache_directory, "locked toolchain cache", 3)
+      if path_is_alias(source):
+        raise BaselineError(
+          f"locked toolchain cache must not be a symbolic link or junction: {source}", 3
+        )
       destination = root / relative
       destination.parent.mkdir(parents=True, exist_ok=True)
-      try:
-        os.link(source, destination)
-      except OSError:
-        shutil.copyfile(source, destination)
+      shutil.copyfile(source, destination)
       if destination.stat().st_size != tool["size"] or sha256_file(destination) != tool["sha256"]:
         raise BaselineError(f"locked toolchain cache view mismatch for {tool['id']}", 3)
     write_canonical(root / "bootstrap-manifest.json", bootstrap_manifest)
+    write_canonical(root / "toolchain.lock.json", toolchain_lock)
+    write_canonical(root / "cache-view.json", {
+      "schemaVersion": 1,
+      "viewType": "toolchain-cache",
+      "consumers": sorted(consumers),
+      "toolchainLockSha256": canonical_sha256(toolchain_lock),
+      "toolchainFiles": [
+        {
+          "id": tool["id"],
+          "path": (Path("toolchain") / tool["id"] / tool["sha256"]).as_posix(),
+          "sha256": tool["sha256"],
+          "size": tool["size"],
+        }
+        for tool in selected_tools
+      ],
+    })
     yield root
 
 
@@ -239,6 +441,7 @@ def verify_bootstrap_bindings(bootstrap_manifest, source_lock, toolchain_lock, i
       "role": image["role"],
       "reference": image["reference"],
       "digest": image["digest"],
+      "configDigest": image["configDigest"],
     }
     for image in image_lock["images"]
   ]
@@ -310,6 +513,7 @@ def build(args):
     verify_materialized(source_lock, source_directory)
   except ResolutionError as error:
     raise BaselineError(str(error), error.exit_code) from error
+  verify_local_image(args.docker, builder)
   artifact_directory.mkdir(parents=True, exist_ok=True)
   output, output_relative = prepare_fresh_output(
     args.output, artifact_directory, "offline build output"
@@ -319,7 +523,7 @@ def build(args):
   ) as staging_directory, tempfile.TemporaryDirectory(
     dir=artifact_directory, prefix=".build-work-"
   ) as work_directory, locked_cache_view(
-    toolchain_lock, cache_directory, bootstrap_manifest
+    toolchain_lock, cache_directory, bootstrap_manifest, {"build"}
   ) as cache_view:
     staging_directory = Path(staging_directory)
     command = [
@@ -395,22 +599,50 @@ def build(args):
 
 def verify_manifest_files(manifest, root, description):
   root = Path(root).resolve()
-  records = manifest.get("files", manifest.get("artifacts", []))
+  file_inventory = "files" in manifest
+  records = manifest["files"] if file_inventory else manifest.get("artifacts", [])
   for record in records:
-    path = (root / record["path"]).resolve()
-    try:
-      path.relative_to(root)
-    except ValueError as error:
-      raise BaselineError(f"{description} path escapes root: {record['path']}", 2) from error
-    if not path.is_file():
-      raise BaselineError(f"{description} is missing: {path}", 3)
-    size = path.stat().st_size
+    path = root / record["path"]
+    record_type = record["type"] if file_inventory else "file"
+    if record_type not in {"file", "symlink"}:
+      raise BaselineError(f"{description} has unknown file type: {record_type}", 2)
+    verify_unaliased_parents(path, root, description, 2)
+    if record_type == "symlink":
+      if not path.is_symlink():
+        raise BaselineError(f"{description} symlink is missing: {path}", 3)
+      target = os.readlink(path)
+      if target != record["symlinkTarget"]:
+        raise BaselineError(
+          f"{description} symlink target mismatch for {record['path']}", 3
+        )
+      try:
+        resolved_target = (path.parent / target).resolve(strict=True)
+        resolved_target.relative_to(root)
+      except ValueError as error:
+        raise BaselineError(
+          f"{description} symlink target escapes root: {record['path']}", 2
+        ) from error
+      except (OSError, RuntimeError) as error:
+        raise BaselineError(
+          f"{description} symlink target cannot be resolved: {record['path']}", 3
+        ) from error
+      payload = target.encode("utf-8")
+      size = len(payload)
+      digest = hashlib.sha256(payload).hexdigest()
+    else:
+      if path_is_alias(path):
+        raise BaselineError(
+          f"{description} regular file is a symbolic link or junction: {path}", 3
+        )
+      if not path.is_file():
+        raise BaselineError(f"{description} is missing: {path}", 3)
+      size = path.stat().st_size
+      digest = sha256_file(path)
     if size != record["size"]:
       raise BaselineError(
         f"{description} size mismatch for {record['path']}: expected {record['size']}, got {size}",
         3,
       )
-    digest = sha256_file(path)
     if digest != record["sha256"]:
       raise BaselineError(
         f"{description} digest mismatch for {record['path']}: expected {record['sha256']}, got {digest}",
@@ -421,23 +653,34 @@ def verify_manifest_files(manifest, root, description):
 def promote_manifest_files(manifest, staging_root, artifact_root, output, description):
   staging_root = Path(staging_root).resolve()
   artifact_root = Path(artifact_root).resolve()
+  output = verify_unaliased_parents(output, artifact_root, description, 2)
   records = manifest.get("files", manifest.get("artifacts", []))
   promotions = []
   for record in records:
-    source = (staging_root / record["path"]).resolve()
-    destination = (artifact_root / record["path"]).resolve()
-    try:
-      source.relative_to(staging_root)
-      destination.relative_to(artifact_root)
-    except ValueError as error:
-      raise BaselineError(f"{description} path escapes its root: {record['path']}", 2) from error
+    source = staging_root / record["path"]
+    destination = artifact_root / record["path"]
+    verify_unaliased_parents(source, staging_root, description, 2)
+    verify_unaliased_parents(destination, artifact_root, description, 2)
+    if destination == output:
+      raise BaselineError(
+        f"{description} artifact conflicts with manifest output: {record['path']}", 2
+      )
     if destination.exists() or destination.is_symlink():
       raise BaselineError(f"{description} destination already exists: {destination}", 4)
     promotions.append((source, destination))
 
   for source, destination in promotions:
+    verify_unaliased_parents(source, staging_root, description, 2)
+    verify_unaliased_parents(destination, artifact_root, description, 2)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(source, destination)
+    verify_unaliased_parents(destination, artifact_root, description, 2)
+    try:
+      os.replace(source, destination)
+    except OSError as error:
+      raise BaselineError(
+        f"{description} promotion failed for {source}: {error}", 4
+      ) from error
+  verify_unaliased_parents(output, artifact_root, description, 2)
   write_canonical(output, manifest)
 
 
@@ -469,11 +712,19 @@ def package(args):
   builder = verify_build_bindings(
     build_manifest, source_lock, toolchain_lock, image_lock, 3
   )
+  driver = build_manifest["packageDriver"]
+  driver_record = next(
+    (item for item in build_manifest["files"] if item["path"] == driver["path"]),
+    None,
+  )
+  if driver_record is None:
+    raise BaselineError("locked package driver is missing from build manifest", 3)
   artifact_directory = Path(args.artifact_directory).resolve()
   build_output_directory = artifact_directory / "build-output"
   if not build_output_directory.is_dir():
     raise BaselineError(f"locked build output is missing: {build_output_directory}", 3)
   verify_manifest_files(build_manifest, artifact_directory, "locked build output")
+  verify_local_image(args.docker, builder)
   output, output_relative = prepare_fresh_output(
     args.output, artifact_directory, "offline package output"
   )
@@ -487,7 +738,7 @@ def package(args):
   ) as staging_directory, tempfile.TemporaryDirectory(
     dir=artifact_directory, prefix=".package-work-"
   ) as work_directory, locked_cache_view(
-    toolchain_lock, cache_directory, bootstrap_manifest
+    toolchain_lock, cache_directory, bootstrap_manifest, {"package", "runtime"}
   ) as cache_view:
     staging_directory = Path(staging_directory)
     command = [
@@ -521,6 +772,10 @@ def package(args):
       "JETONLYOFFICE_NETWORK_POLICY=none",
       "--env",
       "JETONLYOFFICE_ARTIFACT_MANIFEST_PATH=/artifacts/" + output_relative,
+      "--env",
+      "JETONLYOFFICE_PACKAGE_DRIVER_PATH=/artifacts/" + driver["path"],
+      "--env",
+      "JETONLYOFFICE_PACKAGE_DRIVER_MODE=" + driver["mode"],
       "--mount",
       "type=bind,src=" + staging_directory.as_posix() + ",dst=/artifacts",
       "--mount",

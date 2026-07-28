@@ -30,6 +30,7 @@ SHA1_B = "b" * 40
 SHA256_A = "a" * 64
 SHA256_B = "b" * 64
 OCI_A = "sha256:" + SHA256_A
+OCI_B = "sha256:" + SHA256_B
 
 
 def environment():
@@ -120,6 +121,8 @@ def toolchain_lock():
         "sourceUrl": "https://nodejs.org/dist/node.tar.xz",
         "sha256": SHA256_A,
         "size": 10,
+        "mediaType": "application/x-xz",
+        "consumers": ["build", "package", "runtime"],
         "license": "MIT",
       }
     ],
@@ -137,6 +140,7 @@ def image_lock():
         "role": "builder",
         "reference": "ubuntu:24.04",
         "digest": OCI_A,
+        "configDigest": OCI_B,
         "platform": "linux/amd64",
         "sourceUrl": "https://hub.docker.com/_/ubuntu",
       },
@@ -145,6 +149,7 @@ def image_lock():
         "role": "buildkit",
         "reference": "moby/buildkit:v1",
         "digest": OCI_A,
+        "configDigest": OCI_B,
         "platform": "linux/amd64",
         "sourceUrl": "https://hub.docker.com/r/moby/buildkit",
       },
@@ -153,6 +158,7 @@ def image_lock():
         "role": "dockerfile-frontend",
         "reference": "docker/dockerfile:1",
         "digest": OCI_A,
+        "configDigest": OCI_B,
         "platform": "linux/amd64",
         "sourceUrl": "https://hub.docker.com/r/docker/dockerfile",
       },
@@ -161,6 +167,7 @@ def image_lock():
         "role": "runtime",
         "reference": "ubuntu:24.04",
         "digest": OCI_A,
+        "configDigest": OCI_B,
         "platform": "linux/amd64",
         "sourceUrl": "https://hub.docker.com/_/ubuntu",
       },
@@ -182,8 +189,25 @@ def build_manifest():
     "sourceDateEpoch": 200,
     "environment": environment(),
     "network": "none",
+    "packageDriver": {
+      "type": "file",
+      "path": "build-output/packaging/package.sh",
+      "mode": "0755",
+      "size": 10,
+      "sha256": SHA256_A,
+    },
     "files": [
       {
+        "type": "file",
+        "path": "build-output/packaging/package.sh",
+        "mode": "0755",
+        "size": 10,
+        "sha256": SHA256_A,
+        "mediaType": "application/x-sh",
+        "sourceId": "build-tools",
+      },
+      {
+        "type": "file",
         "path": "documentserver/server/docservice",
         "mode": "0755",
         "size": 10,
@@ -192,6 +216,7 @@ def build_manifest():
         "sourceId": "documentserver",
       },
       {
+        "type": "file",
         "path": "documentserver/web-apps/apps.js",
         "mode": "0644",
         "size": 20,
@@ -331,6 +356,16 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "missing required property license"):
       validate_contract(value, "toolchain-lock", self.schema_dir)
 
+  def test_toolchain_lock_requires_sorted_complete_consumer_coverage(self):
+    value = toolchain_lock()
+    value["tools"][0]["consumers"] = ["runtime", "build", "package"]
+    with self.assertRaisesRegex(ContractError, "values must be sorted and unique"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
+    value = toolchain_lock()
+    value["tools"][0]["consumers"] = ["build"]
+    with self.assertRaisesRegex(ContractError, "missing consumers: package, runtime"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
+
   def test_image_and_artifact_manifests_require_complete_roles(self):
     value = image_lock()
     value["images"].pop()
@@ -340,6 +375,56 @@ class ContractToolTests(unittest.TestCase):
     value["artifacts"] = [item for item in value["artifacts"] if item["type"] != "provenance"]
     with self.assertRaisesRegex(ContractError, "missing required types"):
       validate_contract(value, "artifact-manifest", self.schema_dir)
+
+  def test_build_manifest_binds_one_executable_package_driver(self):
+    value = build_manifest()
+    value["packageDriver"]["sha256"] = SHA256_B
+    with self.assertRaisesRegex(ContractError, "does not match the inventoried driver"):
+      validate_contract(value, "build-manifest", self.schema_dir)
+    value = build_manifest()
+    value["packageDriver"]["mode"] = "0644"
+    next(
+      item for item in value["files"]
+      if item["path"] == value["packageDriver"]["path"]
+    )["mode"] = "0644"
+    with self.assertRaisesRegex(ContractError, "driver must be executable"):
+      validate_contract(value, "build-manifest", self.schema_dir)
+
+  def test_build_manifest_rejects_symlink_targets_outside_the_output(self):
+    value = build_manifest()
+    value["files"].append({
+      "type": "symlink",
+      "path": "build-output/lib/libjet.so",
+      "mode": "0777",
+      "size": 13,
+      "sha256": SHA256_A,
+      "symlinkTarget": "../../../outside",
+    })
+    value["files"].sort(key=lambda item: item["path"])
+    with self.assertRaisesRegex(ContractError, "target escapes the manifest root"):
+      validate_contract(value, "build-manifest", self.schema_dir)
+
+  def test_build_manifest_rejects_symbolic_link_cycles(self):
+    for records in (
+      [{"path": "build-output/self", "symlinkTarget": "self"}],
+      [
+        {"path": "build-output/loop-a", "symlinkTarget": "loop-b"},
+        {"path": "build-output/loop-b", "symlinkTarget": "loop-a"},
+      ],
+    ):
+      with self.subTest(records=records):
+        value = build_manifest()
+        value["files"].extend({
+          "type": "symlink",
+          "path": record["path"],
+          "mode": "0777",
+          "size": len(record["symlinkTarget"].encode("utf-8")),
+          "sha256": SHA256_A,
+          "symlinkTarget": record["symlinkTarget"],
+        } for record in records)
+        value["files"].sort(key=lambda item: item["path"])
+        with self.assertRaisesRegex(ContractError, "symbolic link cycle"):
+          validate_contract(value, "build-manifest", self.schema_dir)
 
   def test_artifact_manifest_requires_digest_and_real_subjects(self):
     value = artifact_manifest()

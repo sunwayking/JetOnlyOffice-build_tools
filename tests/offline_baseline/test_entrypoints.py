@@ -14,6 +14,9 @@ sys.path.insert(0, str(REPOSITORY_ROOT))
 SHA1_A = "a" * 40
 SHA1_B = "b" * 40
 SHA256_A = "a" * 64
+OCI_A = "sha256:" + SHA256_A
+OCI_B = "sha256:" + ("b" * 64)
+PACKAGE_DRIVER_PAYLOAD = b"#!/bin/sh\n"
 
 
 def source_lock():
@@ -161,6 +164,7 @@ def prepare_locked_inputs(root, source=None):
       "role": image["role"],
       "reference": image["reference"],
       "digest": image["digest"],
+      "configDigest": image["configDigest"],
     } for image in images["images"]],
   }
   bootstrap_path = root / "cache" / "bootstrap-manifest.json"
@@ -177,6 +181,7 @@ def fake_docker(root, build_manifest):
   driver.write_text(
     "import json, pathlib, shutil, sys\n"
     "arguments = sys.argv[1:]\n"
+    f"if arguments[:2] == ['image', 'inspect']:\n  print(json.dumps([{{'Id': {OCI_B!r}, 'RepoDigests': ['ubuntu@' + {OCI_A!r}], 'Os': 'linux', 'Architecture': 'amd64'}}])); raise SystemExit(0)\n"
     "mounts = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--mount']\n"
     "environments = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--env']\n"
     "def mount_source(destination):\n"
@@ -191,6 +196,9 @@ def fake_docker(root, build_manifest):
     "artifact = output_root / 'build-output' / 'documentserver.bin'\n"
     "artifact.parent.mkdir(parents=True, exist_ok=True)\n"
     "artifact.write_bytes(b'x')\n"
+    "package_driver = output_root / 'build-output' / 'packaging' / 'package.sh'\n"
+    "package_driver.parent.mkdir(parents=True, exist_ok=True)\n"
+    f"package_driver.write_bytes({PACKAGE_DRIVER_PAYLOAD!r})\n"
     "manifest.parent.mkdir(parents=True, exist_ok=True)\n"
     f"shutil.copyfile({str(template)!r}, manifest)\n"
     f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
@@ -223,6 +231,7 @@ def fake_package_docker(root, manifest):
   driver.write_text(
     "import json, pathlib, shutil, sys\n"
     "arguments = sys.argv[1:]\n"
+    f"if arguments[:2] == ['image', 'inspect']:\n  print(json.dumps([{{'Id': {OCI_B!r}, 'RepoDigests': ['ubuntu@' + {OCI_A!r}], 'Os': 'linux', 'Architecture': 'amd64'}}])); raise SystemExit(0)\n"
     "mounts = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--mount']\n"
     "environments = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--env']\n"
     "def mount_source(destination):\n"
@@ -263,6 +272,7 @@ def fake_noop_docker(root, name="fake-noop-docker"):
   driver = root / (name + ".py")
   driver.write_text(
     "import json, sys\n"
+    f"if sys.argv[1:3] == ['image', 'inspect']:\n  print(json.dumps([{{'Id': {OCI_B!r}, 'RepoDigests': ['ubuntu@' + {OCI_A!r}], 'Os': 'linux', 'Architecture': 'amd64'}}])); raise SystemExit(0)\n"
     f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
     encoding="utf-8",
   )
@@ -290,6 +300,26 @@ def materialize_artifacts(root, manifest):
     path.write_bytes(payload)
     artifact["size"] = len(payload)
     artifact["sha256"] = hashlib.sha256(payload).hexdigest()
+
+
+def bind_package_driver(manifest, root=None):
+  record = {
+    "type": "file",
+    "path": "build-output/packaging/package.sh",
+    "mode": "0755",
+    "size": len(PACKAGE_DRIVER_PAYLOAD),
+    "sha256": hashlib.sha256(PACKAGE_DRIVER_PAYLOAD).hexdigest(),
+  }
+  manifest["packageDriver"] = {
+    key: record[key] for key in ("type", "path", "mode", "size", "sha256")
+  }
+  manifest["files"].append(record)
+  manifest["files"].sort(key=lambda item: item["path"])
+  if root is not None:
+    path = root / "artifacts" / record["path"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(PACKAGE_DRIVER_PAYLOAD)
+  return manifest
 
 
 @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
@@ -380,12 +410,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/missing.bin",
           "mode": "0755",
           "size": 1,
           "sha256": hashlib.sha256(b"x").hexdigest(),
         }],
       }
+      bind_package_driver(build_manifest, root)
       build_manifest_path = root / "artifacts" / "build-manifest.json"
       write_json(build_manifest_path, build_manifest)
       result = subprocess.run(
@@ -438,12 +470,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/documentserver.bin",
           "mode": "0644",
           "size": len(build_payload),
           "sha256": hashlib.sha256(build_payload).hexdigest(),
         }],
       }
+      bind_package_driver(build_manifest, root)
       build_manifest_path = root / "artifacts" / "build-manifest.json"
       write_json(build_manifest_path, build_manifest)
       locked_file = next(
@@ -502,12 +536,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/documentserver.bin",
           "mode": "0644",
           "size": len(build_payload),
           "sha256": hashlib.sha256(build_payload).hexdigest(),
         }],
       }
+      bind_package_driver(build_manifest, root)
       build_manifest_path = root / "artifacts" / "build-manifest.json"
       write_json(build_manifest_path, build_manifest)
       output = root / "artifacts" / "artifact-manifest.json"
@@ -563,12 +599,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/documentserver.bin",
           "mode": "0644",
           "size": len(build_payload),
           "sha256": hashlib.sha256(build_payload).hexdigest(),
         }],
       }
+      bind_package_driver(build_manifest, root)
       build_manifest_path = root / "artifacts" / "build-manifest.json"
       write_json(build_manifest_path, build_manifest)
       packaged = artifact_manifest()
@@ -603,6 +641,21 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       self.assertEqual("none", arguments[arguments.index("--network") + 1])
       self.assertEqual("never", arguments[arguments.index("--pull") + 1])
       self.assertIn(builder["reference"] + "@" + builder["digest"], arguments)
+      environments = [
+        arguments[index + 1]
+        for index, item in enumerate(arguments)
+        if item == "--env"
+      ]
+      self.assertIn(
+        "JETONLYOFFICE_PACKAGE_DRIVER_PATH=/artifacts/"
+        + build_manifest["packageDriver"]["path"],
+        environments,
+      )
+      self.assertIn(
+        "JETONLYOFFICE_PACKAGE_DRIVER_MODE="
+        + build_manifest["packageDriver"]["mode"],
+        environments,
+      )
       cache_mount = next(item for item in arguments if "dst=/input/cache,readonly" in item)
       self.assertNotIn((root / "cache").as_posix(), cache_mount)
       self.assertTrue(
@@ -648,12 +701,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/documentserver.bin",
           "mode": "0644",
           "size": len(build_payload),
           "sha256": hashlib.sha256(build_payload).hexdigest(),
         }],
       }
+      bind_package_driver(build_manifest, root)
       build_manifest_path = root / "artifacts" / "build-manifest.json"
       write_json(build_manifest_path, build_manifest)
       stale_manifest = artifact_manifest()
@@ -713,6 +768,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/documentserver.bin",
           "mode": "0755",
           "size": 1,
@@ -720,6 +776,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "sourceId": "documentserver",
         }],
       }
+      bind_package_driver(manifest)
       docker, output, log = fake_docker(root, manifest)
       command = [
           "pwsh",
@@ -792,12 +849,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         "environment": toolchain["environment"],
         "network": "none",
         "files": [{
+          "type": "file",
           "path": "build-output/documentserver.bin",
           "mode": "0644",
           "size": len(stale_payload),
           "sha256": hashlib.sha256(stale_payload).hexdigest(),
         }],
       }
+      bind_package_driver(stale_manifest)
       output = root / "artifacts" / "build-manifest.json"
       write_json(output, stale_manifest)
       docker, _ = fake_noop_docker(root)
@@ -865,7 +924,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       self.assertEqual(3, result.returncode, result.stderr)
       self.assertIn("locked checkout is missing", result.stderr)
 
-  def test_bootstrap_rejects_missing_toolchain_cache_before_docker(self):
+  def test_bootstrap_fails_closed_when_locked_toolchain_download_is_unavailable(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
       source_lock_path = root / "locks" / "sources.lock.json"
@@ -873,7 +932,9 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       image_lock_path = root / "locks" / "images.lock.json"
       output = root / "cache" / "bootstrap-manifest.json"
       write_json(source_lock_path, contract_source_lock())
-      write_json(toolchain_lock_path, toolchain_lock())
+      toolchain = toolchain_lock()
+      toolchain["tools"][0]["sourceUrl"] = "https://missing.invalid/tool"
+      write_json(toolchain_lock_path, toolchain)
       write_json(image_lock_path, image_lock())
       result = subprocess.run(
         [
@@ -901,7 +962,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         check=False,
       )
       self.assertEqual(3, result.returncode, result.stderr)
-      self.assertIn("locked toolchain cache is missing", result.stderr)
+      self.assertIn("locked toolchain download failed", result.stderr)
       self.assertFalse(output.exists())
 
   def test_bootstrap_requires_all_lock_contracts_before_resolving_sources(self):

@@ -1,0 +1,62 @@
+name: Offline baseline contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/offline-baseline.yml'
+      - 'docs/offline-baseline.md'
+      - 'locks/images.lock.json'
+      - 'locks/README.md'
+      - 'schemas/bootstrap-manifest.schema.json'
+      - 'schemas/build-manifest.schema.json'
+      - 'schemas/common.schema.json'
+      - 'schemas/image-lock.schema.json'
+      - 'schemas/toolchain-lock.schema.json'
+      - 'scripts/bootstrap-source.ps1'
+      - 'scripts/build.ps1'
+      - 'scripts/container/**'
+      - 'scripts/contracts/**'
+      - 'scripts/offline_baseline.py'
+      - 'scripts/package.ps1'
+      - 'scripts/verify.ps1'
+      - 'tests/offline_baseline/**'
+  push:
+    branches:
+      - develop
+    paths:
+      - '.github/workflows/offline-baseline.yml'
+      - 'docs/offline-baseline.md'
+      - 'locks/images.lock.json'
+      - 'locks/README.md'
+      - 'schemas/bootstrap-manifest.schema.json'
+      - 'schemas/build-manifest.schema.json'
+      - 'schemas/common.schema.json'
+      - 'schemas/image-lock.schema.json'
+      - 'schemas/toolchain-lock.schema.json'
+      - 'scripts/bootstrap-source.ps1'
+      - 'scripts/build.ps1'
+      - 'scripts/container/**'
+      - 'scripts/contracts/**'
+      - 'scripts/offline_baseline.py'
+      - 'scripts/package.ps1'
+      - 'scripts/verify.ps1'
+      - 'tests/offline_baseline/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate committed image lock
+        shell: pwsh
+        run: ./scripts/contracts.ps1 -Command Validate -Contract image-lock -Path ./locks/images.lock.json
+      - name: Validate offline container entrypoints
+        run: sh -n scripts/container/build-baseline.sh scripts/container/package-baseline.sh
+      - name: Verify locked offline entrypoints
+        run: python -m unittest discover -s tests/offline_baseline -v

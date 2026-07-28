@@ -85,7 +85,8 @@
           "id",
           "role",
           "reference",
-          "digest"
+          "digest",
+          "configDigest"
         ],
         "properties": {
           "id": {
@@ -104,6 +105,9 @@
             "minLength": 1
           },
           "digest": {
+            "$ref": "common.schema.json#/$defs/ociDigest"
+          },
+          "configDigest": {
             "$ref": "common.schema.json#/$defs/ociDigest"
           }
         }

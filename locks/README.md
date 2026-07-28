@@ -14,3 +14,16 @@ The current policy is expected to fail with `LICENSE_INCOMPLETE` for inputs
 whose upstream repositories do not provide complete license evidence. That
 failure is a release gate, not an invitation to replace the evidence with
 `NOASSERTION`.
+
+`images.lock.json` is the reviewed `linux/amd64` image lock. Each entry binds
+both the repository manifest digest and the platform config digest. The four
+records were pulled from their public repositories and inspected on the local
+Docker Linux engine; bootstrap repeats those checks before writing its
+manifest. The Ubuntu image is the minimal builder/runtime base, not evidence
+that the compiler toolchain has been closed.
+
+The formal `toolchain.lock.json` remains intentionally absent. Every eventual
+tool record must declare its exact bytes, media type, license, and sorted
+`build`, `package`, or `runtime` consumers. The contract requires all three
+consumer classes to be covered, so a one-file placeholder cannot satisfy the
+release toolchain gate.

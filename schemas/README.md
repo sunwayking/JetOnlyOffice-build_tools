@@ -4,10 +4,14 @@ These schemas are the versioned boundary between source resolution, build,
 packaging, and release verification:
 
 - `source-lock.schema.json` pins every Git repository and gitlink.
-- `toolchain-lock.schema.json` pins every non-container tool input.
-- `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend images.
+- `toolchain-lock.schema.json` pins every non-container tool input and its
+  build/package/runtime consumers.
+- `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend image
+  repository and config digests.
 - `bootstrap-manifest.schema.json` binds verified source, toolchain cache, and image inputs.
-- `build-manifest.schema.json` inventories the offline build output.
+- `build-manifest.schema.json` inventories the offline build output and binds
+  the executable package driver while preserving regular-file and symlink
+  identity.
 - `artifact-manifest.schema.json` inventories packages and supply-chain files.
 - `command-catalog.schema.json` proves every Desktop command is Mobile-mapped or ADR-excluded.
 - `corpus-manifest.schema.json` pins the release and performance corpora.

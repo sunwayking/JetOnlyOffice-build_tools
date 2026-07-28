@@ -2,3 +2,15 @@
 /docs/** text eol=lf
 /docs/reference/mobile/**/*.png binary !eol
 /manifests/authoritative-design-docs.v1.json text eol=lf
+/scripts/container/** text eol=lf
+/scripts/contracts/** text eol=lf
+/scripts/offline_baseline.py text eol=lf
+/tests/contracts/** text eol=lf
+/tests/offline_baseline/** text eol=lf
+/.github/workflows/offline-baseline.yml text eol=lf
+/locks/images.lock.json text eol=lf
+/schemas/bootstrap-manifest.schema.json text eol=lf
+/schemas/build-manifest.schema.json text eol=lf
+/schemas/common.schema.json text eol=lf
+/schemas/image-lock.schema.json text eol=lf
+/schemas/toolchain-lock.schema.json text eol=lf
