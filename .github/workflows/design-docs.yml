@@ -1,0 +1,41 @@
+name: JetOnlyOffice Design Docs
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'CONTEXT.md'
+      - 'docs/**'
+      - 'manifests/authoritative-design-docs.v1.json'
+      - 'scripts/design-docs.ps1'
+      - 'scripts/design_docs/**'
+      - 'tests/design_docs/**'
+      - '.github/workflows/design-docs.yml'
+  push:
+    branches:
+      - develop
+    paths:
+      - 'CONTEXT.md'
+      - 'docs/**'
+      - 'manifests/authoritative-design-docs.v1.json'
+      - 'scripts/design-docs.ps1'
+      - 'scripts/design_docs/**'
+      - 'tests/design_docs/**'
+      - '.github/workflows/design-docs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run manifest CLI tests
+        run: python -m unittest tests.design_docs.test_design_docs_manifest
+      - name: Verify authoritative file bytes
+        shell: pwsh
+        run: ./scripts/design-docs.ps1 -Command Verify
