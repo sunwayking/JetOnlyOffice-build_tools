@@ -199,6 +199,64 @@ def fake_docker(root, build_manifest):
   return executable, output, log
 
 
+def fake_package_docker(root, manifest):
+  staged_root = root / "fake-package-output"
+  materialize_artifacts(staged_root, manifest)
+  template = root / "fake-artifact-manifest.json"
+  output = root / "artifacts" / "artifact-manifest.json"
+  log = root / "package-docker-arguments.json"
+  write_json(template, manifest)
+  driver = root / "fake-package-docker.py"
+  driver.write_text(
+    "import json, pathlib, shutil, sys\n"
+    f"source = pathlib.Path({str(staged_root / 'artifacts')!r})\n"
+    f"destination = pathlib.Path({str(output.parent)!r})\n"
+    "destination.mkdir(parents=True, exist_ok=True)\n"
+    "shutil.copytree(source, destination, dirs_exist_ok=True)\n"
+    f"shutil.copyfile({str(template)!r}, {str(output)!r})\n"
+    f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
+    encoding="utf-8",
+  )
+  if os.name == "nt":
+    executable = root / "fake-package-docker.cmd"
+    executable.write_text(
+      f'@echo off\r\n"{sys.executable}" "{driver}" %*\r\n',
+      encoding="utf-8",
+    )
+  else:
+    executable = root / "fake-package-docker"
+    executable.write_text(
+      f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
+      encoding="utf-8",
+    )
+    executable.chmod(0o755)
+  return executable, output, log
+
+
+def fake_noop_docker(root, name="fake-noop-docker"):
+  log = root / (name + "-arguments.json")
+  driver = root / (name + ".py")
+  driver.write_text(
+    "import json, sys\n"
+    f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
+    encoding="utf-8",
+  )
+  if os.name == "nt":
+    executable = root / (name + ".cmd")
+    executable.write_text(
+      f'@echo off\r\n"{sys.executable}" "{driver}" %*\r\n',
+      encoding="utf-8",
+    )
+  else:
+    executable = root / name
+    executable.write_text(
+      f'#!/bin/sh\nexec "{sys.executable}" "{driver}" "$@"\n',
+      encoding="utf-8",
+    )
+    executable.chmod(0o755)
+  return executable, log
+
+
 def materialize_artifacts(root, manifest):
   for index, artifact in enumerate(manifest["artifacts"]):
     path = root / "artifacts" / artifact["path"]
@@ -278,7 +336,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
   def test_package_rejects_missing_locked_build_output_before_docker(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
-      source_path, toolchain_path, image_path, _ = prepare_locked_inputs(root)
+      source_path, toolchain_path, image_path, bootstrap_path = prepare_locked_inputs(root)
       source = json.loads(source_path.read_text(encoding="utf-8"))
       toolchain = json.loads(toolchain_path.read_text(encoding="utf-8"))
       images = json.loads(image_path.read_text(encoding="utf-8"))
@@ -312,11 +370,14 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-File",
           str(REPOSITORY_ROOT / "scripts" / "package.ps1"),
           "-BuildManifestPath", str(build_manifest_path),
+          "-BootstrapManifestPath", str(bootstrap_path),
           "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
           "-ImageLockPath", str(image_path),
           "-ArtifactDirectory", str(root / "artifacts"),
           "-CacheDirectory", str(root / "cache"),
           "-DockerExecutable", str(root / "missing-docker"),
+          "-OutputPath", str(root / "artifacts" / "artifact-manifest.json"),
         ],
         capture_output=True,
         encoding="utf-8",
@@ -325,6 +386,273 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       )
       self.assertEqual(3, result.returncode, result.stderr)
       self.assertIn("locked build output is missing", result.stderr)
+
+  def test_package_rejects_tampered_locked_cache_before_docker(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, toolchain_path, image_path, bootstrap_path = prepare_locked_inputs(root)
+      source = json.loads(source_path.read_text(encoding="utf-8"))
+      toolchain = json.loads(toolchain_path.read_text(encoding="utf-8"))
+      images = json.loads(image_path.read_text(encoding="utf-8"))
+      builder = next(image for image in images["images"] if image["role"] == "builder")
+      build_payload = b"locked build output\n"
+      build_output = root / "artifacts" / "build-output" / "documentserver.bin"
+      build_output.parent.mkdir(parents=True)
+      build_output.write_bytes(build_payload)
+      build_manifest = {
+        "schemaVersion": 1,
+        "manifestType": "build",
+        "buildId": "jetonlyoffice-9.4.0-linux-amd64",
+        "platform": "linux-amd64",
+        "configuration": "Release",
+        "sourceLockSha256": canonical_sha256(source),
+        "toolchainLockSha256": canonical_sha256(toolchain),
+        "imageLockSha256": canonical_sha256(images),
+        "builderImageDigest": builder["digest"],
+        "sourceDateEpoch": source["sourceDateEpoch"],
+        "environment": toolchain["environment"],
+        "network": "none",
+        "files": [{
+          "path": "build-output/documentserver.bin",
+          "mode": "0644",
+          "size": len(build_payload),
+          "sha256": hashlib.sha256(build_payload).hexdigest(),
+        }],
+      }
+      build_manifest_path = root / "artifacts" / "build-manifest.json"
+      write_json(build_manifest_path, build_manifest)
+      locked_file = next(
+        path for path in (root / "cache" / "toolchain").rglob("*") if path.is_file()
+      )
+      locked_file.write_bytes(b"tampered toolchain input")
+
+      result = subprocess.run(
+        [
+          "pwsh",
+          "-NoProfile",
+          "-File",
+          str(REPOSITORY_ROOT / "scripts" / "package.ps1"),
+          "-BuildManifestPath", str(build_manifest_path),
+          "-BootstrapManifestPath", str(bootstrap_path),
+          "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
+          "-ImageLockPath", str(image_path),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-CacheDirectory", str(root / "cache"),
+          "-DockerExecutable", str(root / "missing-docker"),
+          "-OutputPath", str(root / "artifacts" / "artifact-manifest.json"),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+
+      self.assertEqual(3, result.returncode, result.stderr)
+      self.assertIn("locked toolchain cache digest mismatch", result.stderr)
+
+  def test_package_rejects_build_manifest_from_different_toolchain(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, toolchain_path, image_path, bootstrap_path = prepare_locked_inputs(root)
+      source = json.loads(source_path.read_text(encoding="utf-8"))
+      toolchain = json.loads(toolchain_path.read_text(encoding="utf-8"))
+      images = json.loads(image_path.read_text(encoding="utf-8"))
+      builder = next(image for image in images["images"] if image["role"] == "builder")
+      build_payload = b"locked build output\n"
+      build_output = root / "artifacts" / "build-output" / "documentserver.bin"
+      build_output.parent.mkdir(parents=True)
+      build_output.write_bytes(build_payload)
+      build_manifest = {
+        "schemaVersion": 1,
+        "manifestType": "build",
+        "buildId": "jetonlyoffice-9.4.0-linux-amd64",
+        "platform": "linux-amd64",
+        "configuration": "Release",
+        "sourceLockSha256": canonical_sha256(source),
+        "toolchainLockSha256": SHA256_A,
+        "imageLockSha256": canonical_sha256(images),
+        "builderImageDigest": builder["digest"],
+        "sourceDateEpoch": source["sourceDateEpoch"],
+        "environment": toolchain["environment"],
+        "network": "none",
+        "files": [{
+          "path": "build-output/documentserver.bin",
+          "mode": "0644",
+          "size": len(build_payload),
+          "sha256": hashlib.sha256(build_payload).hexdigest(),
+        }],
+      }
+      build_manifest_path = root / "artifacts" / "build-manifest.json"
+      write_json(build_manifest_path, build_manifest)
+      output = root / "artifacts" / "artifact-manifest.json"
+
+      result = subprocess.run(
+        [
+          "pwsh",
+          "-NoProfile",
+          "-File",
+          str(REPOSITORY_ROOT / "scripts" / "package.ps1"),
+          "-BuildManifestPath", str(build_manifest_path),
+          "-BootstrapManifestPath", str(bootstrap_path),
+          "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
+          "-ImageLockPath", str(image_path),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-CacheDirectory", str(root / "cache"),
+          "-DockerExecutable", str(root / "missing-docker"),
+          "-OutputPath", str(output),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+
+      self.assertEqual(3, result.returncode, result.stderr)
+      self.assertIn("build manifest toolchain lock does not match", result.stderr)
+
+  def test_package_invokes_digest_locked_container_without_network_or_pull(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, toolchain_path, image_path, bootstrap_path = prepare_locked_inputs(root)
+      source = json.loads(source_path.read_text(encoding="utf-8"))
+      toolchain = json.loads(toolchain_path.read_text(encoding="utf-8"))
+      images = json.loads(image_path.read_text(encoding="utf-8"))
+      builder = next(image for image in images["images"] if image["role"] == "builder")
+      build_payload = b"locked build output\n"
+      build_output = root / "artifacts" / "build-output" / "documentserver.bin"
+      build_output.parent.mkdir(parents=True)
+      build_output.write_bytes(build_payload)
+      build_manifest = {
+        "schemaVersion": 1,
+        "manifestType": "build",
+        "buildId": "jetonlyoffice-9.4.0-linux-amd64",
+        "platform": "linux-amd64",
+        "configuration": "Release",
+        "sourceLockSha256": canonical_sha256(source),
+        "toolchainLockSha256": canonical_sha256(toolchain),
+        "imageLockSha256": canonical_sha256(images),
+        "builderImageDigest": builder["digest"],
+        "sourceDateEpoch": source["sourceDateEpoch"],
+        "environment": toolchain["environment"],
+        "network": "none",
+        "files": [{
+          "path": "build-output/documentserver.bin",
+          "mode": "0644",
+          "size": len(build_payload),
+          "sha256": hashlib.sha256(build_payload).hexdigest(),
+        }],
+      }
+      build_manifest_path = root / "artifacts" / "build-manifest.json"
+      write_json(build_manifest_path, build_manifest)
+      packaged = artifact_manifest()
+      packaged["sourceLockSha256"] = canonical_sha256(source)
+      packaged["buildManifestSha256"] = canonical_sha256(build_manifest)
+      docker, output, log = fake_package_docker(root, packaged)
+
+      result = subprocess.run(
+        [
+          "pwsh",
+          "-NoProfile",
+          "-File",
+          str(REPOSITORY_ROOT / "scripts" / "package.ps1"),
+          "-BuildManifestPath", str(build_manifest_path),
+          "-BootstrapManifestPath", str(bootstrap_path),
+          "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
+          "-ImageLockPath", str(image_path),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-CacheDirectory", str(root / "cache"),
+          "-DockerExecutable", str(docker),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+
+      self.assertEqual(0, result.returncode, result.stderr)
+      arguments = json.loads(log.read_text(encoding="utf-8"))
+      self.assertEqual("none", arguments[arguments.index("--network") + 1])
+      self.assertEqual("never", arguments[arguments.index("--pull") + 1])
+      self.assertIn(builder["reference"] + "@" + builder["digest"], arguments)
+      cache_mount = next(item for item in arguments if "dst=/input/cache,readonly" in item)
+      self.assertNotIn((root / "cache").as_posix(), cache_mount)
+      self.assertTrue(
+        any("dst=/artifacts/build-output,readonly" in item for item in arguments)
+      )
+      self.assertTrue(
+        any("dst=/artifacts/build-manifest.json,readonly" in item for item in arguments)
+      )
+
+  def test_package_rejects_stale_manifest_when_container_produces_no_output(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, toolchain_path, image_path, bootstrap_path = prepare_locked_inputs(root)
+      source = json.loads(source_path.read_text(encoding="utf-8"))
+      toolchain = json.loads(toolchain_path.read_text(encoding="utf-8"))
+      images = json.loads(image_path.read_text(encoding="utf-8"))
+      builder = next(image for image in images["images"] if image["role"] == "builder")
+      build_payload = b"locked build output\n"
+      build_output = root / "artifacts" / "build-output" / "documentserver.bin"
+      build_output.parent.mkdir(parents=True)
+      build_output.write_bytes(build_payload)
+      build_manifest = {
+        "schemaVersion": 1,
+        "manifestType": "build",
+        "buildId": "jetonlyoffice-9.4.0-linux-amd64",
+        "platform": "linux-amd64",
+        "configuration": "Release",
+        "sourceLockSha256": canonical_sha256(source),
+        "toolchainLockSha256": canonical_sha256(toolchain),
+        "imageLockSha256": canonical_sha256(images),
+        "builderImageDigest": builder["digest"],
+        "sourceDateEpoch": source["sourceDateEpoch"],
+        "environment": toolchain["environment"],
+        "network": "none",
+        "files": [{
+          "path": "build-output/documentserver.bin",
+          "mode": "0644",
+          "size": len(build_payload),
+          "sha256": hashlib.sha256(build_payload).hexdigest(),
+        }],
+      }
+      build_manifest_path = root / "artifacts" / "build-manifest.json"
+      write_json(build_manifest_path, build_manifest)
+      stale_manifest = artifact_manifest()
+      stale_manifest["sourceLockSha256"] = canonical_sha256(source)
+      stale_manifest["buildManifestSha256"] = canonical_sha256(build_manifest)
+      materialize_artifacts(root, stale_manifest)
+      output = root / "artifacts" / "artifact-manifest.json"
+      write_json(output, stale_manifest)
+      docker, _ = fake_noop_docker(root, "fake-noop-package-docker")
+
+      result = subprocess.run(
+        [
+          "pwsh",
+          "-NoProfile",
+          "-File",
+          str(REPOSITORY_ROOT / "scripts" / "package.ps1"),
+          "-BuildManifestPath", str(build_manifest_path),
+          "-BootstrapManifestPath", str(bootstrap_path),
+          "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
+          "-ImageLockPath", str(image_path),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-CacheDirectory", str(root / "cache"),
+          "-DockerExecutable", str(docker),
+          "-OutputPath", str(output),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+
+      self.assertEqual(4, result.returncode, result.stderr)
+      self.assertIn("offline package output is missing", result.stderr)
+      self.assertFalse(output.exists())
 
   def test_build_invokes_digest_locked_container_without_network_or_pull(self):
     with tempfile.TemporaryDirectory() as directory:
@@ -381,12 +709,76 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       arguments = json.loads(log.read_text(encoding="utf-8"))
       self.assertEqual("none", arguments[arguments.index("--network") + 1])
       self.assertEqual("never", arguments[arguments.index("--pull") + 1])
+      cache_mount = next(item for item in arguments if "dst=/input/cache,readonly" in item)
+      self.assertNotIn((root / "cache").as_posix(), cache_mount)
       readonly_mounts = [
         arguments[index + 1]
         for index, item in enumerate(arguments)
         if item == "--mount" and "readonly" in arguments[index + 1]
       ]
       self.assertEqual(3, len(readonly_mounts))
+
+  def test_build_rejects_stale_manifest_when_container_produces_no_output(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = materialized_source_lock(root)
+      source_path, toolchain_path, image_path, bootstrap_path = prepare_locked_inputs(root, source)
+      toolchain = json.loads(toolchain_path.read_text(encoding="utf-8"))
+      images = json.loads(image_path.read_text(encoding="utf-8"))
+      builder = next(image for image in images["images"] if image["role"] == "builder")
+      stale_payload = b"stale build output\n"
+      stale_file = root / "artifacts" / "build-output" / "documentserver.bin"
+      stale_file.parent.mkdir(parents=True)
+      stale_file.write_bytes(stale_payload)
+      stale_manifest = {
+        "schemaVersion": 1,
+        "manifestType": "build",
+        "buildId": "jetonlyoffice-9.4.0-linux-amd64",
+        "platform": "linux-amd64",
+        "configuration": "Release",
+        "sourceLockSha256": canonical_sha256(source),
+        "toolchainLockSha256": canonical_sha256(toolchain),
+        "imageLockSha256": canonical_sha256(images),
+        "builderImageDigest": builder["digest"],
+        "sourceDateEpoch": source["sourceDateEpoch"],
+        "environment": toolchain["environment"],
+        "network": "none",
+        "files": [{
+          "path": "build-output/documentserver.bin",
+          "mode": "0644",
+          "size": len(stale_payload),
+          "sha256": hashlib.sha256(stale_payload).hexdigest(),
+        }],
+      }
+      output = root / "artifacts" / "build-manifest.json"
+      write_json(output, stale_manifest)
+      docker, _ = fake_noop_docker(root)
+
+      result = subprocess.run(
+        [
+          "pwsh",
+          "-NoProfile",
+          "-File",
+          str(REPOSITORY_ROOT / "scripts" / "build.ps1"),
+          "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
+          "-ImageLockPath", str(image_path),
+          "-BootstrapManifestPath", str(bootstrap_path),
+          "-SourceDirectory", str(root / "workspace"),
+          "-CacheDirectory", str(root / "cache"),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-DockerExecutable", str(docker),
+          "-OutputPath", str(output),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+
+      self.assertEqual(4, result.returncode, result.stderr)
+      self.assertIn("offline build output is missing", result.stderr)
+      self.assertFalse(output.exists())
 
   def test_build_rejects_unmaterialized_source_workspace_before_docker(self):
     with tempfile.TemporaryDirectory() as directory:

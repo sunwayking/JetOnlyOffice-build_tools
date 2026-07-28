@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
+import tempfile
 
 from contracts.contract_tool import ContractError, load_json, validate_contract
 from contracts.contract_tool import canonical_json_bytes, canonical_sha256
@@ -75,6 +78,23 @@ def write_canonical(path, value):
   temporary = path.with_name(path.name + ".tmp")
   temporary.write_bytes(canonical_json_bytes(value) + b"\n")
   os.replace(temporary, path)
+
+
+def prepare_fresh_output(path, root, description):
+  root = Path(root).resolve()
+  output = Path(path)
+  if output.is_symlink():
+    raise BaselineError(f"{description} must not be a symbolic link: {output}", 2)
+  output = output.resolve()
+  try:
+    relative = output.relative_to(root)
+  except ValueError as error:
+    raise BaselineError(f"{description} path escapes artifact root: {output}", 2) from error
+  if output.exists():
+    if not output.is_file():
+      raise BaselineError(f"{description} is not a file: {output}", 2)
+    output.unlink()
+  return output, relative.as_posix()
 
 
 def bootstrap(args):
@@ -163,6 +183,8 @@ def verify_toolchain_files(toolchain_lock, cache_directory, manifest):
   for tool in toolchain_lock["tools"]:
     relative_path = Path("toolchain") / tool["id"] / tool["sha256"]
     path = Path(cache_directory) / relative_path
+    if path.is_symlink():
+      raise BaselineError(f"locked toolchain cache must not be a symbolic link: {path}", 3)
     if not path.is_file():
       raise BaselineError(f"locked toolchain cache is missing: {path}", 3)
     if path.stat().st_size != tool["size"] or sha256_file(path) != tool["sha256"]:
@@ -175,6 +197,25 @@ def verify_toolchain_files(toolchain_lock, cache_directory, manifest):
     })
   if manifest["toolchainFiles"] != expected:
     raise BaselineError("bootstrap toolchain cache inventory does not match the lock", 3)
+
+
+@contextmanager
+def locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest):
+  with tempfile.TemporaryDirectory(prefix="jetonlyoffice-locked-cache-") as directory:
+    root = Path(directory)
+    for tool in toolchain_lock["tools"]:
+      relative = Path("toolchain") / tool["id"] / tool["sha256"]
+      source = Path(cache_directory) / relative
+      destination = root / relative
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      try:
+        os.link(source, destination)
+      except OSError:
+        shutil.copyfile(source, destination)
+      if destination.stat().st_size != tool["size"] or sha256_file(destination) != tool["sha256"]:
+        raise BaselineError(f"locked toolchain cache view mismatch for {tool['id']}", 3)
+    write_canonical(root / "bootstrap-manifest.json", bootstrap_manifest)
+    yield root
 
 
 def verify_bootstrap_bindings(bootstrap_manifest, source_lock, toolchain_lock, image_lock):
@@ -205,6 +246,39 @@ def verify_bootstrap_bindings(bootstrap_manifest, source_lock, toolchain_lock, i
     raise BaselineError("bootstrap image inventory does not match the lock", 3)
 
 
+def locked_image(image_lock, role):
+  matches = [image for image in image_lock["images"] if image["role"] == role]
+  if len(matches) != 1:
+    raise BaselineError(f"image lock must contain exactly one {role} image", 3)
+  return matches[0]
+
+
+def verify_build_bindings(manifest, source_lock, toolchain_lock, image_lock, exit_code):
+  builder = locked_image(image_lock, "builder")
+  expected = {
+    "sourceLockSha256": canonical_sha256(source_lock),
+    "toolchainLockSha256": canonical_sha256(toolchain_lock),
+    "imageLockSha256": canonical_sha256(image_lock),
+    "builderImageDigest": builder["digest"],
+    "sourceDateEpoch": source_lock["sourceDateEpoch"],
+    "environment": toolchain_lock["environment"],
+  }
+  labels = {
+    "sourceLockSha256": "source lock",
+    "toolchainLockSha256": "toolchain lock",
+    "imageLockSha256": "image lock",
+    "builderImageDigest": "builder image",
+    "sourceDateEpoch": "sourceDateEpoch",
+    "environment": "toolchain environment",
+  }
+  for key, value in expected.items():
+    if manifest[key] != value:
+      raise BaselineError(
+        f"build manifest {labels[key]} does not match the lock", exit_code
+      )
+  return builder
+
+
 def build(args):
   bootstrap_manifest = load_contract(
     args.bootstrap_manifest,
@@ -225,7 +299,7 @@ def build(args):
   verify_bootstrap_bindings(bootstrap_manifest, source_lock, toolchain_lock, image_lock)
   verify_toolchain_files(toolchain_lock, args.cache_directory, bootstrap_manifest)
 
-  builder = next(image for image in image_lock["images"] if image["role"] == "builder")
+  builder = locked_image(image_lock, "builder")
   source_directory = Path(args.source_directory).resolve()
   cache_directory = Path(args.cache_directory).resolve()
   artifact_directory = Path(args.artifact_directory).resolve()
@@ -237,78 +311,75 @@ def build(args):
   except ResolutionError as error:
     raise BaselineError(str(error), error.exit_code) from error
   artifact_directory.mkdir(parents=True, exist_ok=True)
+  output, output_relative = prepare_fresh_output(
+    args.output, artifact_directory, "offline build output"
+  )
   work_directory = artifact_directory / "work"
   work_directory.mkdir(parents=True, exist_ok=True)
-  command = [
-    args.docker,
-    "run",
-    "--rm",
-    "--pull",
-    "never",
-    "--network",
-    "none",
-    "--platform",
-    "linux/amd64",
-    "--read-only",
-    "--cap-drop",
-    "ALL",
-    "--security-opt",
-    "no-new-privileges",
-    "--tmpfs",
-    "/tmp:rw,nosuid,nodev",
-    "--env",
-    "SOURCE_DATE_EPOCH=" + str(source_lock["sourceDateEpoch"]),
-    "--env",
-    "TZ=UTC",
-    "--env",
-    "LANG=C.UTF-8",
-    "--env",
-    "LC_ALL=C.UTF-8",
-    "--env",
-    "PYTHONHASHSEED=0",
-    "--env",
-    "JETONLYOFFICE_NETWORK_POLICY=none",
-    "--env",
-    "JETONLYOFFICE_BUILD_ID=jetonlyoffice-9.4.0-linux-amd64",
-    "--env",
-    "JETONLYOFFICE_SOURCE_LOCK_SHA256=" + canonical_sha256(source_lock),
-    "--env",
-    "JETONLYOFFICE_TOOLCHAIN_LOCK_SHA256=" + canonical_sha256(toolchain_lock),
-    "--env",
-    "JETONLYOFFICE_IMAGE_LOCK_SHA256=" + canonical_sha256(image_lock),
-    "--env",
-    "JETONLYOFFICE_BUILDER_IMAGE_DIGEST=" + builder["digest"],
-    "--mount",
-    "type=bind,src=" + source_directory.as_posix() + ",dst=/input/sources,readonly",
-    "--mount",
-    "type=bind,src=" + cache_directory.as_posix() + ",dst=/input/cache,readonly",
-    "--mount",
-    "type=bind,src=" + artifact_directory.as_posix() + ",dst=/output",
-    "--mount",
-    "type=bind,src=" + work_directory.as_posix() + ",dst=/work",
-    "--mount",
-    "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
-    builder["reference"] + "@" + builder["digest"],
-    "/bin/sh",
-    "/jetonlyoffice/container/build-baseline.sh",
-  ]
-  run_external(command, "offline build container", exit_code=4)
-  output = require_file(args.output, "offline build output", exit_code=4)
+  with locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest) as cache_view:
+    command = [
+      args.docker,
+      "run",
+      "--rm",
+      "--pull",
+      "never",
+      "--network",
+      "none",
+      "--platform",
+      "linux/amd64",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--tmpfs",
+      "/tmp:rw,nosuid,nodev",
+      "--env",
+      "SOURCE_DATE_EPOCH=" + str(source_lock["sourceDateEpoch"]),
+      "--env",
+      "TZ=UTC",
+      "--env",
+      "LANG=C.UTF-8",
+      "--env",
+      "LC_ALL=C.UTF-8",
+      "--env",
+      "PYTHONHASHSEED=0",
+      "--env",
+      "JETONLYOFFICE_NETWORK_POLICY=none",
+      "--env",
+      "JETONLYOFFICE_BUILD_ID=jetonlyoffice-9.4.0-linux-amd64",
+      "--env",
+      "JETONLYOFFICE_SOURCE_LOCK_SHA256=" + canonical_sha256(source_lock),
+      "--env",
+      "JETONLYOFFICE_TOOLCHAIN_LOCK_SHA256=" + canonical_sha256(toolchain_lock),
+      "--env",
+      "JETONLYOFFICE_IMAGE_LOCK_SHA256=" + canonical_sha256(image_lock),
+      "--env",
+      "JETONLYOFFICE_BUILDER_IMAGE_DIGEST=" + builder["digest"],
+      "--env",
+      "JETONLYOFFICE_BUILD_MANIFEST_PATH=/output/" + output_relative,
+      "--mount",
+      "type=bind,src=" + source_directory.as_posix() + ",dst=/input/sources,readonly",
+      "--mount",
+      "type=bind,src=" + cache_view.as_posix() + ",dst=/input/cache,readonly",
+      "--mount",
+      "type=bind,src=" + artifact_directory.as_posix() + ",dst=/output",
+      "--mount",
+      "type=bind,src=" + work_directory.as_posix() + ",dst=/work",
+      "--mount",
+      "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
+      builder["reference"] + "@" + builder["digest"],
+      "/bin/sh",
+      "/jetonlyoffice/container/build-baseline.sh",
+    ]
+    run_external(command, "offline build container", exit_code=4)
+  output = require_file(output, "offline build output", exit_code=4)
   try:
     manifest = load_json(output)
     validate_contract(manifest, "build-manifest", args.schema_dir)
   except ContractError as error:
     raise BaselineError(f"offline build output is invalid: {error}", 4) from error
-  if manifest["sourceLockSha256"] != canonical_sha256(source_lock):
-    raise BaselineError("build manifest source lock does not match the lock", 4)
-  if manifest["toolchainLockSha256"] != canonical_sha256(toolchain_lock):
-    raise BaselineError("build manifest toolchain lock does not match the lock", 4)
-  if manifest["imageLockSha256"] != canonical_sha256(image_lock):
-    raise BaselineError("build manifest image lock does not match the lock", 4)
-  if manifest["builderImageDigest"] != builder["digest"]:
-    raise BaselineError("build manifest builder image does not match the lock", 4)
-  if manifest["sourceDateEpoch"] != source_lock["sourceDateEpoch"]:
-    raise BaselineError("build manifest sourceDateEpoch does not match the lock", 4)
+  verify_build_bindings(manifest, source_lock, toolchain_lock, image_lock, 4)
   verify_manifest_files(manifest, artifact_directory, "offline build output")
 
 
@@ -344,67 +415,92 @@ def package(args):
     "locked build input",
     args.schema_dir,
   )
+  bootstrap_manifest = load_contract(
+    args.bootstrap_manifest,
+    "bootstrap-manifest",
+    "locked bootstrap input",
+    args.schema_dir,
+  )
   source_lock = load_contract(
     args.source_lock, "source-lock", "locked source input", args.schema_dir
   )
+  toolchain_lock = load_contract(
+    args.toolchain_lock,
+    "toolchain-lock",
+    "locked toolchain input",
+    args.schema_dir,
+  )
   image_lock = load_contract(args.image_lock, "image-lock", "locked image input", args.schema_dir)
-  if build_manifest["sourceLockSha256"] != canonical_sha256(source_lock):
-    raise BaselineError("build manifest source lock does not match the lock", 3)
-  if build_manifest["imageLockSha256"] != canonical_sha256(image_lock):
-    raise BaselineError("build manifest image lock does not match the lock", 3)
+  verify_bootstrap_bindings(bootstrap_manifest, source_lock, toolchain_lock, image_lock)
+  verify_toolchain_files(toolchain_lock, args.cache_directory, bootstrap_manifest)
+  builder = verify_build_bindings(
+    build_manifest, source_lock, toolchain_lock, image_lock, 3
+  )
   artifact_directory = Path(args.artifact_directory).resolve()
+  build_output_directory = artifact_directory / "build-output"
+  if not build_output_directory.is_dir():
+    raise BaselineError(f"locked build output is missing: {build_output_directory}", 3)
   verify_manifest_files(build_manifest, artifact_directory, "locked build output")
+  output, output_relative = prepare_fresh_output(
+    args.output, artifact_directory, "offline package output"
+  )
 
-  builder = next(image for image in image_lock["images"] if image["role"] == "builder")
   cache_directory = Path(args.cache_directory).resolve()
   if not cache_directory.is_dir():
     raise BaselineError(f"locked package cache is missing: {cache_directory}", 3)
   work_directory = artifact_directory / "package-work"
   work_directory.mkdir(parents=True, exist_ok=True)
   container_scripts = Path(__file__).resolve().parent / "container"
-  command = [
-    args.docker,
-    "run",
-    "--rm",
-    "--pull",
-    "never",
-    "--network",
-    "none",
-    "--platform",
-    "linux/amd64",
-    "--read-only",
-    "--cap-drop",
-    "ALL",
-    "--security-opt",
-    "no-new-privileges",
-    "--tmpfs",
-    "/tmp:rw,nosuid,nodev",
-    "--env",
-    "SOURCE_DATE_EPOCH=" + str(source_lock["sourceDateEpoch"]),
-    "--env",
-    "TZ=UTC",
-    "--env",
-    "LANG=C.UTF-8",
-    "--env",
-    "LC_ALL=C.UTF-8",
-    "--env",
-    "PYTHONHASHSEED=0",
-    "--env",
-    "JETONLYOFFICE_NETWORK_POLICY=none",
-    "--mount",
-    "type=bind,src=" + artifact_directory.as_posix() + ",dst=/artifacts",
-    "--mount",
-    "type=bind,src=" + cache_directory.as_posix() + ",dst=/input/cache,readonly",
-    "--mount",
-    "type=bind,src=" + work_directory.as_posix() + ",dst=/work",
-    "--mount",
-    "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
-    builder["reference"] + "@" + builder["digest"],
-    "/bin/sh",
-    "/jetonlyoffice/container/package-baseline.sh",
-  ]
-  run_external(command, "offline package container", exit_code=4)
-  output = require_file(args.output, "offline package output", exit_code=4)
+  with locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest) as cache_view:
+    command = [
+      args.docker,
+      "run",
+      "--rm",
+      "--pull",
+      "never",
+      "--network",
+      "none",
+      "--platform",
+      "linux/amd64",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--tmpfs",
+      "/tmp:rw,nosuid,nodev",
+      "--env",
+      "SOURCE_DATE_EPOCH=" + str(source_lock["sourceDateEpoch"]),
+      "--env",
+      "TZ=UTC",
+      "--env",
+      "LANG=C.UTF-8",
+      "--env",
+      "LC_ALL=C.UTF-8",
+      "--env",
+      "PYTHONHASHSEED=0",
+      "--env",
+      "JETONLYOFFICE_NETWORK_POLICY=none",
+      "--env",
+      "JETONLYOFFICE_ARTIFACT_MANIFEST_PATH=/artifacts/" + output_relative,
+      "--mount",
+      "type=bind,src=" + artifact_directory.as_posix() + ",dst=/artifacts",
+      "--mount",
+      "type=bind,src=" + build_output_directory.as_posix() + ",dst=/artifacts/build-output,readonly",
+      "--mount",
+      "type=bind,src=" + Path(args.build_manifest).resolve().as_posix() + ",dst=/artifacts/build-manifest.json,readonly",
+      "--mount",
+      "type=bind,src=" + cache_view.as_posix() + ",dst=/input/cache,readonly",
+      "--mount",
+      "type=bind,src=" + work_directory.as_posix() + ",dst=/work",
+      "--mount",
+      "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
+      builder["reference"] + "@" + builder["digest"],
+      "/bin/sh",
+      "/jetonlyoffice/container/package-baseline.sh",
+    ]
+    run_external(command, "offline package container", exit_code=4)
+  output = require_file(output, "offline package output", exit_code=4)
   try:
     manifest = load_json(output)
     validate_contract(manifest, "artifact-manifest", args.schema_dir)
@@ -523,7 +619,9 @@ def main(argv=None):
 
   package_parser = subparsers.add_parser("package")
   package_parser.add_argument("--build-manifest", required=True)
+  package_parser.add_argument("--bootstrap-manifest", required=True)
   package_parser.add_argument("--source-lock", required=True)
+  package_parser.add_argument("--toolchain-lock", required=True)
   package_parser.add_argument("--image-lock", required=True)
   package_parser.add_argument("--cache-directory", required=True)
   package_parser.add_argument("--artifact-directory", required=True)

@@ -9,13 +9,20 @@ param(
     [string]$SourceLockPath = (Join-Path $PSScriptRoot "..\locks\sources.lock.json"),
     [string]$ToolchainLockPath = (Join-Path $PSScriptRoot "..\locks\toolchain.lock.json"),
     [string]$ImageLockPath = (Join-Path $PSScriptRoot "..\locks\images.lock.json"),
-    [string]$BootstrapManifestPath = (Join-Path $PSScriptRoot "..\cache\bootstrap-manifest.json"),
+    [string]$BootstrapManifestPath,
     [string]$SourceDirectory = (Join-Path $PSScriptRoot "..\workspace"),
     [string]$CacheDirectory = (Join-Path $PSScriptRoot "..\cache"),
     [string]$ArtifactDirectory = (Join-Path $PSScriptRoot "..\artifacts"),
     [string]$DockerExecutable = "docker",
-    [string]$OutputPath = (Join-Path $PSScriptRoot "..\artifacts\build-manifest.json")
+    [string]$OutputPath
 )
+
+if (-not $BootstrapManifestPath) {
+    $BootstrapManifestPath = Join-Path $CacheDirectory "bootstrap-manifest.json"
+}
+if (-not $OutputPath) {
+    $OutputPath = Join-Path $ArtifactDirectory "build-manifest.json"
+}
 
 $python = $null
 $pythonCandidates = if ($IsWindows) { @("python", "python3") } else { @("python3", "python") }

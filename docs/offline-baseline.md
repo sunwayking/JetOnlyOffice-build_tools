@@ -22,12 +22,19 @@ Toolchain files use this deterministic cache path:
 cache/toolchain/<tool-id>/<sha256>
 ```
 
-`build.ps1` and `package.ps1` revalidate their complete upstream manifests and
-file bytes before invoking Docker. Their containers use the digest-pinned
-builder image with `--pull never`, `--network none`, `--platform linux/amd64`,
-a read-only root filesystem, and read-only source, cache, and driver mounts.
-Container output is accepted only when its JSON contract and bound lock
-digests validate.
+`build.ps1` and `package.ps1` revalidate the bootstrap manifest, all three
+lock digests, the locked toolchain bytes, and their complete upstream
+manifests before invoking Docker. Only a temporary cache view containing the
+current bootstrap manifest and its declared toolchain files is mounted; other
+files retained in the shared cache are not visible to build or package.
+Their containers use the digest-pinned builder image with `--pull never`,
+`--network none`, `--platform linux/amd64`, a read-only root filesystem, and
+read-only source, cache, and driver mounts.
+
+Before each container invocation, the expected output manifest must resolve
+inside the artifact root and any previous manifest at that path is removed.
+The command succeeds only when this invocation creates a new manifest whose
+JSON contract, lock bindings, file sizes, and file SHA-256 values all validate.
 
 `verify.ps1` checks every packaged file, compares DEB, rootfs, and OCI
 SHA-256 values against an independent clean build, binds the requested OCI

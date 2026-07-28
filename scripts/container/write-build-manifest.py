@@ -51,7 +51,9 @@ manifest = {
   "network": "none",
   "files": files,
 }
-Path("/output/build-manifest.json").write_text(
+output = Path(os.environ["JETONLYOFFICE_BUILD_MANIFEST_PATH"])
+output.parent.mkdir(parents=True, exist_ok=True)
+output.write_text(
   json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
   encoding="utf-8",
 )
