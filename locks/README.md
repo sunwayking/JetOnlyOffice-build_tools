@@ -1,9 +1,14 @@
 # Source resolution inputs
 
-`source-inputs.v1.json` is the reviewed selection policy used by
-`bootstrap-source.ps1`. It contains fixed commits or the explicit `self`
-selection for the build_tools commit that runs the resolver. Branch and tag
-names are provenance hints only and are never checkout selectors.
+`source-inputs.v1.json` is the reviewed selection policy used by the internal
+source resolver. It contains fixed commits or the explicit `self` selection
+for the build_tools commit that runs the resolver. Branch and tag names are
+provenance hints only and are never checkout selectors.
+
+`resolve-sources.ps1` is an internal source-lock authoring and audit wrapper,
+not one of the stable release-pipeline entrypoints. A release consumes its
+immutable lock output through `bootstrap-source.ps1` after every blocking
+source and license gate has passed.
 
 The authoritative `sources.lock.json` is intentionally not committed here.
 It is generated after the resolver commit is merged and published as an
