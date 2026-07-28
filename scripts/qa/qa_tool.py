@@ -10,6 +10,7 @@ sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from scripts.contracts.contract_tool import (
   ContractError,
+  MOBILE_PERFORMANCE_POLICY,
   canonical_json_bytes,
   canonical_sha256,
   load_json,
@@ -126,9 +127,173 @@ def bind_release_policy(
   return policy
 
 
-def evaluate_performance_samples(samples, evidence, schema_dir):
+def _verify_evidence_file(record, repository_root):
+  root = Path(repository_root).resolve()
+  path = (root / Path(record["path"])).resolve()
+  try:
+    path.relative_to(root)
+  except ValueError as error:
+    raise ContractError(f"evidence path escapes repository root: {record['path']}") from error
+  try:
+    payload = path.read_bytes()
+  except OSError as error:
+    raise ContractError(f"cannot read performance evidence: {path}") from error
+  if len(payload) != record["size"]:
+    raise ContractError(f"performance evidence size mismatch: {record['path']}")
+  if hashlib.sha256(payload).hexdigest() != record["sha256"]:
+    raise ContractError(f"performance evidence SHA-256 mismatch: {record['path']}")
+  return path
+
+
+def _performance_attestation_records(samples, repository_root):
+  attestation = samples["attestation"]
+  records = [
+    attestation["androidTargets"],
+    attestation["deviceFacts"],
+    *attestation["traces"],
+  ]
+  verified_paths = {
+    record["path"]: _verify_evidence_file(record, repository_root)
+    for record in records
+  }
+  targets = load_json(verified_paths[attestation["androidTargets"]["path"]])
+  facts = load_json(verified_paths[attestation["deviceFacts"]["path"]])
+  canonical_targets_path = Path(repository_root).resolve() / "qa" / "android-targets.v1.json"
+  canonical_targets = load_json(canonical_targets_path)
+  if targets != canonical_targets:
+    raise ContractError(
+      "performance Android target snapshot does not match qa/android-targets.v1.json"
+    )
+
+  try:
+    floor = targets["performanceFloor"]
+    chrome_target = floor["chrome"]
+    webview_target = floor["systemWebView"]
+    chrome_facts = facts["chrome"]
+    webview_facts = facts["systemWebView"]
+    android_api_levels = {item["apiLevel"] for item in targets["androidVersions"]}
+  except (KeyError, TypeError) as error:
+    raise ContractError("Android target or device facts are incomplete") from error
+
+  if facts.get("model") != floor.get("model") or facts.get("device") != floor.get("device"):
+    raise ContractError("performance device does not match the locked Xiaomi target")
+  if facts.get("apiLevel") not in android_api_levels:
+    raise ContractError("performance device Android API is not in the locked target matrix")
+  if facts.get("memoryKiB", 0) < floor.get("minimumRamMiB", 0) * 1024:
+    raise ContractError("performance device memory is below the locked floor")
+  if chrome_target.get("channel") != "stable":
+    raise ContractError("performance Chrome target must use the stable channel")
+
+  runtime_pairs = (
+    ("chrome", chrome_target, chrome_facts),
+    ("system-webview", webview_target, webview_facts),
+  )
+  for name, target, actual in runtime_pairs:
+    for field in ("package", "version", "signingCertificateSha256"):
+      if not target.get(field):
+        raise ContractError(f"locked {name} {field} is missing")
+      if actual.get(field) != target[field]:
+        raise ContractError(f"device {name} {field} does not match its lock")
+
+  runtime_name = attestation["runtime"]
+  runtime_facts = chrome_facts if runtime_name == "chrome" else webview_facts
+  expected_dimensions = {
+    "android-api": str(facts["apiLevel"]),
+    "browser": "chrome-stable" if runtime_name == "chrome" else "system-webview",
+    "browser-package": runtime_facts["package"],
+    "browser-signing-certificate-sha256": runtime_facts["signingCertificateSha256"],
+    "browser-version": runtime_facts["version"],
+    "model": facts["model"],
+    "system-webview-package": webview_facts["package"],
+    "system-webview-signing-certificate-sha256": webview_facts[
+      "signingCertificateSha256"
+    ],
+    "system-webview-version": webview_facts["version"],
+  }
+  actual_dimensions = {
+    item["name"]: item["value"]
+    for item in samples["environment"]["dimensions"]
+  }
+  if actual_dimensions != expected_dimensions:
+    raise ContractError("performance environment does not match attested runtime facts")
+  if samples["environment"]["fingerprint"] != facts.get("buildFingerprint"):
+    raise ContractError("performance environment fingerprint does not match device facts")
+  return [dict(record) for record in records]
+
+
+def _evaluate_open_time(samples, policy):
+  measurements = [
+    value
+    for format_samples in samples["openTime"]
+    for value in format_samples["milliseconds"]
+  ]
+  maximum = max(measurements)
+  metrics = [
+    {"name": "maximum-open-milliseconds", "unit": "milliseconds", "value": maximum},
+    {"name": "measured-open-count", "unit": "count", "value": len(measurements)},
+  ]
+  return metrics, policy["error_code"] if maximum > policy["maximum_milliseconds"] else None
+
+
+def _evaluate_command_p95(samples, policy):
+  p95_values = []
+  sample_count = 0
+  for command in samples["commands"]:
+    values = sorted(command["milliseconds"])
+    rank = (
+      policy["percentile_numerator"] * len(values)
+      + policy["percentile_denominator"] - 1
+    ) // policy["percentile_denominator"]
+    p95_values.append(values[rank - 1])
+    sample_count += len(values)
+  maximum_p95 = max(p95_values)
+  metrics = [
+    {"name": "command-count", "unit": "count", "value": len(p95_values)},
+    {
+      "name": "maximum-command-p95-milliseconds",
+      "unit": "milliseconds",
+      "value": maximum_p95,
+    },
+    {"name": "measured-command-sample-count", "unit": "count", "value": sample_count},
+  ]
+  return metrics, policy["error_code"] if maximum_p95 > policy["maximum_milliseconds"] else None
+
+
+def _evaluate_gestures(samples, policy):
+  rounds = [
+    round_result
+    for format_samples in samples["gestures"]
+    for round_result in format_samples["rounds"]
+  ]
+  minimum_fps = min(item["medianMilliFps"] for item in rounds)
+  maximum_freeze = max(item["maxFreezeMilliseconds"] for item in rounds)
+  metrics = [
+    {"name": "gesture-round-count", "unit": "count", "value": len(rounds)},
+    {
+      "name": "maximum-freeze-milliseconds",
+      "unit": "milliseconds",
+      "value": maximum_freeze,
+    },
+    {"name": "minimum-median-milli-fps", "unit": "milli-fps", "value": minimum_fps},
+  ]
+  exceeded = (
+    minimum_fps < policy["minimum_milli_fps"]
+    or maximum_freeze > policy["maximum_freeze_milliseconds"]
+  )
+  return metrics, policy["error_code"] if exceeded else None
+
+
+PERFORMANCE_EVALUATORS = {
+  "commands": _evaluate_command_p95,
+  "gestures": _evaluate_gestures,
+  "openTime": _evaluate_open_time,
+}
+
+
+def evaluate_performance_samples(samples, evidence, schema_dir, repository_root):
   validate_contract(samples, "performance-samples", schema_dir)
   gate_id = samples["gateId"]
+  policy = MOBILE_PERFORMANCE_POLICY[gate_id]
   result = {
     "schemaVersion": 1,
     "resultType": "gate",
@@ -154,61 +319,16 @@ def evaluate_performance_samples(samples, evidence, schema_dir):
   if samples["collectionStatus"] == "INFRA_INCOMPLETE":
     result["status"] = "INFRA_INCOMPLETE"
     result["errorCode"] = samples["errorCode"]
-  elif gate_id == "performance.xiaomi.open-time":
-    measurements = [
-      value
-      for format_samples in samples["openTime"]
-      for value in format_samples["milliseconds"]
-    ]
-    maximum = max(measurements)
-    result["metrics"] = [
-      {"name": "maximum-open-milliseconds", "unit": "milliseconds", "value": maximum},
-      {"name": "measured-open-count", "unit": "count", "value": len(measurements)},
-    ]
-    if maximum > 8000:
-      result["status"] = "FAIL"
-      result["errorCode"] = "PERFORMANCE_OPEN_TIME_EXCEEDED"
-  elif gate_id == "performance.xiaomi.command-p95":
-    p95_values = []
-    sample_count = 0
-    for command in samples["commands"]:
-      values = sorted(command["milliseconds"])
-      rank = (95 * len(values) + 99) // 100
-      p95_values.append(values[rank - 1])
-      sample_count += len(values)
-    maximum_p95 = max(p95_values)
-    result["metrics"] = [
-      {"name": "command-count", "unit": "count", "value": len(p95_values)},
-      {
-        "name": "maximum-command-p95-milliseconds",
-        "unit": "milliseconds",
-        "value": maximum_p95,
-      },
-      {"name": "measured-command-sample-count", "unit": "count", "value": sample_count},
-    ]
-    if maximum_p95 > 250:
-      result["status"] = "FAIL"
-      result["errorCode"] = "PERFORMANCE_COMMAND_P95_EXCEEDED"
   else:
-    rounds = [
-      round_result
-      for format_samples in samples["gestures"]
-      for round_result in format_samples["rounds"]
-    ]
-    minimum_fps = min(item["medianMilliFps"] for item in rounds)
-    maximum_freeze = max(item["maxFreezeMilliseconds"] for item in rounds)
-    result["metrics"] = [
-      {"name": "gesture-round-count", "unit": "count", "value": len(rounds)},
-      {
-        "name": "maximum-freeze-milliseconds",
-        "unit": "milliseconds",
-        "value": maximum_freeze,
-      },
-      {"name": "minimum-median-milli-fps", "unit": "milli-fps", "value": minimum_fps},
-    ]
-    if minimum_fps < 45000 or maximum_freeze > 1000:
+    result["evidence"].extend(
+      _performance_attestation_records(samples, repository_root)
+    )
+    result["evidence"].sort(key=lambda item: item["path"])
+    metrics, error_code = PERFORMANCE_EVALUATORS[policy["field"]](samples, policy)
+    result["metrics"] = metrics
+    if error_code:
       result["status"] = "FAIL"
-      result["errorCode"] = "PERFORMANCE_GESTURE_BUDGET_EXCEEDED"
+      result["errorCode"] = error_code
 
   validate_contract(result, "gate-result", schema_dir)
   return result
@@ -290,10 +410,15 @@ def _default_schema_dir():
   return REPOSITORY_ROOT / "schemas"
 
 
-def _write_json(value, output):
+def _write_json(value, output, exclusive=False):
   payload = canonical_json_bytes(value) + b"\n"
   if output:
-    Path(output).write_bytes(payload)
+    output_path = Path(output)
+    if exclusive:
+      with output_path.open("xb") as stream:
+        stream.write(payload)
+    else:
+      output_path.write_bytes(payload)
   else:
     sys.stdout.buffer.write(payload)
 
@@ -381,8 +506,13 @@ def main(argv=None):
         load_json(samples_path),
         evidence,
         args.schema_dir,
+        repository_root,
       )
-    _write_json(value, args.output)
+    _write_json(
+      value,
+      args.output,
+      exclusive=args.command == "evaluate-performance" and bool(args.output),
+    )
     return 0
   except (ContractError, OSError) as error:
     print("qa error: " + str(error), file=sys.stderr)

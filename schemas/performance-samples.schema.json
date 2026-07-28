@@ -96,6 +96,62 @@
         }
       }
     },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime",
+        "releaseBuild",
+        "localNetwork",
+        "staticAssetsWarmed",
+        "warmupFormats",
+        "androidTargets",
+        "deviceFacts",
+        "traces"
+      ],
+      "properties": {
+        "runtime": {
+          "enum": [
+            "chrome",
+            "system-webview"
+          ]
+        },
+        "releaseBuild": {
+          "const": true
+        },
+        "localNetwork": {
+          "const": true
+        },
+        "staticAssetsWarmed": {
+          "const": true
+        },
+        "warmupFormats": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "enum": [
+              "docx",
+              "pdf",
+              "pptx",
+              "xlsx"
+            ]
+          }
+        },
+        "androidTargets": {
+          "$ref": "common.schema.json#/$defs/fileRecord"
+        },
+        "deviceFacts": {
+          "$ref": "common.schema.json#/$defs/fileRecord"
+        },
+        "traces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/fileRecord"
+          }
+        }
+      }
+    },
     "openTime": {
       "type": "array",
       "minItems": 4,

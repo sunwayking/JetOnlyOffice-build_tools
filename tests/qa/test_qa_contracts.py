@@ -1,10 +1,12 @@
-import sys
-from pathlib import Path
-import unittest
 import copy
+from contextlib import contextmanager, redirect_stderr
 import hashlib
-import tempfile
+import io
 import json
+from pathlib import Path
+import sys
+import tempfile
+import unittest
 import zipfile
 import xml.etree.ElementTree as ET
 
@@ -220,6 +222,115 @@ def performance_evidence(gate_id):
     "size": 1024,
     "mediaType": "application/json",
   }
+
+
+def _write_evidence_record(root, relative_path, value):
+  path = root / Path(relative_path)
+  path.parent.mkdir(parents=True, exist_ok=True)
+  payload = json.dumps(value, separators=(",", ":")).encode("utf-8") + b"\n"
+  path.write_bytes(payload)
+  return {
+    "path": Path(relative_path).as_posix(),
+    "mode": "0644",
+    "sha256": hashlib.sha256(payload).hexdigest(),
+    "size": len(payload),
+    "mediaType": "application/json",
+  }
+
+
+@contextmanager
+def attested_performance_samples(gate_id):
+  with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    samples = performance_samples(gate_id)
+    evidence_prefix = f"evidence/raw/release-run-001/{gate_id}"
+    chrome_sha256 = "c" * 64
+    webview_sha256 = "d" * 64
+    targets = {
+      "schemaVersion": 1,
+      "androidVersions": [{"version": "16", "apiLevel": 36}],
+      "performanceFloor": {
+        "model": "2409BRN2CC",
+        "device": "pond",
+        "minimumRamMiB": 3500,
+        "chrome": {
+          "package": "com.android.chrome",
+          "channel": "stable",
+          "version": "138.0.7204.157",
+          "signingCertificateSha256": chrome_sha256,
+        },
+        "systemWebView": {
+          "package": "com.google.android.webview",
+          "version": "143.0.7499.192",
+          "signingCertificateSha256": webview_sha256,
+        },
+      },
+    }
+    canonical_targets_path = root / "qa" / "android-targets.v1.json"
+    canonical_targets_path.parent.mkdir(parents=True)
+    canonical_targets_path.write_text(json.dumps(targets), encoding="utf-8")
+    facts = {
+      "schemaVersion": 1,
+      "model": "2409BRN2CC",
+      "device": "pond",
+      "apiLevel": 36,
+      "buildFingerprint": "xiaomi/pond/pond:16/test/release-keys",
+      "memoryKiB": 3735552,
+      "chrome": {
+        "package": "com.android.chrome",
+        "version": "138.0.7204.157",
+        "signingCertificateSha256": chrome_sha256,
+      },
+      "systemWebView": {
+        "package": "com.google.android.webview",
+        "version": "143.0.7499.192",
+        "signingCertificateSha256": webview_sha256,
+      },
+    }
+    target_record = _write_evidence_record(
+      root,
+      f"{evidence_prefix}/android-targets.json",
+      targets,
+    )
+    facts_record = _write_evidence_record(
+      root,
+      f"{evidence_prefix}/device-facts.json",
+      facts,
+    )
+    trace_record = _write_evidence_record(
+      root,
+      f"{evidence_prefix}/trace.json",
+      {"traceEvents": []},
+    )
+    samples["environment"] = {
+      "kind": "device",
+      "fingerprint": facts["buildFingerprint"],
+      "dimensions": [
+        {"name": "android-api", "value": "36"},
+        {"name": "browser", "value": "chrome-stable"},
+        {"name": "browser-package", "value": "com.android.chrome"},
+        {"name": "browser-signing-certificate-sha256", "value": chrome_sha256},
+        {"name": "browser-version", "value": "138.0.7204.157"},
+        {"name": "model", "value": "2409BRN2CC"},
+        {"name": "system-webview-package", "value": "com.google.android.webview"},
+        {
+          "name": "system-webview-signing-certificate-sha256",
+          "value": webview_sha256,
+        },
+        {"name": "system-webview-version", "value": "143.0.7499.192"},
+      ],
+    }
+    samples["attestation"] = {
+      "runtime": "chrome",
+      "releaseBuild": True,
+      "localNetwork": True,
+      "staticAssetsWarmed": True,
+      "warmupFormats": ["docx", "pdf", "pptx", "xlsx"],
+      "androidTargets": target_record,
+      "deviceFacts": facts_record,
+      "traces": [trace_record],
+    }
+    yield samples, performance_evidence(gate_id), root
 
 
 class QaContractTests(unittest.TestCase):
@@ -523,67 +634,76 @@ class QaContractTests(unittest.TestCase):
       validate_contract(weakened, "release-policy", self.schema_dir)
 
   def test_performance_open_time_recomputes_all_ten_samples_per_format(self):
-    samples = performance_samples("performance.xiaomi.open-time")
-    result = evaluate_performance_samples(
-      samples,
-      performance_evidence(samples["gateId"]),
-      self.schema_dir,
-    )
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      result = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
 
-    self.assertEqual("PASS", result["status"])
-    self.assertEqual(40, next(
-      metric["value"] for metric in result["metrics"]
-      if metric["name"] == "measured-open-count"
-    ))
-    self.assertEqual(8000, next(
-      metric["value"] for metric in result["metrics"]
-      if metric["name"] == "maximum-open-milliseconds"
-    ))
-    validate_contract(result, "gate-result", self.schema_dir)
+      self.assertEqual("PASS", result["status"])
+      self.assertEqual(40, next(
+        metric["value"] for metric in result["metrics"]
+        if metric["name"] == "measured-open-count"
+      ))
+      self.assertEqual(8000, next(
+        metric["value"] for metric in result["metrics"]
+        if metric["name"] == "maximum-open-milliseconds"
+      ))
+      self.assertEqual(4, len(result["evidence"]))
+      validate_contract(result, "gate-result", self.schema_dir)
 
-    samples["openTime"][0]["milliseconds"][-1] = 8001
-    failed = evaluate_performance_samples(
-      samples,
-      performance_evidence(samples["gateId"]),
-      self.schema_dir,
-    )
-    self.assertEqual("FAIL", failed["status"])
-    self.assertEqual("PERFORMANCE_OPEN_TIME_EXCEEDED", failed["errorCode"])
+      samples["openTime"][0]["milliseconds"][-1] = 8001
+      failed = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
+      self.assertEqual("FAIL", failed["status"])
+      self.assertEqual("PERFORMANCE_OPEN_TIME_EXCEEDED", failed["errorCode"])
 
   def test_performance_command_latency_uses_nearest_rank_p95(self):
-    samples = performance_samples("performance.xiaomi.command-p95")
-    samples["commands"][1]["milliseconds"] = [1] * 28 + [251, 1000]
-    result = evaluate_performance_samples(
-      samples,
-      performance_evidence(samples["gateId"]),
-      self.schema_dir,
-    )
+    with attested_performance_samples("performance.xiaomi.command-p95") as fixture:
+      samples, evidence, root = fixture
+      samples["commands"][1]["milliseconds"] = [1] * 28 + [251, 1000]
+      result = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
 
-    self.assertEqual("FAIL", result["status"])
-    self.assertEqual("PERFORMANCE_COMMAND_P95_EXCEEDED", result["errorCode"])
-    self.assertEqual(251, next(
-      metric["value"] for metric in result["metrics"]
-      if metric["name"] == "maximum-command-p95-milliseconds"
-    ))
+      self.assertEqual("FAIL", result["status"])
+      self.assertEqual("PERFORMANCE_COMMAND_P95_EXCEEDED", result["errorCode"])
+      self.assertEqual(251, next(
+        metric["value"] for metric in result["metrics"]
+        if metric["name"] == "maximum-command-p95-milliseconds"
+      ))
 
   def test_performance_gestures_require_three_passing_rounds_per_format(self):
-    samples = performance_samples("performance.xiaomi.gesture-fps")
-    result = evaluate_performance_samples(
-      samples,
-      performance_evidence(samples["gateId"]),
-      self.schema_dir,
-    )
-    self.assertEqual("PASS", result["status"])
+    with attested_performance_samples("performance.xiaomi.gesture-fps") as fixture:
+      samples, evidence, root = fixture
+      result = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
+      self.assertEqual("PASS", result["status"])
 
-    samples["gestures"][0]["rounds"][0]["medianMilliFps"] = 44999
-    samples["gestures"][1]["rounds"][1]["maxFreezeMilliseconds"] = 1001
-    failed = evaluate_performance_samples(
-      samples,
-      performance_evidence(samples["gateId"]),
-      self.schema_dir,
-    )
-    self.assertEqual("FAIL", failed["status"])
-    self.assertEqual("PERFORMANCE_GESTURE_BUDGET_EXCEEDED", failed["errorCode"])
+      samples["gestures"][0]["rounds"][0]["medianMilliFps"] = 44999
+      samples["gestures"][1]["rounds"][1]["maxFreezeMilliseconds"] = 1001
+      failed = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
+      self.assertEqual("FAIL", failed["status"])
+      self.assertEqual("PERFORMANCE_GESTURE_BUDGET_EXCEEDED", failed["errorCode"])
 
   def test_performance_collection_can_fail_closed_as_infrastructure_incomplete(self):
     samples = performance_samples("performance.xiaomi.open-time")
@@ -595,6 +715,7 @@ class QaContractTests(unittest.TestCase):
       samples,
       performance_evidence(samples["gateId"]),
       self.schema_dir,
+      REPOSITORY_ROOT,
     )
     self.assertEqual("INFRA_INCOMPLETE", result["status"])
     self.assertEqual("OFFICIAL_CHROME_MISSING", result["errorCode"])
@@ -603,13 +724,13 @@ class QaContractTests(unittest.TestCase):
 
   def test_performance_cli_hashes_samples_into_a_canonical_gate_result(self):
     gate_id = "performance.xiaomi.open-time"
-    with tempfile.TemporaryDirectory() as directory:
-      root = Path(directory)
+    with attested_performance_samples(gate_id) as fixture:
+      samples, _, root = fixture
       samples_path = root / "evidence" / "raw" / "release-run-001" / gate_id / "samples.json"
       output_path = root / "open-time.json"
-      samples_path.parent.mkdir(parents=True)
+      samples_path.parent.mkdir(parents=True, exist_ok=True)
       samples_path.write_text(
-        json.dumps(performance_samples(gate_id)),
+        json.dumps(samples),
         encoding="utf-8",
       )
 
@@ -628,11 +749,81 @@ class QaContractTests(unittest.TestCase):
       self.assertEqual(0, exit_code)
       result = json.loads(output_path.read_bytes())
       self.assertEqual("PASS", result["status"])
-      self.assertEqual(samples_path.stat().st_size, result["evidence"][0]["size"])
+      sample_record = next(
+        item for item in result["evidence"] if item["path"].endswith("/samples.json")
+      )
+      self.assertEqual(samples_path.stat().st_size, sample_record["size"])
       self.assertEqual(
         hashlib.sha256(samples_path.read_bytes()).hexdigest(),
-        result["evidence"][0]["sha256"],
+        sample_record["sha256"],
       )
+      first_result = output_path.read_bytes()
+      with redirect_stderr(io.StringIO()):
+        self.assertEqual(2, main([
+          "evaluate-performance",
+          "--samples",
+          str(samples_path),
+          "--repository-root",
+          str(root),
+          "--schema-dir",
+          str(self.schema_dir),
+          "--output",
+          str(output_path),
+        ]))
+      self.assertEqual(first_result, output_path.read_bytes())
+
+  def test_performance_rejects_unlocked_or_mismatched_runtime_facts(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      target_path = root / samples["attestation"]["androidTargets"]["path"]
+      targets = json.loads(target_path.read_bytes())
+      del targets["performanceFloor"]["chrome"]["version"]
+      canonical_target_path = root / "qa" / "android-targets.v1.json"
+      canonical_target_path.write_text(json.dumps(targets), encoding="utf-8")
+      target_path.write_text(json.dumps(targets), encoding="utf-8")
+      samples["attestation"]["androidTargets"] = _write_evidence_record(
+        root,
+        samples["attestation"]["androidTargets"]["path"],
+        targets,
+      )
+
+      with self.assertRaisesRegex(ContractError, "locked chrome version is missing"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+      samples["environment"]["dimensions"][4]["value"] = "999.0"
+      targets["performanceFloor"]["chrome"]["version"] = "138.0.7204.157"
+      canonical_target_path.write_text(json.dumps(targets), encoding="utf-8")
+      samples["attestation"]["androidTargets"] = _write_evidence_record(
+        root,
+        samples["attestation"]["androidTargets"]["path"],
+        targets,
+      )
+      with self.assertRaisesRegex(ContractError, "does not match attested runtime facts"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_performance_rejects_tampered_raw_trace_evidence(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      trace_path = root / samples["attestation"]["traces"][0]["path"]
+      trace_path.write_bytes(trace_path.read_bytes().replace(b"[]", b"{}"))
+
+      with self.assertRaisesRegex(ContractError, "SHA-256 mismatch"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
 
 
 if __name__ == "__main__":

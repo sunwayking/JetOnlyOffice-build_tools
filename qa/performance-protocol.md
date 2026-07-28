@@ -28,5 +28,11 @@ file through the stable QA entrypoint:
 The evaluator requires exactly ten measured opens for each format, at least
 30 samples for every listed command, and rounds 1 through 3 for each format's
 gesture run. It uses the integer nearest-rank P95 calculation and emits a
-content-addressed first-attempt gate result. Missing prerequisites are recorded
+content-addressed first-attempt gate result without overwriting an existing
+result path. A complete sample document must bind the release-build, local
+network, warmed-cache and four-format warmup assertions to raw traces and an
+exact device-fact snapshot. That snapshot must match the versions, package
+names and signing certificates in the committed `android-targets.v1.json`.
+Until Chrome Stable and both runtime locks are populated there, a complete
+performance result cannot pass validation. Missing prerequisites are recorded
 as an `INFRA_INCOMPLETE` sample document without fabricated measurements.

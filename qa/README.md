@@ -23,9 +23,11 @@ The QA layer is fail-closed. It validates command coverage and corpus bytes, run
 
 `evaluate-performance` accepts one immutable sample file for one of the three
 Xiaomi performance gates. It validates the complete four-format measurement
-shape, recomputes the threshold result, hashes the exact sample bytes and emits
-a canonical `gate-result`. An incomplete collector emits no measurements and
-must carry an infrastructure error code.
+shape, verifies the exact Android-target, device-fact and raw-trace bytes,
+recomputes the threshold result, and emits a canonical `gate-result`. The
+output is created exclusively and cannot overwrite an earlier first-attempt
+result. An incomplete collector emits no measurements and must carry an
+infrastructure error code.
 
 The Playwright harness uses three locked projects with `retries: 0`. `JETONLYOFFICE_QA_BASE_URL` and `JETONLYOFFICE_QA_EVIDENCE_DIR` are mandatory; absence is infrastructure incomplete, never a skipped pass. Editor owners add functional specifications under `qa/playwright/tests` as their command providers freeze.
 
