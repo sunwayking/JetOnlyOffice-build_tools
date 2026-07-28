@@ -70,9 +70,11 @@ jobs:
           git -C source.git \
             -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
             push "${target_url}" 'refs/heads/upstream/*:refs/heads/upstream/*'
-          git -C source.git \
-            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
-            push "${target_url}" 'refs/tags/*:refs/tags/*'
+          if git -C source.git show-ref --tags --quiet; then
+            git -C source.git \
+              -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
+              push "${target_url}" 'refs/tags/*:refs/tags/*'
+          fi
 
           {
             echo "### ${UPSTREAM}"
