@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/performance-browser-trace.schema.json",
+  "title": "JetOnlyOffice raw browser performance trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "traceType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "sourceLockSha256",
+    "runtime",
+    "clock",
+    "collector",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "traceType": {
+      "const": "browser-open-events"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "const": "performance.xiaomi.open-time"
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "runtime": {
+      "enum": [
+        "chrome",
+        "system-webview"
+      ]
+    },
+    "clock": {
+      "const": "monotonic-milliseconds"
+    },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "executable"
+      ],
+      "properties": {
+        "name": {
+          "const": "jetonlyoffice-mobile-performance-collector"
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/repositoryId"
+        },
+        "executable": {
+          "$ref": "common.schema.json#/$defs/fileRecord"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 132,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "timestampMilliseconds"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "type": {
+            "enum": [
+              "connection-start",
+              "first-interactive-frame",
+              "collaboration-initialized"
+            ]
+          },
+          "timestampMilliseconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
