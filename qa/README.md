@@ -43,4 +43,9 @@ npm test
 
 Android facts are captured with `qa/android/collect-device-facts.ps1`. The target file deliberately leaves the tablet model unlocked; that state blocks tablet release gates until a real device is selected. The Xiaomi target also remains blocked until official Chrome Stable is installed and its version and signing certificate are locked.
 
+The Xiaomi lock records System WebView `143.0.7499.192` and its verified APK
+signing certificate. Chrome stays `UNLOCKED` with no fabricated version or
+certificate value, so the Chrome and performance gates remain infrastructure
+incomplete.
+
 The committed corpus is currently `INFRA_INCOMPLETE`: its small files are smoke fixtures, not the ADR-0018/0053 performance corpus. Corpus byte verification can pass while readiness remains incomplete; that result must not be promoted to a performance gate pass.
