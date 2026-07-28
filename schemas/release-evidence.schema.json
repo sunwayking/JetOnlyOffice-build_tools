@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/release-evidence.schema.json",
+  "title": "JetOnlyOffice coordinated release evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceType",
+    "releaseId",
+    "productVersion",
+    "runId",
+    "sourceLockSha256",
+    "artifactManifestSha256",
+    "policySha256",
+    "outcome",
+    "gates",
+    "blockers",
+    "nonBlockingIssues"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "evidenceType": {
+      "const": "release"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "productVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "artifactManifestSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "policySha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "BLOCKED"
+      ]
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gateId",
+          "category",
+          "blocking",
+          "status",
+          "resultSha256"
+        ],
+        "properties": {
+          "gateId": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "category": {
+            "$ref": "common.schema.json#/$defs/gateCategory"
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "common.schema.json#/$defs/gateStatus"
+          },
+          "resultSha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "errorCode": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "nonBlockingIssues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    }
+  },
+  "$defs": {
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gateId",
+        "reason"
+      ],
+      "properties": {
+        "gateId": {
+          "$ref": "common.schema.json#/$defs/repositoryId"
+        },
+        "reason": {
+          "enum": [
+            "MISSING",
+            "FAIL",
+            "INFRA_INCOMPLETE"
+          ]
+        }
+      }
+    }
+  }
+}

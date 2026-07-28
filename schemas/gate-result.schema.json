@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/gate-result.schema.json",
+  "title": "JetOnlyOffice release gate result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "resultType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "category",
+    "blocking",
+    "status",
+    "attempt",
+    "startedAt",
+    "finishedAt",
+    "sourceLockSha256",
+    "environment",
+    "metrics",
+    "evidence"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "resultType": {
+      "const": "gate"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "category": {
+      "$ref": "common.schema.json#/$defs/gateCategory"
+    },
+    "blocking": {
+      "type": "boolean"
+    },
+    "status": {
+      "$ref": "common.schema.json#/$defs/gateStatus"
+    },
+    "attempt": {
+      "const": 1
+    },
+    "startedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "finishedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "fingerprint",
+        "dimensions"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "container",
+            "browser",
+            "device",
+            "service"
+          ]
+        },
+        "fingerprint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "common.schema.json#/$defs/repositoryId"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "unit",
+          "value"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "unit": {
+            "enum": [
+              "count",
+              "milliseconds",
+              "milli-fps",
+              "bytes",
+              "percent-milli"
+            ]
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "common.schema.json#/$defs/fileRecord"
+      }
+    },
+    "errorCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    }
+  }
+}

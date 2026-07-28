@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "catalogType": "release-gates",
+  "catalogId": "jetonlyoffice-mobile-web-v1",
+  "gates": [
+    {
+      "id": "accessibility.mobile.wcag-2.2-aa",
+      "category": "accessibility",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "Mobile controls meet WCAG 2.2 AA and remain reachable at 200 percent text scaling."
+    },
+    {
+      "id": "android.compat.android-10",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 10."
+    },
+    {
+      "id": "android.compat.android-11",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 11."
+    },
+    {
+      "id": "android.compat.android-12",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 12."
+    },
+    {
+      "id": "android.compat.android-13",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 13."
+    },
+    {
+      "id": "android.compat.android-14",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 14."
+    },
+    {
+      "id": "android.compat.android-15",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 15."
+    },
+    {
+      "id": "android.compat.android-16",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Android automation suite passes on Android 16."
+    },
+    {
+      "id": "android.xiaomi.chrome-stable",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "The Xiaomi performance-floor device passes in attested official Chrome Stable."
+    },
+    {
+      "id": "android.xiaomi.system-webview",
+      "category": "android",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "The Xiaomi performance-floor device passes in its attested System WebView."
+    },
+    {
+      "id": "artifact.release-completeness",
+      "category": "artifact",
+      "blocking": true,
+      "owner": "build-release",
+      "automation": "automated",
+      "requirement": "DEB, rootfs, OCI, source, SBOM, provenance and checksum artifacts are complete and bound."
+    },
+    {
+      "id": "browser.desktop.chromium",
+      "category": "browser",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Desktop Web regression suite passes in locked Chromium."
+    },
+    {
+      "id": "browser.desktop.firefox",
+      "category": "browser",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Desktop Web regression suite passes in locked Firefox."
+    },
+    {
+      "id": "browser.desktop.no-regression",
+      "category": "browser",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "Shared runtime changes preserve Desktop open, edit, collaboration, save and reopen behavior."
+    },
+    {
+      "id": "browser.desktop.webkit",
+      "category": "browser",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "The Desktop Web regression suite passes in locked WebKit."
+    },
+    {
+      "id": "build.offline",
+      "category": "build",
+      "blocking": true,
+      "owner": "build-release",
+      "automation": "automated",
+      "requirement": "The locked Ubuntu 24.04 linux-amd64 build completes with network disabled."
+    },
+    {
+      "id": "collaboration.callback",
+      "category": "collaboration",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "automated",
+      "requirement": "DocumentServer callback acknowledgement drives confirmed saved state."
+    },
+    {
+      "id": "collaboration.jwt",
+      "category": "collaboration",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "automated",
+      "requirement": "Real JWT authorization succeeds and invalid JWT fails closed."
+    },
+    {
+      "id": "collaboration.save-reopen",
+      "category": "collaboration",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "automated",
+      "requirement": "Confirmed edits survive save and reopen for all four editors."
+    },
+    {
+      "id": "collaboration.two-client",
+      "category": "collaboration",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "automated",
+      "requirement": "Two clients observe edits and comments through the shared collaboration state."
+    },
+    {
+      "id": "collaboration.websocket",
+      "category": "collaboration",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "automated",
+      "requirement": "Authenticated WebSocket transport and reconnect state are observed as real SDK facts."
+    },
+    {
+      "id": "command.pdf",
+      "category": "command",
+      "blocking": true,
+      "owner": "pdf",
+      "automation": "automated",
+      "requirement": "Every PDF Desktop command is mapped to Mobile or excluded by ADR and bound to tests."
+    },
+    {
+      "id": "command.presentation",
+      "category": "command",
+      "blocking": true,
+      "owner": "sheet-slide",
+      "automation": "automated",
+      "requirement": "Every Presentation Desktop command is mapped to Mobile or excluded by ADR and bound to tests."
+    },
+    {
+      "id": "command.spreadsheet",
+      "category": "command",
+      "blocking": true,
+      "owner": "sheet-slide",
+      "automation": "automated",
+      "requirement": "Every Spreadsheet Desktop command is mapped to Mobile or excluded by ADR and bound to tests."
+    },
+    {
+      "id": "command.word",
+      "category": "command",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "automated",
+      "requirement": "Every Word Desktop command is mapped to Mobile or excluded by ADR and bound to tests."
+    },
+    {
+      "id": "functional.docx",
+      "category": "functional",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "hybrid",
+      "requirement": "DOCX opens, supports complete editing, saves and reopens."
+    },
+    {
+      "id": "functional.odp",
+      "category": "functional",
+      "blocking": true,
+      "owner": "sheet-slide",
+      "automation": "hybrid",
+      "requirement": "ODP opens, supports complete editing, saves and reopens."
+    },
+    {
+      "id": "functional.ods",
+      "category": "functional",
+      "blocking": true,
+      "owner": "sheet-slide",
+      "automation": "hybrid",
+      "requirement": "ODS opens, supports complete editing, saves and reopens."
+    },
+    {
+      "id": "functional.odt",
+      "category": "functional",
+      "blocking": true,
+      "owner": "common-word",
+      "automation": "hybrid",
+      "requirement": "ODT opens, supports complete editing, saves and reopens."
+    },
+    {
+      "id": "functional.pdf",
+      "category": "functional",
+      "blocking": true,
+      "owner": "pdf",
+      "automation": "hybrid",
+      "requirement": "PDF supports all six task spaces, saves and reopens including permanent redaction."
+    },
+    {
+      "id": "functional.pptx",
+      "category": "functional",
+      "blocking": true,
+      "owner": "sheet-slide",
+      "automation": "hybrid",
+      "requirement": "PPTX opens, supports complete editing, saves and reopens."
+    },
+    {
+      "id": "functional.xlsx",
+      "category": "functional",
+      "blocking": true,
+      "owner": "sheet-slide",
+      "automation": "hybrid",
+      "requirement": "XLSX opens, supports complete editing, saves and reopens."
+    },
+    {
+      "id": "ios.safari-16-plus",
+      "category": "ios",
+      "blocking": false,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "iOS 16 or newer Safari evidence is retained without blocking the first release."
+    },
+    {
+      "id": "ios.wkwebview-16-plus",
+      "category": "ios",
+      "blocking": false,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "iOS 16 or newer WKWebView evidence is retained without blocking the first release."
+    },
+    {
+      "id": "performance.xiaomi.command-p95",
+      "category": "performance",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "At least 30 command samples have P95 latency no greater than 250 milliseconds."
+    },
+    {
+      "id": "performance.xiaomi.gesture-fps",
+      "category": "performance",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "Three scroll and zoom rounds each have median FPS at least 45 with no freeze over one second."
+    },
+    {
+      "id": "performance.xiaomi.open-time",
+      "category": "performance",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "After warmup, ten consecutive opens each complete within 8000 milliseconds."
+    },
+    {
+      "id": "permission.comment",
+      "category": "permission",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "Comment-only sessions expose and execute only permitted commands."
+    },
+    {
+      "id": "permission.edit",
+      "category": "permission",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "Full-edit sessions expose and execute all format-permitted built-in commands."
+    },
+    {
+      "id": "permission.fill-forms",
+      "category": "permission",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "Form-fill sessions expose and execute only form-filling commands."
+    },
+    {
+      "id": "permission.review",
+      "category": "permission",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "Review-only sessions expose and execute only review-permitted commands."
+    },
+    {
+      "id": "permission.view",
+      "category": "permission",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "automated",
+      "requirement": "View-only sessions reject every mutation command."
+    },
+    {
+      "id": "privacy.telemetry-minimization",
+      "category": "privacy",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "Operational telemetry excludes document content and direct user identifiers."
+    },
+    {
+      "id": "reproducibility.binary-identical",
+      "category": "reproducibility",
+      "blocking": true,
+      "owner": "build-release",
+      "automation": "automated",
+      "requirement": "Two independent clean builds produce identical DEB, rootfs and OCI SHA-256 values."
+    },
+    {
+      "id": "resilience.back-stack",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "Android and browser back actions unwind keyboard, overlays, panels and editor in order."
+    },
+    {
+      "id": "resilience.disconnect",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "Confirmed disconnect freezes new edits and preserves safe recovery actions."
+    },
+    {
+      "id": "resilience.fatal-recovery",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "Fatal errors preserve available content and offer explicit retry, reopen and return actions."
+    },
+    {
+      "id": "resilience.ime-composition",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "IME composition commits once without broadcasting or undoing intermediate text."
+    },
+    {
+      "id": "resilience.rotation",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "Rotation preserves position, zoom, selection, object and panel task state."
+    },
+    {
+      "id": "resilience.save-conflict",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "Version conflicts preserve local work and require explicit destructive confirmation."
+    },
+    {
+      "id": "resilience.save-failure",
+      "category": "resilience",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "hybrid",
+      "requirement": "Retryable and blocking save failures retain distinct recovery semantics."
+    },
+    {
+      "id": "source.dependency-closure",
+      "category": "source",
+      "blocking": true,
+      "owner": "source",
+      "automation": "automated",
+      "requirement": "Every Git, HTTP, npm, apt, pkg and Qt build input is locked, mirrored and licensed."
+    },
+    {
+      "id": "tablet.chrome.landscape",
+      "category": "tablet",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "The locked Android tablet passes the Desktop layout suite in Chrome landscape."
+    },
+    {
+      "id": "tablet.chrome.portrait",
+      "category": "tablet",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "The locked Android tablet passes the Desktop layout suite in Chrome portrait."
+    },
+    {
+      "id": "tablet.system-webview.landscape",
+      "category": "tablet",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "The locked Android tablet passes the Desktop layout suite in System WebView landscape."
+    },
+    {
+      "id": "tablet.system-webview.portrait",
+      "category": "tablet",
+      "blocking": true,
+      "owner": "qa",
+      "automation": "device",
+      "requirement": "The locked Android tablet passes the Desktop layout suite in System WebView portrait."
+    }
+  ]
+}

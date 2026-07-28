@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/corpus-manifest.schema.json",
+  "title": "JetOnlyOffice QA corpus manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "manifestType",
+    "corpusId",
+    "productVersion",
+    "entries"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "manifestType": {
+      "const": "corpus"
+    },
+    "corpusId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "productVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "editor",
+          "format",
+          "path",
+          "sha256",
+          "size",
+          "license",
+          "provenance",
+          "purposes",
+          "features"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "editor": {
+            "$ref": "common.schema.json#/$defs/editor"
+          },
+          "format": {
+            "enum": [
+              "docx",
+              "odt",
+              "xlsx",
+              "ods",
+              "pptx",
+              "odp",
+              "pdf"
+            ]
+          },
+          "path": {
+            "$ref": "common.schema.json#/$defs/relativePath"
+          },
+          "sha256": {
+            "$ref": "common.schema.json#/$defs/sha256"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provenance": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purposes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "functional",
+                "performance",
+                "resilience",
+                "accessibility"
+              ]
+            }
+          },
+          "features": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
