@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -10,6 +11,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
+import urllib.request
 from urllib.parse import urlparse
 
 from contracts.contract_tool import (
@@ -57,6 +61,16 @@ class ResolutionError(ValueError):
   def __init__(self, message, exit_code=3):
     super().__init__(message)
     self.exit_code = exit_code
+
+
+class AnonymousHttpError(ResolutionError):
+  def __init__(self, message, status_code):
+    super().__init__(message, 3)
+    self.status_code = status_code
+
+
+class LfsActionRefreshRequired(ResolutionError):
+  pass
 
 
 def _require_exact_keys(value, required, optional, path):
@@ -243,7 +257,18 @@ def _validate_license_input(value, path):
         2,
       )
   elif status == "component-scoped":
-    _require_exact_keys(value, {"status", "patterns", "reason"}, set(), path)
+    _require_exact_keys(
+      value,
+      {
+        "status",
+        "payloadPatterns",
+        "patterns",
+        "reason",
+        "unresolvedComponents",
+      },
+      set(),
+      path,
+    )
     if (
       not isinstance(value["patterns"], list)
       or not value["patterns"]
@@ -252,14 +277,49 @@ def _validate_license_input(value, path):
       raise ResolutionError(f"{path}.patterns: expected non-empty string array", 2)
     if value["patterns"] != sorted(set(value["patterns"])):
       raise ResolutionError(f"{path}.patterns: values must be sorted and unique", 2)
+    _validate_patterns(value["payloadPatterns"], path + ".payloadPatterns")
+    _validate_unresolved_components(value["unresolvedComponents"], path)
     if not isinstance(value["reason"], str) or not value["reason"]:
       raise ResolutionError(f"{path}.reason: expected non-empty string", 2)
   elif status == "missing":
-    _require_exact_keys(value, {"status", "reason"}, set(), path)
+    _require_exact_keys(
+      value,
+      {"status", "payloadPatterns", "reason", "unresolvedComponents"},
+      set(),
+      path,
+    )
+    _validate_patterns(value["payloadPatterns"], path + ".payloadPatterns")
+    _validate_unresolved_components(value["unresolvedComponents"], path)
     if not isinstance(value["reason"], str) or not value["reason"]:
       raise ResolutionError(f"{path}.reason: expected non-empty string", 2)
   else:
     raise ResolutionError(f"{path}.status: unsupported license status", 2)
+
+
+def _validate_unresolved_components(value, path):
+  if (
+    not isinstance(value, list)
+    or not value
+    or not all(isinstance(item, str) and item for item in value)
+    or value != sorted(set(value))
+  ):
+    raise ResolutionError(
+      f"{path}.unresolvedComponents: expected sorted unique non-empty strings",
+      2,
+    )
+
+
+def _validate_patterns(value, path):
+  if (
+    not isinstance(value, list)
+    or not value
+    or not all(isinstance(item, str) and item for item in value)
+    or value != sorted(set(value))
+  ):
+    raise ResolutionError(f"{path}: expected sorted unique non-empty strings", 2)
+  for index, pattern in enumerate(value):
+    if "\\" in pattern or pattern.startswith("/") or ".." in pattern.split("/"):
+      raise ResolutionError(f"{path}[{index}]: invalid repository glob", 2)
 
 
 def policy_findings(inputs):
@@ -271,6 +331,7 @@ def policy_findings(inputs):
         "code": "LICENSE_INCOMPLETE",
         "repository": repository["id"],
         "message": license_input["reason"],
+        "unresolvedComponents": license_input["unresolvedComponents"],
       })
   return sorted(findings, key=lambda finding: (finding["code"], finding["repository"]))
 
@@ -334,6 +395,193 @@ def _run_git_bytes(arguments, cwd=None, exit_code=3, environment=None):
   return result.stdout
 
 
+def _matches_repository_pattern(path, pattern):
+  if fnmatch.fnmatchcase(path, pattern):
+    return True
+  return pattern.startswith("**/") and fnmatch.fnmatchcase(path, pattern[3:])
+
+
+def _matches_repository_patterns(path, patterns):
+  return any(_matches_repository_pattern(path, pattern) for pattern in patterns)
+
+
+def _paths_at_commit(cache, commit):
+  output = _run_git_bytes(
+    ["ls-tree", "-r", "-z", "--name-only", commit],
+    cwd=cache,
+  )
+  paths = []
+  for encoded_path in output.split(b"\0"):
+    if not encoded_path:
+      continue
+    try:
+      path = encoded_path.decode("utf-8")
+    except UnicodeDecodeError as error:
+      raise ResolutionError("repository path is not UTF-8", 3) from error
+    _validate_relative_path(path, "licenseInventory.path")
+    paths.append(path)
+  return sorted(paths)
+
+
+def _component_id(path):
+  head, separator, _ = path.partition("/")
+  return head if separator else path
+
+
+def _license_evidence(cache, commit, path):
+  blob = _run_git(["rev-parse", f"{commit}:{path}"], cwd=cache, exit_code=3)
+  content = _run_git_bytes(["show", f"{commit}:{path}"], cwd=cache)
+  return {
+    "path": path,
+    "blob": blob,
+    "sha256": hashlib.sha256(content).hexdigest(),
+  }
+
+
+def repository_license_inventory(repository, cache, commit):
+  license_input = repository["license"]
+  if license_input["status"] == "declared":
+    raise ResolutionError(
+      f"{repository['id']}: declared repositories do not need a component inventory",
+      2,
+    )
+  paths = _paths_at_commit(cache, commit)
+  payloads = [
+    path
+    for path in paths
+    if _matches_repository_patterns(path, license_input["payloadPatterns"])
+  ]
+  if not payloads:
+    raise ResolutionError(
+      f"{repository['id']}: payload patterns matched no locked files",
+      3,
+    )
+  evidence_paths = [
+    path
+    for path in paths
+    if _matches_repository_patterns(path, license_input.get("patterns", []))
+  ]
+  evidence_by_component = {}
+  for path in evidence_paths:
+    evidence_by_component.setdefault(_component_id(path), []).append(path)
+  payloads_by_component = {}
+  for path in payloads:
+    payloads_by_component.setdefault(_component_id(path), []).append(path)
+
+  components = []
+  actual_unresolved = []
+  for component_id in sorted(payloads_by_component):
+    component_evidence = evidence_by_component.get(component_id, [])
+    if not component_evidence:
+      actual_unresolved.append(component_id)
+    components.append({
+      "id": component_id,
+      "status": "review-required" if component_evidence else "unresolved",
+      "payloadPaths": payloads_by_component[component_id],
+      "candidateEvidence": [
+        _license_evidence(cache, commit, path) for path in component_evidence
+      ],
+    })
+  if actual_unresolved != license_input["unresolvedComponents"]:
+    raise ResolutionError(
+      f"{repository['id']}: unresolved component inventory is stale; "
+      f"expected {actual_unresolved}",
+      3,
+    )
+  return {
+    "repository": repository["id"],
+    "commit": commit,
+    "tree": _run_git(["rev-parse", commit + "^{tree}"], cwd=cache, exit_code=3),
+    "status": "incomplete",
+    "components": components,
+  }
+
+
+def license_inventory_report(inputs, cache_directory):
+  cache_directory = Path(cache_directory).resolve()
+  records = []
+  for repository in inputs["repositories"]:
+    if repository["license"]["status"] == "declared":
+      continue
+    if "commit" not in repository:
+      raise ResolutionError(
+        f"{repository['id']}: incomplete self license input cannot be audited",
+        3,
+      )
+    cache = _repository_cache_path(cache_directory, repository["id"])
+    if not cache.is_dir():
+      raise ResolutionError(f"{repository['id']}: license audit cache is missing", 3)
+    origin = _run_git(["remote", "get-url", "origin"], cwd=cache, exit_code=3)
+    if origin != repository["origin"]:
+      raise ResolutionError(
+        f"{repository['id']}: license audit cache origin does not match policy",
+        3,
+      )
+    records.append(
+      repository_license_inventory(repository, cache, repository["commit"])
+    )
+  if not records:
+    raise ResolutionError("license inventory audit selected no incomplete inputs", 2)
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-license-inventory",
+    "productVersion": inputs["productVersion"],
+    "status": "failed",
+    "repositories": records,
+  }
+
+
+def lfs_public_audit_report(inputs, cache_directory, repository_ids):
+  if repository_ids != sorted(set(repository_ids)) or not repository_ids:
+    raise ResolutionError(
+      "LFS audit repositories must be sorted, unique, and non-empty",
+      2,
+    )
+  repositories = {repository["id"]: repository for repository in inputs["repositories"]}
+  cache_directory = Path(cache_directory).resolve()
+  records = []
+  for repository_id in repository_ids:
+    repository = repositories.get(repository_id)
+    if repository is None:
+      raise ResolutionError(f"{repository_id}: LFS audit repository is not selected", 2)
+    if "commit" not in repository:
+      raise ResolutionError(f"{repository_id}: self commit cannot be audited from policy", 2)
+    cache = _repository_cache_path(cache_directory, repository_id)
+    if not cache.is_dir():
+      raise ResolutionError(f"{repository_id}: LFS audit cache is missing", 3)
+    origin = _run_git(["remote", "get-url", "origin"], cwd=cache, exit_code=3)
+    if origin != repository["origin"]:
+      raise ResolutionError(
+        f"{repository_id}: LFS audit cache origin does not match policy",
+        3,
+      )
+    lfs_objects = lfs_objects_at_commit(repository, cache, repository["commit"])
+    if not lfs_objects:
+      raise ResolutionError(f"{repository_id}: locked commit has no LFS objects", 2)
+    fetch_lfs_objects(repository, cache, repository["commit"], lfs_objects)
+    records.append({
+      "repository": repository_id,
+      "origin": repository["origin"],
+      "commit": repository["commit"],
+      "tree": _run_git(
+        ["rev-parse", repository["commit"] + "^{tree}"],
+        cwd=cache,
+        exit_code=3,
+      ),
+      "repositoryAuthentication": "none",
+      "objectCount": len(lfs_objects),
+      "totalBytes": sum(item["size"] for item in lfs_objects),
+      "objects": lfs_objects,
+    })
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-lfs-public",
+    "productVersion": inputs["productVersion"],
+    "status": "passed",
+    "repositories": records,
+  }
+
+
 def _anonymous_git_environment():
   environment = {
     "GCM_INTERACTIVE": "Never",
@@ -382,9 +630,13 @@ def verify_public_mirror(repository):
     )
 
 
+def _repository_cache_path(cache_directory, repository_id):
+  return Path(cache_directory).resolve() / "git" / (repository_id + ".git")
+
+
 def sync_cache(repository, cache_directory, commit=None):
   verify_public_mirror(repository)
-  cache = Path(cache_directory).resolve() / "git" / (repository["id"] + ".git")
+  cache = _repository_cache_path(cache_directory, repository["id"])
   cache.parent.mkdir(parents=True, exist_ok=True)
   if cache.exists():
     if _run_git(["rev-parse", "--is-bare-repository"], cwd=cache) != "true":
@@ -552,25 +804,242 @@ def _verify_lfs_cache(repository, cache, lfs_objects):
   )
 
 
+def _anonymous_url_opener():
+  return urllib.request.build_opener()
+
+
+def _read_limited_response(response, maximum_bytes, description):
+  content = response.read(maximum_bytes + 1)
+  if len(content) > maximum_bytes:
+    raise ResolutionError(f"{description}: response exceeds size limit", 3)
+  return content
+
+
+def _open_anonymous_request(request, description):
+  for attempt in range(3):
+    try:
+      response = _anonymous_url_opener().open(request, timeout=120)
+      _validate_https(response.geturl(), description + ".finalUrl")
+      return response
+    except urllib.error.HTTPError as error:
+      if attempt < 2 and (error.code == 429 or error.code >= 500):
+        time.sleep(attempt + 1)
+        continue
+      raise AnonymousHttpError(f"{description}: HTTP {error.code}", error.code) from error
+    except (urllib.error.URLError, OSError) as error:
+      if attempt < 2:
+        time.sleep(attempt + 1)
+        continue
+      raise ResolutionError(f"{description}: anonymous request failed", 3) from error
+
+
+def _fetch_anonymous_lfs_actions(repository, lfs_objects):
+  endpoint = _lfs_endpoint(repository["origin"]) + "/objects/batch"
+  _validate_https(endpoint, f"{repository['id']}.lfsBatchEndpoint")
+  request_body = json.dumps(
+    {
+      "operation": "download",
+      "transfers": ["basic"],
+      "objects": [
+        {"oid": item["oid"], "size": item["size"]} for item in lfs_objects
+      ],
+    },
+    ensure_ascii=True,
+    separators=(",", ":"),
+    sort_keys=True,
+  ).encode("ascii")
+  request = urllib.request.Request(
+    endpoint,
+    data=request_body,
+    method="POST",
+    headers={
+      "Accept": "application/vnd.git-lfs+json",
+      "Content-Type": "application/vnd.git-lfs+json",
+      "User-Agent": "JetOnlyOffice-Source-Resolver/1",
+    },
+  )
+  with _open_anonymous_request(request, f"{repository['id']}: Git LFS batch") as response:
+    content = _read_limited_response(
+      response,
+      4 * 1024 * 1024,
+      f"{repository['id']}: Git LFS batch",
+    )
+  try:
+    result = json.loads(content.decode("utf-8"))
+  except (UnicodeDecodeError, json.JSONDecodeError) as error:
+    raise ResolutionError(
+      f"{repository['id']}: invalid Git LFS batch response",
+      3,
+    ) from error
+  if not isinstance(result, dict) or not isinstance(result.get("objects"), list):
+    raise ResolutionError(f"{repository['id']}: invalid Git LFS batch response", 3)
+
+  expected = {item["oid"]: item for item in lfs_objects}
+  actions = {}
+  for item in result["objects"]:
+    if not isinstance(item, dict):
+      raise ResolutionError(f"{repository['id']}: invalid Git LFS object response", 3)
+    oid = item.get("oid")
+    if oid not in expected or oid in actions or item.get("size") != expected[oid]["size"]:
+      raise ResolutionError(f"{repository['id']}: Git LFS batch identity mismatch", 3)
+    if "error" in item:
+      error = item["error"] if isinstance(item["error"], dict) else {}
+      code = error.get("code", "unknown")
+      raise ResolutionError(
+        f"{repository['id']}: Git LFS object is not anonymously readable: {oid} ({code})",
+        3,
+      )
+    download = item.get("actions", {}).get("download")
+    if not isinstance(download, dict) or not isinstance(download.get("href"), str):
+      raise ResolutionError(
+        f"{repository['id']}: Git LFS download action is missing: {oid}",
+        3,
+      )
+    _validate_https(download["href"], f"{repository['id']}.lfsDownload")
+    headers = download.get("header", {})
+    if not isinstance(headers, dict) or not all(
+      isinstance(key, str) and isinstance(value, str)
+      for key, value in headers.items()
+    ):
+      raise ResolutionError(
+        f"{repository['id']}: invalid Git LFS download headers: {oid}",
+        3,
+      )
+    expires_at = download.get("expires_at")
+    if expires_at is not None and not isinstance(expires_at, str):
+      raise ResolutionError(
+        f"{repository['id']}: invalid Git LFS download expiry: {oid}",
+        3,
+      )
+    expires_in = download.get("expires_in")
+    if (
+      expires_in is not None
+      and (not isinstance(expires_in, int) or isinstance(expires_in, bool) or expires_in < 0)
+    ):
+      raise ResolutionError(
+        f"{repository['id']}: invalid Git LFS download expiry: {oid}",
+        3,
+      )
+    actions[oid] = {
+      "href": download["href"],
+      "headers": headers,
+      **({"expiresAt": expires_at} if expires_at is not None else {}),
+      **({"expiresIn": expires_in} if expires_in is not None else {}),
+      "fetchedAt": time.time(),
+    }
+  if set(actions) != set(expected):
+    raise ResolutionError(f"{repository['id']}: incomplete Git LFS batch response", 3)
+  return actions
+
+
+def _download_anonymous_lfs_object_once(repository, lfs_object, action, destination):
+  request = urllib.request.Request(
+    action["href"],
+    method="GET",
+    headers={
+      **action["headers"],
+      "User-Agent": "JetOnlyOffice-Source-Resolver/1",
+    },
+  )
+  destination = Path(destination)
+  destination.parent.mkdir(parents=True, exist_ok=True)
+  digest = hashlib.sha256()
+  size = 0
+  try:
+    response = _open_anonymous_request(
+      request,
+      f"{repository['id']}: Git LFS object {lfs_object['oid']}",
+    )
+  except AnonymousHttpError as error:
+    if error.status_code in (401, 403):
+      raise LfsActionRefreshRequired(
+        f"{repository['id']}: Git LFS download action was rejected"
+      ) from error
+    raise
+  with response:
+    with destination.open("wb") as output:
+      while True:
+        chunk = response.read(1024 * 1024)
+        if not chunk:
+          break
+        output.write(chunk)
+        digest.update(chunk)
+        size += len(chunk)
+        if size > lfs_object["size"]:
+          raise ResolutionError(
+            f"{repository['id']}: Git LFS object exceeds locked size: "
+            f"{lfs_object['oid']}",
+            3,
+          )
+  if size != lfs_object["size"] or digest.hexdigest() != lfs_object["oid"]:
+    raise ResolutionError(
+      f"{repository['id']}: downloaded Git LFS object does not match lock: "
+      f"{lfs_object['oid']}",
+      3,
+    )
+
+
+def _download_anonymous_lfs_object(repository, lfs_object, action, destination):
+  _download_anonymous_lfs_object_once(
+    repository,
+    lfs_object,
+    action,
+    destination,
+  )
+
+
+def _lfs_action_is_expired(action):
+  expires_in = action.get("expiresIn")
+  if expires_in is not None:
+    return time.time() >= action["fetchedAt"] + max(0, expires_in - 5)
+  expires_at = action.get("expiresAt")
+  if expires_at is None:
+    return False
+  try:
+    from datetime import datetime, timezone
+
+    normalized = expires_at[:-1] + "+00:00" if expires_at.endswith("Z") else expires_at
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+      raise ValueError("timezone is required")
+    expiration = parsed.astimezone(timezone.utc).timestamp()
+  except ValueError as error:
+    raise ResolutionError("invalid Git LFS download expires_at", 3) from error
+  return time.time() >= expiration - 5
+
+
 def fetch_lfs_objects(repository, cache, commit, lfs_objects):
   if not lfs_objects:
     return
   with tempfile.TemporaryDirectory(prefix="jetonlyoffice-lfs-") as directory:
     storage = Path(directory)
-    _run_anonymous_git(
-      [
-        "-c",
-        f"lfs.url={_lfs_endpoint(repository['origin'])}",
-        "-c",
-        f"lfs.storage={storage.as_posix()}",
-        "lfs",
-        "fetch",
-        "origin",
-        commit,
-      ],
-      cwd=cache,
-      exit_code=3,
-    )
+    for lfs_object in lfs_objects:
+      for attempt in range(3):
+        actions = _fetch_anonymous_lfs_actions(repository, [lfs_object])
+        action = actions[lfs_object["oid"]]
+        if _lfs_action_is_expired(action):
+          if attempt == 2:
+            raise ResolutionError(
+              f"{repository['id']}: Git LFS download action repeatedly expired",
+              3,
+            )
+          continue
+        try:
+          _download_anonymous_lfs_object(
+            repository,
+            lfs_object,
+            action,
+            _lfs_storage_object_path(storage, lfs_object["oid"]),
+          )
+          break
+        except LfsActionRefreshRequired:
+          if attempt == 2:
+            raise
+      else:
+        raise ResolutionError(
+          f"{repository['id']}: Git LFS object download did not complete",
+          3,
+        )
     _verify_lfs_objects(
       repository,
       lfs_objects,
@@ -848,6 +1317,19 @@ def main(argv=None):
   audit_parser.add_argument("--inputs", required=True)
   audit_parser.add_argument("--report")
 
+  license_audit_parser = subparsers.add_parser("license-audit")
+  license_audit_parser.add_argument("--inputs", required=True)
+  license_audit_parser.add_argument("--cache-directory", required=True)
+  license_audit_parser.add_argument("--report", required=True)
+  license_audit_parser.add_argument("--schema-dir", required=True)
+
+  lfs_audit_parser = subparsers.add_parser("lfs-audit")
+  lfs_audit_parser.add_argument("--inputs", required=True)
+  lfs_audit_parser.add_argument("--cache-directory", required=True)
+  lfs_audit_parser.add_argument("--repository", action="append", required=True)
+  lfs_audit_parser.add_argument("--report", required=True)
+  lfs_audit_parser.add_argument("--schema-dir", required=True)
+
   resolve_parser = subparsers.add_parser("resolve")
   resolve_parser.add_argument("--inputs", required=True)
   resolve_parser.add_argument("--cache-directory", required=True)
@@ -881,6 +1363,34 @@ def main(argv=None):
             file=sys.stderr,
           )
         return 3
+    elif args.command == "license-audit":
+      inputs = load_json(args.inputs)
+      validate_inputs(inputs)
+      report = license_inventory_report(inputs, args.cache_directory)
+      validate_contract(report, "source-license-audit", args.schema_dir)
+      write_canonical_json(args.report, report)
+      for repository in report["repositories"]:
+        unresolved = [
+          component["id"]
+          for component in repository["components"]
+          if component["status"] == "unresolved"
+        ]
+        print(
+          "LICENSE_INCOMPLETE: "
+          f"{repository['repository']}: {', '.join(unresolved)}",
+          file=sys.stderr,
+        )
+      return 3
+    elif args.command == "lfs-audit":
+      inputs = load_json(args.inputs)
+      validate_inputs(inputs)
+      report = lfs_public_audit_report(
+        inputs,
+        args.cache_directory,
+        args.repository,
+      )
+      validate_contract(report, "source-lfs-audit", args.schema_dir)
+      write_canonical_json(args.report, report)
     elif args.command == "resolve":
       inputs = load_json(args.inputs)
       validate_inputs(inputs)

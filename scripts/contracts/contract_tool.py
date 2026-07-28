@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 CONTRACT_SCHEMAS = {
   "source-lock": "source-lock.schema.json",
+  "source-license-audit": "source-license-audit.schema.json",
+  "source-lfs-audit": "source-lfs-audit.schema.json",
   "toolchain-lock": "toolchain-lock.schema.json",
   "image-lock": "image-lock.schema.json",
   "build-manifest": "build-manifest.schema.json",
@@ -681,8 +683,71 @@ def _validate_gate_catalog(value):
   _validate_blocking_matrix(gates, "$.gates")
 
 
+def _validate_source_license_audit(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories,
+    lambda item: item["repository"],
+    "$.repositories",
+  )
+  for repository_index, repository in enumerate(repositories):
+    repository_path = f"$.repositories[{repository_index}]"
+    components = repository["components"]
+    _validate_sorted_unique(components, lambda item: item["id"], repository_path + ".components")
+    payload_paths = []
+    for component_index, component in enumerate(components):
+      component_path = f"{repository_path}.components[{component_index}]"
+      _validate_sorted_unique(
+        component["payloadPaths"],
+        lambda path: path,
+        component_path + ".payloadPaths",
+      )
+      for payload_path in component["payloadPaths"]:
+        _validate_relative_path(payload_path, component_path + ".payloadPaths")
+      payload_paths.extend(component["payloadPaths"])
+      evidence = component["candidateEvidence"]
+      _validate_sorted_unique(evidence, lambda item: item["path"], component_path + ".candidateEvidence")
+      for evidence_record in evidence:
+        _validate_relative_path(evidence_record["path"], component_path + ".candidateEvidence.path")
+      if component["status"] == "unresolved" and evidence:
+        raise ContractError(component_path + ": unresolved component cannot have candidate evidence")
+      if component["status"] == "review-required" and not evidence:
+        raise ContractError(component_path + ": review-required component needs candidate evidence")
+    if len(payload_paths) != len(set(payload_paths)):
+      raise ContractError(repository_path + ".components: payload paths must be unique")
+
+
+def _validate_source_lfs_audit(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories,
+    lambda item: item["repository"],
+    "$.repositories",
+  )
+  for repository_index, repository in enumerate(repositories):
+    repository_path = f"$.repositories[{repository_index}]"
+    _validate_https(repository["origin"], repository_path + ".origin")
+    objects = repository["objects"]
+    _validate_sorted_unique(objects, lambda item: item["oid"], repository_path + ".objects")
+    if repository["objectCount"] != len(objects):
+      raise ContractError(repository_path + ".objectCount: does not match objects length")
+    if repository["totalBytes"] != sum(item["size"] for item in objects):
+      raise ContractError(repository_path + ".totalBytes: does not match object sizes")
+    object_paths = []
+    for object_index, lfs_object in enumerate(objects):
+      object_path = f"{repository_path}.objects[{object_index}]"
+      _validate_sorted_unique(lfs_object["paths"], lambda path: path, object_path + ".paths")
+      for path in lfs_object["paths"]:
+        _validate_relative_path(path, object_path + ".paths")
+      object_paths.extend(lfs_object["paths"])
+    if len(object_paths) != len(set(object_paths)):
+      raise ContractError(repository_path + ".objects: paths must be unique across objects")
+
+
 SEMANTIC_VALIDATORS = {
   "source-lock": _validate_source_lock,
+  "source-license-audit": _validate_source_license_audit,
+  "source-lfs-audit": _validate_source_lfs_audit,
   "toolchain-lock": _validate_toolchain_lock,
   "image-lock": _validate_image_lock,
   "build-manifest": _validate_build_manifest,

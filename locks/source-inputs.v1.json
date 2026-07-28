@@ -37,7 +37,22 @@
       "active": true,
       "license": {
         "status": "missing",
-        "reason": "The upstream repository contains no license file or component license inventory."
+        "payloadPatterns": [
+          "**/*.7z",
+          "**/*.sh",
+          "**/*.tar.gz",
+          "**/*.tar.xz",
+          "**/*.zip"
+        ],
+        "reason": "The upstream repository contains no repository license or reviewed inventory for its binary payload families.",
+        "unresolvedComponents": [
+          "android",
+          "cef",
+          "glew",
+          "python",
+          "qt",
+          "sysroot"
+        ]
       }
     },
     {
@@ -70,12 +85,31 @@
       "active": true,
       "license": {
         "status": "component-scoped",
+        "payloadPatterns": [
+          "**/*.otf",
+          "**/*.ttc",
+          "**/*.ttf"
+        ],
         "patterns": [
           "**/COPYING*",
           "**/LICENSE*",
           "**/OFL*"
         ],
-        "reason": "The repository has per-font licenses but no complete repository-level license inventory."
+        "reason": "The repository has per-font license candidates but no reviewed asset-to-license inventory; the listed components have no in-tree license candidate.",
+        "unresolvedComponents": [
+          "ASC.ttf",
+          "fonts-beng-extra",
+          "fonts-telu-extra",
+          "freefont",
+          "kacst",
+          "kacst-one",
+          "liberation",
+          "samyak",
+          "samyak-fonts",
+          "tibetan-machine",
+          "ttf-khmeros-core",
+          "wqy-zenhei"
+        ]
       }
     },
     {
@@ -91,12 +125,25 @@
       "active": true,
       "license": {
         "status": "component-scoped",
+        "payloadPatterns": [
+          "**/*.aff",
+          "**/*.dat",
+          "**/*.dic",
+          "**/*.idx"
+        ],
         "patterns": [
+          "**/*.TXT",
+          "**/*.md",
+          "**/*.txt",
           "**/COPYING*",
           "**/LICENSE*",
           "**/license*"
         ],
-        "reason": "The repository has per-dictionary licenses but no complete repository-level license inventory."
+        "reason": "The repository has per-dictionary license candidates but no reviewed asset-to-license inventory; the listed language packs have no in-tree license candidate.",
+        "unresolvedComponents": [
+          "az_Latn_AZ",
+          "ru_RU"
+        ]
       }
     },
     {

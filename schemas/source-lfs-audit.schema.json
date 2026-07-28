@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/source-lfs-audit.schema.json",
+  "title": "JetOnlyOffice public Git LFS audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "auditType", "productVersion", "status", "repositories"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "auditType": {"const": "source-lfs-public"},
+    "productVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "status": {"const": "passed"},
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repository", "origin", "commit", "tree", "repositoryAuthentication",
+          "objectCount", "totalBytes", "objects"
+        ],
+        "properties": {
+          "repository": {"$ref": "common.schema.json#/$defs/repositoryId"},
+          "origin": {"$ref": "common.schema.json#/$defs/httpsUri"},
+          "commit": {"$ref": "common.schema.json#/$defs/sha1"},
+          "tree": {"$ref": "common.schema.json#/$defs/sha1"},
+          "repositoryAuthentication": {"const": "none"},
+          "objectCount": {"type": "integer", "minimum": 1},
+          "totalBytes": {"type": "integer", "minimum": 0},
+          "objects": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["oid", "size", "paths"],
+              "properties": {
+                "oid": {"$ref": "common.schema.json#/$defs/sha256"},
+                "size": {"type": "integer", "minimum": 0},
+                "paths": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {"$ref": "common.schema.json#/$defs/relativePath"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

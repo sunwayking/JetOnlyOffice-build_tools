@@ -15,6 +15,29 @@ whose upstream repositories do not provide complete license evidence. That
 failure is a release gate, not an invitation to replace the evidence with
 `NOASSERTION`.
 
+Incomplete repository records carry a sorted `unresolvedComponents` inventory.
+It names the payload families, font components, or dictionary language packs
+whose license coverage is not proved by the locked tree. The audit report
+copies that inventory verbatim, so a generic repository-level failure cannot
+hide which evidence is still missing. Candidate license files do not become a
+declaration until their asset mapping and SPDX expression have been reviewed.
+`payloadPatterns` defines the build payloads covered by this structural audit;
+`patterns` defines candidate evidence only and does not declare a license.
+`resolve-sources.ps1 -Command LicenseAudit` reads the locked Git objects from
+the local cache, records every matched payload and candidate evidence blob with
+its SHA-256, and rejects stale `unresolvedComponents`. It returns exit code 3
+while legal mappings are incomplete, even when candidate files exist.
+
+`resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
+pointers reachable from an explicitly selected locked commit, downloads every
+object through the public mirror's anonymous batch API, verifies its size and
+SHA-256, and writes a canonical report. It is available before formal source
+lock generation, so license findings cannot conceal an incomplete LFS mirror.
+The three audit commands keep independent canonical reports at
+`artifacts/source-input-audit.json`, `artifacts/source-license-audit.json`, and
+`artifacts/source-lfs-public-audit.json`; running one gate cannot overwrite the
+evidence from another gate.
+
 The current resolver accepts only the reviewed source expressions used by this
 closure (`AGPL-3.0-only`, `Apache-2.0`, and `MIT`). Adding another expression
 requires an explicit resolver and contract update backed by real license
@@ -26,6 +49,13 @@ all materialized paths. Bootstrap proves that both Git history and every LFS
 object are anonymously readable from the repository's public
 `sunwayking/JetOnlyOffice-*` origin. The resolver forces that origin's LFS
 endpoint and never follows the informational `upstream` URL as a fallback.
+Bootstrap calls the public Git LFS batch protocol directly without a credential
+helper, follows only HTTPS download actions, and recomputes each downloaded
+object's locked size and SHA-256 before caching it. Standard HTTP proxy settings
+may transport the anonymous requests but cannot satisfy repository
+authentication or change bytes without failing the digest check. A public Git
+ref whose LFS object still requires credentials is an incomplete mirror and
+fails the source gate.
 
 `bootstrap-source.ps1 -Command Bootstrap` is the network preparation step. It
 fills and verifies the Git/LFS cache before materializing source. `-Command
