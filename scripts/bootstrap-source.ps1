@@ -1,0 +1,54 @@
+[CmdletBinding()]
+param(
+    [ValidateSet("Bootstrap", "Verify")]
+    [string]$Command = "Bootstrap",
+
+    [string]$LockPath = (Join-Path $PSScriptRoot "..\locks\sources.lock.json"),
+    [string]$CacheDirectory = (Join-Path $PSScriptRoot "..\cache"),
+    [string]$SourceDirectory = (Join-Path $PSScriptRoot "..\workspace")
+)
+
+$python = $null
+$pythonCandidates = if ($IsWindows) { @("python", "python3") } else { @("python3", "python") }
+foreach ($candidate in $pythonCandidates) {
+    $pythonCommand = Get-Command $candidate -ErrorAction SilentlyContinue
+    if (-not $pythonCommand) {
+        continue
+    }
+    & $pythonCommand.Source -c "import sys; raise SystemExit(0 if sys.version_info.major == 3 else 1)" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $python = $pythonCommand.Source
+        break
+    }
+}
+if (-not $python) {
+    Write-Error "Python 3 is required to resolve JetOnlyOffice sources."
+    exit 2
+}
+
+$tool = Join-Path $PSScriptRoot "source_resolver.py"
+$schemaDirectory = Join-Path $PSScriptRoot "..\schemas"
+$arguments = @($tool)
+
+switch ($Command) {
+    "Bootstrap" {
+        $arguments += @(
+            "bootstrap",
+            "--lock", $LockPath,
+            "--cache-directory", $CacheDirectory,
+            "--source-directory", $SourceDirectory,
+            "--schema-dir", $schemaDirectory
+        )
+    }
+    "Verify" {
+        $arguments += @(
+            "verify",
+            "--lock", $LockPath,
+            "--source-directory", $SourceDirectory,
+            "--schema-dir", $schemaDirectory
+        )
+    }
+}
+
+& $python @arguments
+exit $LASTEXITCODE

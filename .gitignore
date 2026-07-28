@@ -1,4 +1,8 @@
 out/
+/artifacts/
+/cache/
+/workspace/
+/locks/sources.lock.json
 makefiles/
 .qmake.stash
 config
