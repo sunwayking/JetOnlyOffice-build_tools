@@ -14,6 +14,7 @@ from scripts.contracts.contract_tool import (
   canonical_json_bytes,
   canonical_sha256,
   load_json,
+  load_json_bytes,
   validate_contract,
 )
 
@@ -127,6 +128,13 @@ def bind_release_policy(
   return policy
 
 
+def _verify_evidence_payload(record, payload):
+  if len(payload) != record["size"]:
+    raise ContractError(f"performance evidence size mismatch: {record['path']}")
+  if hashlib.sha256(payload).hexdigest() != record["sha256"]:
+    raise ContractError(f"performance evidence SHA-256 mismatch: {record['path']}")
+
+
 def _verify_evidence_file(record, repository_root):
   root = Path(repository_root).resolve()
   path = (root / Path(record["path"])).resolve()
@@ -138,11 +146,17 @@ def _verify_evidence_file(record, repository_root):
     payload = path.read_bytes()
   except OSError as error:
     raise ContractError(f"cannot read performance evidence: {path}") from error
-  if len(payload) != record["size"]:
-    raise ContractError(f"performance evidence size mismatch: {record['path']}")
-  if hashlib.sha256(payload).hexdigest() != record["sha256"]:
-    raise ContractError(f"performance evidence SHA-256 mismatch: {record['path']}")
-  return path
+  _verify_evidence_payload(record, payload)
+  return path, payload
+
+
+def _performance_evidence_paths(repository_root, run_id, gate_id):
+  root = Path(repository_root).resolve()
+  return {
+    "samples": root / "evidence" / "raw" / run_id / gate_id / "samples.json",
+    "receipt": root / "evidence" / "raw" / run_id / gate_id / "first-attempt.json",
+    "result": root / "evidence" / "results" / run_id / gate_id / "result.json",
+  }
 
 
 def _performance_attestation_records(samples, repository_root):
@@ -152,12 +166,16 @@ def _performance_attestation_records(samples, repository_root):
     attestation["deviceFacts"],
     *attestation["traces"],
   ]
-  verified_paths = {
+  verified_evidence = {
     record["path"]: _verify_evidence_file(record, repository_root)
     for record in records
   }
-  targets = load_json(verified_paths[attestation["androidTargets"]["path"]])
-  facts = load_json(verified_paths[attestation["deviceFacts"]["path"]])
+  targets_path, targets_payload = verified_evidence[
+    attestation["androidTargets"]["path"]
+  ]
+  facts_path, facts_payload = verified_evidence[attestation["deviceFacts"]["path"]]
+  targets = load_json_bytes(targets_payload, str(targets_path))
+  facts = load_json_bytes(facts_payload, str(facts_path))
   canonical_targets_path = Path(repository_root).resolve() / "qa" / "android-targets.v1.json"
   canonical_targets = load_json(canonical_targets_path)
   if targets != canonical_targets:
@@ -188,10 +206,25 @@ def _performance_attestation_records(samples, repository_root):
     ("chrome", chrome_target, chrome_facts),
     ("system-webview", webview_target, webview_facts),
   )
+  infrastructure_codes = {
+    "chrome": ("OFFICIAL_CHROME_UNLOCKED", "OFFICIAL_CHROME_LOCK_INCOMPLETE"),
+    "system-webview": (
+      "SYSTEM_WEBVIEW_UNLOCKED",
+      "SYSTEM_WEBVIEW_LOCK_INCOMPLETE",
+    ),
+  }
+  for name, target, _ in runtime_pairs:
+    unlocked_code, incomplete_code = infrastructure_codes[name]
+    if target.get("state") != "LOCKED":
+      return [dict(record) for record in records], unlocked_code
+    if any(
+      not target.get(field)
+      for field in ("package", "version", "signingCertificateSha256")
+    ):
+      return [dict(record) for record in records], incomplete_code
+
   for name, target, actual in runtime_pairs:
     for field in ("package", "version", "signingCertificateSha256"):
-      if not target.get(field):
-        raise ContractError(f"locked {name} {field} is missing")
       if actual.get(field) != target[field]:
         raise ContractError(f"device {name} {field} does not match its lock")
 
@@ -218,7 +251,75 @@ def _performance_attestation_records(samples, repository_root):
     raise ContractError("performance environment does not match attested runtime facts")
   if samples["environment"]["fingerprint"] != facts.get("buildFingerprint"):
     raise ContractError("performance environment fingerprint does not match device facts")
-  return [dict(record) for record in records]
+  return [dict(record) for record in records], None
+
+
+def _validate_open_sequence_trace(samples, schema_dir, repository_root):
+  trace_record = samples["attestation"]["traces"][0]
+  trace_path, trace_payload = _verify_evidence_file(trace_record, repository_root)
+  trace = load_json_bytes(trace_payload, str(trace_path))
+  validate_contract(trace, "performance-open-trace", schema_dir)
+
+  for field in ("releaseId", "runId", "gateId", "sourceLockSha256"):
+    if trace[field] != samples[field]:
+      raise ContractError(f"raw open trace {field} does not match performance samples")
+
+  raw_trace_record = trace["rawTrace"]
+  raw_trace_path, raw_trace_payload = _verify_evidence_file(
+    raw_trace_record,
+    repository_root,
+  )
+  raw_trace = load_json_bytes(raw_trace_payload, str(raw_trace_path))
+  validate_contract(raw_trace, "performance-browser-trace", schema_dir)
+  for field in ("releaseId", "runId", "gateId", "sourceLockSha256"):
+    if raw_trace[field] != samples[field]:
+      raise ContractError(f"raw browser trace {field} does not match performance samples")
+  if raw_trace["runtime"] != samples["attestation"]["runtime"]:
+    raise ContractError("raw browser trace runtime does not match performance samples")
+
+  collector_record = raw_trace["collector"]["executable"]
+  _verify_evidence_file(collector_record, repository_root)
+  raw_events = {item["id"]: item for item in raw_trace["events"]}
+  referenced_ids = set()
+  previous_ready = None
+  traced_measurements = {}
+  for sequence_event in trace["events"]:
+    references = (
+      (sequence_event["connectionEventId"], "connection-start"),
+      (sequence_event["interactiveEventId"], "first-interactive-frame"),
+      (sequence_event["collaborationEventId"], "collaboration-initialized"),
+    )
+    resolved = []
+    for event_id, expected_type in references:
+      raw_event = raw_events.get(event_id)
+      if raw_event is None or raw_event["type"] != expected_type:
+        raise ContractError(
+          f"open sequence reference {event_id} is missing or has the wrong type"
+        )
+      referenced_ids.add(event_id)
+      resolved.append(raw_event["timestampMilliseconds"])
+    started, interactive, collaboration = resolved
+    ready = max(interactive, collaboration)
+    if interactive <= started or collaboration <= started:
+      raise ContractError(
+        "raw interactive and collaboration events must follow connection start"
+      )
+    if previous_ready is not None and started < previous_ready:
+      raise ContractError("raw open events overlap or are out of order")
+    previous_ready = ready
+    if sequence_event["phase"] == "measured":
+      traced_measurements.setdefault(sequence_event["format"], []).append(
+        ready - started
+      )
+  if referenced_ids != set(raw_events):
+    raise ContractError("raw browser trace must contain only referenced open events")
+  sample_measurements = {
+    item["format"]: item["milliseconds"]
+    for item in samples["openTime"]
+  }
+  if traced_measurements != sample_measurements:
+    raise ContractError("open-time measurements do not match raw open trace")
+  return [dict(raw_trace_record), dict(collector_record)]
 
 
 def _evaluate_open_time(samples, policy):
@@ -290,7 +391,17 @@ PERFORMANCE_EVALUATORS = {
 }
 
 
-def evaluate_performance_samples(samples, evidence, schema_dir, repository_root):
+def _evaluate_performance_payload(
+  samples,
+  evidence,
+  schema_dir,
+  repository_root,
+  samples_payload,
+):
+  _verify_evidence_payload(evidence, samples_payload)
+  evidence_samples = load_json_bytes(samples_payload, evidence["path"])
+  if evidence_samples != samples:
+    raise ContractError("performance samples do not match their hashed evidence bytes")
   validate_contract(samples, "performance-samples", schema_dir)
   gate_id = samples["gateId"]
   policy = MOBILE_PERFORMANCE_POLICY[gate_id]
@@ -320,18 +431,40 @@ def evaluate_performance_samples(samples, evidence, schema_dir, repository_root)
     result["status"] = "INFRA_INCOMPLETE"
     result["errorCode"] = samples["errorCode"]
   else:
-    result["evidence"].extend(
-      _performance_attestation_records(samples, repository_root)
+    attestation_records, infrastructure_error = _performance_attestation_records(
+      samples,
+      repository_root,
     )
+    result["evidence"].extend(attestation_records)
     result["evidence"].sort(key=lambda item: item["path"])
-    metrics, error_code = PERFORMANCE_EVALUATORS[policy["field"]](samples, policy)
-    result["metrics"] = metrics
-    if error_code:
-      result["status"] = "FAIL"
-      result["errorCode"] = error_code
+    if infrastructure_error:
+      result["status"] = "INFRA_INCOMPLETE"
+      result["errorCode"] = infrastructure_error
+    else:
+      if policy["field"] == "openTime":
+        result["evidence"].extend(
+          _validate_open_sequence_trace(samples, schema_dir, repository_root)
+        )
+        result["evidence"].sort(key=lambda item: item["path"])
+      metrics, error_code = PERFORMANCE_EVALUATORS[policy["field"]](samples, policy)
+      result["metrics"] = metrics
+      if error_code:
+        result["status"] = "FAIL"
+        result["errorCode"] = error_code
 
   validate_contract(result, "gate-result", schema_dir)
   return result
+
+
+def evaluate_performance_samples(samples, evidence, schema_dir, repository_root):
+  _, samples_payload = _verify_evidence_file(evidence, repository_root)
+  return _evaluate_performance_payload(
+    samples,
+    evidence,
+    schema_dir,
+    repository_root,
+    samples_payload,
+  )
 
 
 def aggregate_release_evidence(
@@ -340,12 +473,67 @@ def aggregate_release_evidence(
   run_id,
   artifact_manifest_sha256,
   schema_dir,
+  repository_root,
 ):
   validate_contract(policy, "release-policy", schema_dir)
   by_id = {}
   policy_by_id = {item["id"]: item for item in policy["gates"]}
   for result in gate_results:
     validate_contract(result, "gate-result", schema_dir)
+    if result["category"] == "performance":
+      for record in result["evidence"]:
+        _verify_evidence_file(record, repository_root)
+      expected_sample_path = _performance_evidence_paths(
+        repository_root,
+        result["runId"],
+        result["gateId"],
+      )["samples"].relative_to(Path(repository_root).resolve()).as_posix()
+      sample_records = [
+        record
+        for record in result["evidence"]
+        if record["path"] == expected_sample_path
+      ]
+      if len(sample_records) != 1:
+        raise ContractError(
+          f"{result['gateId']}: exactly one canonical performance sample is required"
+        )
+      sample_record = sample_records[0]
+      _, sample_payload = _verify_evidence_file(sample_record, repository_root)
+      samples = load_json_bytes(sample_payload, sample_record["path"])
+      recomputed = _evaluate_performance_payload(
+        samples,
+        sample_record,
+        schema_dir,
+        repository_root,
+        sample_payload,
+      )
+      if canonical_sha256(recomputed) != canonical_sha256(result):
+        raise ContractError(
+          f"{result['gateId']}: result does not match machine recomputation"
+        )
+
+      receipt_path = _performance_evidence_paths(
+        repository_root,
+        result["runId"],
+        result["gateId"],
+      )["receipt"]
+      receipt = load_json(receipt_path)
+      validate_contract(receipt, "performance-attempt", schema_dir)
+      expected_receipt = {
+        "schemaVersion": 1,
+        "attemptType": "performance-first-attempt",
+        "releaseId": result["releaseId"],
+        "runId": result["runId"],
+        "gateId": result["gateId"],
+        "sourceLockSha256": result["sourceLockSha256"],
+        "samplesSha256": sample_record["sha256"],
+        "resultSha256": canonical_sha256(result),
+        "status": result["status"],
+      }
+      if receipt != expected_receipt:
+        raise ContractError(
+          f"{result['gateId']}: first-attempt receipt does not match result"
+        )
     gate_id = result["gateId"]
     if gate_id in by_id:
       raise ContractError("duplicate gate result: " + gate_id)
@@ -415,6 +603,7 @@ def _write_json(value, output, exclusive=False):
   if output:
     output_path = Path(output)
     if exclusive:
+      output_path.parent.mkdir(parents=True, exist_ok=True)
       with output_path.open("xb") as stream:
         stream.write(payload)
     else:
@@ -433,6 +622,7 @@ def main(argv=None):
   aggregate_parser.add_argument("--run-id", required=True)
   aggregate_parser.add_argument("--artifact-manifest-sha256", required=True)
   aggregate_parser.add_argument("--schema-dir", default=str(_default_schema_dir()))
+  aggregate_parser.add_argument("--repository-root", default=str(REPOSITORY_ROOT))
   aggregate_parser.add_argument("--output")
 
   bind_parser = subparsers.add_parser("bind-policy")
@@ -459,17 +649,36 @@ def main(argv=None):
   performance_parser.add_argument("--samples", required=True)
   performance_parser.add_argument("--repository-root", default=str(REPOSITORY_ROOT))
   performance_parser.add_argument("--schema-dir", default=str(_default_schema_dir()))
-  performance_parser.add_argument("--output")
+  performance_parser.add_argument("--output", required=True)
 
   args = parser.parse_args(argv)
+  first_attempt_receipt = None
+  receipt_path = None
   try:
     if args.command == "aggregate":
+      repository_root = Path(args.repository_root).resolve()
+      gate_results = []
+      for path in args.gate_result:
+        result_path = Path(path).resolve()
+        result = load_json(result_path)
+        if result.get("category") == "performance":
+          canonical_path = _performance_evidence_paths(
+            repository_root,
+            result["runId"],
+            result["gateId"],
+          )["result"]
+          if result_path != canonical_path:
+            raise ContractError(
+              f"performance gate result must use canonical first-attempt path: {canonical_path}"
+            )
+        gate_results.append(result)
       value = aggregate_release_evidence(
         load_json(args.policy),
-        [load_json(path) for path in args.gate_result],
+        gate_results,
         args.run_id,
         args.artifact_manifest_sha256,
         args.schema_dir,
+        repository_root,
       )
     elif args.command == "bind-policy":
       value = bind_release_policy(
@@ -494,7 +703,37 @@ def main(argv=None):
         relative_path = samples_path.relative_to(repository_root).as_posix()
       except ValueError as error:
         raise ContractError("performance samples must be inside repository root") from error
+      path_parts = relative_path.split("/")
+      if (
+        len(path_parts) != 5
+        or path_parts[0:2] != ["evidence", "raw"]
+        or path_parts[4] != "samples.json"
+      ):
+        raise ContractError(
+          "performance samples must use evidence/raw/<run-id>/<gate-id>/samples.json"
+        )
+      path_run_id, path_gate_id = path_parts[2:4]
+      evidence_paths = _performance_evidence_paths(
+        repository_root,
+        path_run_id,
+        path_gate_id,
+      )
+      canonical_output = evidence_paths["result"]
+      output_path = Path(args.output).resolve()
+      if output_path != canonical_output:
+        raise ContractError(
+          f"performance gate result must use canonical first-attempt result path: {canonical_output}"
+        )
+      receipt_path = evidence_paths["receipt"]
+      if output_path.exists() or receipt_path.exists():
+        raise ContractError(
+          "first-attempt gate result or receipt already exists: "
+          f"{canonical_output}"
+        )
       payload = samples_path.read_bytes()
+      samples = load_json_bytes(payload, str(samples_path))
+      if samples.get("runId") != path_run_id or samples.get("gateId") != path_gate_id:
+        raise ContractError("performance sample identity does not match its immutable path")
       evidence = {
         "path": relative_path,
         "mode": "0644",
@@ -502,12 +741,27 @@ def main(argv=None):
         "size": len(payload),
         "mediaType": "application/json",
       }
-      value = evaluate_performance_samples(
-        load_json(samples_path),
+      value = _evaluate_performance_payload(
+        samples,
         evidence,
         args.schema_dir,
         repository_root,
+        payload,
       )
+      first_attempt_receipt = {
+        "schemaVersion": 1,
+        "attemptType": "performance-first-attempt",
+        "releaseId": value["releaseId"],
+        "runId": value["runId"],
+        "gateId": value["gateId"],
+        "sourceLockSha256": value["sourceLockSha256"],
+        "samplesSha256": evidence["sha256"],
+        "resultSha256": canonical_sha256(value),
+        "status": value["status"],
+      }
+      validate_contract(first_attempt_receipt, "performance-attempt", args.schema_dir)
+    if first_attempt_receipt is not None:
+      _write_json(first_attempt_receipt, receipt_path, exclusive=True)
     _write_json(
       value,
       args.output,

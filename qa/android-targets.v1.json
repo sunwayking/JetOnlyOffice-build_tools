@@ -35,9 +35,11 @@
     "device": "pond",
     "minimumRamMiB": 3500,
     "chrome": {
-      "state": "UNLOCKED",
+      "state": "LOCKED",
       "package": "com.android.chrome",
       "channel": "stable",
+      "version": "150.0.7871.186",
+      "signingCertificateSha256": "1975b2f17177bc89a5dff31f9e64a6cae281a53dc1d1d59b1d147fe1c82afa00",
       "versionLockRequired": true,
       "signingCertificateSha256Required": true
     },

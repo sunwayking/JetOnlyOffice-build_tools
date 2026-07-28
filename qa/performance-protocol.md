@@ -22,17 +22,25 @@ file through the stable QA entrypoint:
 ```powershell
 .\scripts\qa.ps1 evaluate-performance `
   --samples .\evidence\raw\release-run-001\performance.xiaomi.open-time\samples.json `
-  --output .\evidence\results\performance.xiaomi.open-time.json
+  --output .\evidence\results\release-run-001\performance.xiaomi.open-time\result.json
 ```
 
 The evaluator requires exactly ten measured opens for each format, at least
 30 samples for every listed command, and rounds 1 through 3 for each format's
 gesture run. It uses the integer nearest-rank P95 calculation and emits a
-content-addressed first-attempt gate result without overwriting an existing
-result path. A complete sample document must bind the release-build, local
+content-addressed first-attempt gate result at the only canonical result path.
+A complete sample document must bind the release-build, local
 network, warmed-cache and four-format warmup assertions to raw traces and an
 exact device-fact snapshot. That snapshot must match the versions, package
 names and signing certificates in the committed `android-targets.v1.json`.
-Until Chrome Stable and both runtime locks are populated there, a complete
-performance result cannot pass validation. Missing prerequisites are recorded
-as an `INFRA_INCOMPLETE` sample document without fabricated measurements.
+Both runtime locks must match the pre-run device-fact snapshot or a complete
+performance result is rejected. The open-time trace
+retains four warmups followed by ten non-overlapping measured opens per format.
+Its event references resolve into a separate content-addressed raw browser
+trace captured by a versioned, content-addressed collector executable. Every
+duration is derived from those raw connection, first-interactive-frame and
+collaboration-initialized events and must exactly match `samples.json`.
+Evaluation writes a first-attempt receipt before the canonical result; release
+aggregation verifies the receipt and machine-recomputes the result from the raw
+evidence. Missing collector prerequisites may instead be recorded as an
+`INFRA_INCOMPLETE` sample document without fabricated measurements.
