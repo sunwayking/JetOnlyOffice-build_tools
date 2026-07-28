@@ -17,8 +17,15 @@ The QA layer is fail-closed. It validates command coverage and corpus bytes, run
 .\scripts\contracts.ps1 -Command Validate -Contract gate-catalog -Path .\qa\gate-catalog.v1.json
 .\scripts\qa.ps1 verify-corpus --manifest .\qa\corpus-manifest.json --root .
 .\scripts\qa.ps1 check-commands --required-editor word --required-editor spreadsheet --required-editor presentation --required-editor pdf --catalog .\qa\commands\word.json --catalog .\qa\commands\spreadsheet.json --catalog .\qa\commands\presentation.json --catalog .\qa\commands\pdf.json
+.\scripts\qa.ps1 evaluate-performance --samples .\evidence\raw\release-run-001\performance.xiaomi.open-time\samples.json --output .\evidence\results\performance.xiaomi.open-time.json
 .\scripts\qa.ps1 aggregate --policy .\evidence\release-policy.json --gate-result .\evidence\results\browser.desktop.chromium.json --run-id release-run-001 --artifact-manifest-sha256 <sha256> --output .\evidence\release-evidence.json
 ```
+
+`evaluate-performance` accepts one immutable sample file for one of the three
+Xiaomi performance gates. It validates the complete four-format measurement
+shape, recomputes the threshold result, hashes the exact sample bytes and emits
+a canonical `gate-result`. An incomplete collector emits no measurements and
+must carry an infrastructure error code.
 
 The Playwright harness uses three locked projects with `retries: 0`. `JETONLYOFFICE_QA_BASE_URL` and `JETONLYOFFICE_QA_EVIDENCE_DIR` are mandatory; absence is infrastructure incomplete, never a skipped pass. Editor owners add functional specifications under `qa/playwright/tests` as their command providers freeze.
 

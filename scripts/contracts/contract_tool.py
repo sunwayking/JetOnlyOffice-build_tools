@@ -17,6 +17,7 @@ CONTRACT_SCHEMAS = {
   "artifact-manifest": "artifact-manifest.schema.json",
   "command-catalog": "command-catalog.schema.json",
   "corpus-manifest": "corpus-manifest.schema.json",
+  "performance-samples": "performance-samples.schema.json",
   "gate-result": "gate-result.schema.json",
   "release-policy": "release-policy.schema.json",
   "release-evidence": "release-evidence.schema.json",
@@ -461,6 +462,60 @@ def _validate_gate_result(value):
       )
 
 
+def _validate_performance_samples(value):
+  if value["finishedAt"] < value["startedAt"]:
+    raise ContractError("$.finishedAt: must not precede startedAt")
+  _validate_sorted_unique(
+    value["environment"]["dimensions"],
+    lambda item: item["name"],
+    "$.environment.dimensions",
+  )
+
+  data_fields = {
+    "performance.xiaomi.open-time": "openTime",
+    "performance.xiaomi.command-p95": "commands",
+    "performance.xiaomi.gesture-fps": "gestures",
+  }
+  expected_field = data_fields[value["gateId"]]
+  present_fields = {field for field in data_fields.values() if field in value}
+  if value["collectionStatus"] == "INFRA_INCOMPLETE":
+    if "errorCode" not in value:
+      raise ContractError("$.errorCode: infrastructure-incomplete samples require an error")
+    if present_fields:
+      raise ContractError("$: infrastructure-incomplete samples cannot contain measurements")
+    return
+
+  if "errorCode" in value:
+    raise ContractError("$.errorCode: complete samples cannot have an error")
+  if present_fields != {expected_field}:
+    raise ContractError(f"$: complete {value['gateId']} samples require only {expected_field}")
+
+  required_formats = {"docx", "pdf", "pptx", "xlsx"}
+  if expected_field == "openTime":
+    _validate_sorted_unique(value[expected_field], lambda item: item["format"], "$.openTime")
+    formats = {item["format"] for item in value[expected_field]}
+    if formats != required_formats:
+      raise ContractError("$.openTime: must contain docx, pdf, pptx and xlsx")
+    for index, item in enumerate(value[expected_field]):
+      if len(item["milliseconds"]) != 10:
+        raise ContractError(f"$.openTime[{index}].milliseconds: exactly 10 samples are required")
+  elif expected_field == "commands":
+    _validate_sorted_unique(value[expected_field], lambda item: item["id"], "$.commands")
+    for index, item in enumerate(value[expected_field]):
+      if len(item["milliseconds"]) < 30:
+        raise ContractError(f"$.commands[{index}].milliseconds: at least 30 samples are required")
+  else:
+    _validate_sorted_unique(value[expected_field], lambda item: item["format"], "$.gestures")
+    formats = {item["format"] for item in value[expected_field]}
+    if formats != required_formats:
+      raise ContractError("$.gestures: must contain docx, pdf, pptx and xlsx")
+    for format_index, item in enumerate(value[expected_field]):
+      rounds = item["rounds"]
+      _validate_sorted_unique(rounds, lambda round_item: round_item["round"], f"$.gestures[{format_index}].rounds")
+      if [round_item["round"] for round_item in rounds] != [1, 2, 3]:
+        raise ContractError(f"$.gestures[{format_index}].rounds: rounds 1, 2 and 3 are required")
+
+
 def _validate_blocking_matrix(gates, path):
   for index, gate in enumerate(gates):
     should_block = gate["category"] != "ios"
@@ -536,6 +591,7 @@ SEMANTIC_VALIDATORS = {
   "artifact-manifest": _validate_artifact_manifest,
   "command-catalog": _validate_command_catalog,
   "corpus-manifest": _validate_corpus_manifest,
+  "performance-samples": _validate_performance_samples,
   "gate-result": _validate_gate_result,
   "release-policy": _validate_release_policy,
   "release-evidence": _validate_release_evidence,

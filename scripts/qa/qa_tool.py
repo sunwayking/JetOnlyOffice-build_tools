@@ -126,6 +126,94 @@ def bind_release_policy(
   return policy
 
 
+def evaluate_performance_samples(samples, evidence, schema_dir):
+  validate_contract(samples, "performance-samples", schema_dir)
+  gate_id = samples["gateId"]
+  result = {
+    "schemaVersion": 1,
+    "resultType": "gate",
+    "releaseId": samples["releaseId"],
+    "runId": samples["runId"],
+    "gateId": gate_id,
+    "category": "performance",
+    "blocking": True,
+    "status": "PASS",
+    "attempt": 1,
+    "startedAt": samples["startedAt"],
+    "finishedAt": samples["finishedAt"],
+    "sourceLockSha256": samples["sourceLockSha256"],
+    "environment": {
+      "kind": samples["environment"]["kind"],
+      "fingerprint": samples["environment"]["fingerprint"],
+      "dimensions": [dict(item) for item in samples["environment"]["dimensions"]],
+    },
+    "metrics": [],
+    "evidence": [dict(evidence)],
+  }
+
+  if samples["collectionStatus"] == "INFRA_INCOMPLETE":
+    result["status"] = "INFRA_INCOMPLETE"
+    result["errorCode"] = samples["errorCode"]
+  elif gate_id == "performance.xiaomi.open-time":
+    measurements = [
+      value
+      for format_samples in samples["openTime"]
+      for value in format_samples["milliseconds"]
+    ]
+    maximum = max(measurements)
+    result["metrics"] = [
+      {"name": "maximum-open-milliseconds", "unit": "milliseconds", "value": maximum},
+      {"name": "measured-open-count", "unit": "count", "value": len(measurements)},
+    ]
+    if maximum > 8000:
+      result["status"] = "FAIL"
+      result["errorCode"] = "PERFORMANCE_OPEN_TIME_EXCEEDED"
+  elif gate_id == "performance.xiaomi.command-p95":
+    p95_values = []
+    sample_count = 0
+    for command in samples["commands"]:
+      values = sorted(command["milliseconds"])
+      rank = (95 * len(values) + 99) // 100
+      p95_values.append(values[rank - 1])
+      sample_count += len(values)
+    maximum_p95 = max(p95_values)
+    result["metrics"] = [
+      {"name": "command-count", "unit": "count", "value": len(p95_values)},
+      {
+        "name": "maximum-command-p95-milliseconds",
+        "unit": "milliseconds",
+        "value": maximum_p95,
+      },
+      {"name": "measured-command-sample-count", "unit": "count", "value": sample_count},
+    ]
+    if maximum_p95 > 250:
+      result["status"] = "FAIL"
+      result["errorCode"] = "PERFORMANCE_COMMAND_P95_EXCEEDED"
+  else:
+    rounds = [
+      round_result
+      for format_samples in samples["gestures"]
+      for round_result in format_samples["rounds"]
+    ]
+    minimum_fps = min(item["medianMilliFps"] for item in rounds)
+    maximum_freeze = max(item["maxFreezeMilliseconds"] for item in rounds)
+    result["metrics"] = [
+      {"name": "gesture-round-count", "unit": "count", "value": len(rounds)},
+      {
+        "name": "maximum-freeze-milliseconds",
+        "unit": "milliseconds",
+        "value": maximum_freeze,
+      },
+      {"name": "minimum-median-milli-fps", "unit": "milli-fps", "value": minimum_fps},
+    ]
+    if minimum_fps < 45000 or maximum_freeze > 1000:
+      result["status"] = "FAIL"
+      result["errorCode"] = "PERFORMANCE_GESTURE_BUDGET_EXCEEDED"
+
+  validate_contract(result, "gate-result", schema_dir)
+  return result
+
+
 def aggregate_release_evidence(
   policy,
   gate_results,
@@ -242,6 +330,12 @@ def main(argv=None):
   commands_parser.add_argument("--schema-dir", default=str(_default_schema_dir()))
   commands_parser.add_argument("--output")
 
+  performance_parser = subparsers.add_parser("evaluate-performance")
+  performance_parser.add_argument("--samples", required=True)
+  performance_parser.add_argument("--repository-root", default=str(REPOSITORY_ROOT))
+  performance_parser.add_argument("--schema-dir", default=str(_default_schema_dir()))
+  performance_parser.add_argument("--output")
+
   args = parser.parse_args(argv)
   try:
     if args.command == "aggregate":
@@ -262,10 +356,30 @@ def main(argv=None):
       )
     elif args.command == "verify-corpus":
       value = verify_corpus(load_json(args.manifest), args.root, args.schema_dir)
-    else:
+    elif args.command == "check-commands":
       value = check_command_coverage(
         [load_json(path) for path in args.catalog],
         args.required_editor,
+        args.schema_dir,
+      )
+    else:
+      samples_path = Path(args.samples).resolve()
+      repository_root = Path(args.repository_root).resolve()
+      try:
+        relative_path = samples_path.relative_to(repository_root).as_posix()
+      except ValueError as error:
+        raise ContractError("performance samples must be inside repository root") from error
+      payload = samples_path.read_bytes()
+      evidence = {
+        "path": relative_path,
+        "mode": "0644",
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "size": len(payload),
+        "mediaType": "application/json",
+      }
+      value = evaluate_performance_samples(
+        load_json(samples_path),
+        evidence,
         args.schema_dir,
       )
     _write_json(value, args.output)

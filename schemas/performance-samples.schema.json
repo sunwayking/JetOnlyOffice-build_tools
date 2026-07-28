@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/performance-samples.schema.json",
+  "title": "JetOnlyOffice Mobile performance samples",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sampleType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "sourceLockSha256",
+    "startedAt",
+    "finishedAt",
+    "collectionStatus",
+    "environment"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "sampleType": {
+      "const": "mobile-performance"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "enum": [
+        "performance.xiaomi.command-p95",
+        "performance.xiaomi.gesture-fps",
+        "performance.xiaomi.open-time"
+      ]
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "startedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "finishedAt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "collectionStatus": {
+      "enum": [
+        "COMPLETE",
+        "INFRA_INCOMPLETE"
+      ]
+    },
+    "errorCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "fingerprint",
+        "dimensions"
+      ],
+      "properties": {
+        "kind": {
+          "const": "device"
+        },
+        "fingerprint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "value"
+            ],
+            "properties": {
+              "name": {
+                "$ref": "common.schema.json#/$defs/repositoryId"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "openTime": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "milliseconds"
+        ],
+        "properties": {
+          "format": {
+            "enum": [
+              "docx",
+              "pdf",
+              "pptx",
+              "xlsx"
+            ]
+          },
+          "milliseconds": {
+            "type": "array",
+            "minItems": 10,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "milliseconds"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "milliseconds": {
+            "type": "array",
+            "minItems": 30,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "gestures": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "rounds"
+        ],
+        "properties": {
+          "format": {
+            "enum": [
+              "docx",
+              "pdf",
+              "pptx",
+              "xlsx"
+            ]
+          },
+          "rounds": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "round",
+                "medianMilliFps",
+                "maxFreezeMilliseconds"
+              ],
+              "properties": {
+                "round": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "medianMilliFps": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "maxFreezeMilliseconds": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

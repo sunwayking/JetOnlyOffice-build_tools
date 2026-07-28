@@ -12,3 +12,21 @@ This protocol is blocking only on the Xiaomi `2409BRN2CC` (`pond`) performance-f
 6. Preserve raw performance traces, per-sample integer measurements and the calculation output under the immutable evidence path. A failed first attempt remains failed; reruns use a new run ID and never replace prior evidence.
 
 Missing Chrome, an unlocked browser version or signature, an unavailable device, an unlocked performance corpus, or a trace collection failure produces `INFRA_INCOMPLETE`. It is not classified as a product failure, but it blocks release.
+
+## Machine evaluation
+
+Each gate stores its measurements at
+`evidence/raw/<run-id>/<gate-id>/samples.json`. Evaluate the immutable sample
+file through the stable QA entrypoint:
+
+```powershell
+.\scripts\qa.ps1 evaluate-performance `
+  --samples .\evidence\raw\release-run-001\performance.xiaomi.open-time\samples.json `
+  --output .\evidence\results\performance.xiaomi.open-time.json
+```
+
+The evaluator requires exactly ten measured opens for each format, at least
+30 samples for every listed command, and rounds 1 through 3 for each format's
+gesture run. It uses the integer nearest-rank P95 calculation and emits a
+content-addressed first-attempt gate result. Missing prerequisites are recorded
+as an `INFRA_INCOMPLETE` sample document without fabricated measurements.

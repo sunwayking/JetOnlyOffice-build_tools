@@ -17,6 +17,7 @@ from scripts.qa.qa_tool import (
   aggregate_release_evidence,
   bind_release_policy,
   check_command_coverage,
+  evaluate_performance_samples,
   main,
   verify_corpus,
 )
@@ -163,6 +164,61 @@ def release_policy():
         "blocking": False,
       },
     ],
+  }
+
+
+def performance_samples(gate_id):
+  value = {
+    "schemaVersion": 1,
+    "sampleType": "mobile-performance",
+    "releaseId": "jetonlyoffice-v9.4.0",
+    "runId": "release-run-001",
+    "gateId": gate_id,
+    "sourceLockSha256": SHA256,
+    "startedAt": 1785196800,
+    "finishedAt": 1785196860,
+    "collectionStatus": "COMPLETE",
+    "environment": {
+      "kind": "device",
+      "fingerprint": "xiaomi-pond-android-16-chrome-138",
+      "dimensions": [
+        {"name": "android-api", "value": "36"},
+        {"name": "browser", "value": "chrome-stable"},
+        {"name": "model", "value": "2409BRN2CC"},
+      ],
+    },
+  }
+  if gate_id == "performance.xiaomi.open-time":
+    value["openTime"] = [
+      {"format": file_format, "milliseconds": [8000] * 10}
+      for file_format in ("docx", "pdf", "pptx", "xlsx")
+    ]
+  elif gate_id == "performance.xiaomi.command-p95":
+    value["commands"] = [
+      {"id": "spreadsheet.cell.bold", "milliseconds": [250] * 30},
+      {"id": "word.text.bold", "milliseconds": list(range(1, 31))},
+    ]
+  else:
+    value["gestures"] = [
+      {
+        "format": file_format,
+        "rounds": [
+          {"round": index, "medianMilliFps": 45000, "maxFreezeMilliseconds": 1000}
+          for index in range(1, 4)
+        ],
+      }
+      for file_format in ("docx", "pdf", "pptx", "xlsx")
+    ]
+  return value
+
+
+def performance_evidence(gate_id):
+  return {
+    "path": f"evidence/raw/release-run-001/{gate_id}/samples.json",
+    "mode": "0644",
+    "sha256": SHA256,
+    "size": 1024,
+    "mediaType": "application/json",
   }
 
 
@@ -465,6 +521,118 @@ class QaContractTests(unittest.TestCase):
     browser["blocking"] = False
     with self.assertRaisesRegex(ContractError, "only iOS evidence may be non-blocking"):
       validate_contract(weakened, "release-policy", self.schema_dir)
+
+  def test_performance_open_time_recomputes_all_ten_samples_per_format(self):
+    samples = performance_samples("performance.xiaomi.open-time")
+    result = evaluate_performance_samples(
+      samples,
+      performance_evidence(samples["gateId"]),
+      self.schema_dir,
+    )
+
+    self.assertEqual("PASS", result["status"])
+    self.assertEqual(40, next(
+      metric["value"] for metric in result["metrics"]
+      if metric["name"] == "measured-open-count"
+    ))
+    self.assertEqual(8000, next(
+      metric["value"] for metric in result["metrics"]
+      if metric["name"] == "maximum-open-milliseconds"
+    ))
+    validate_contract(result, "gate-result", self.schema_dir)
+
+    samples["openTime"][0]["milliseconds"][-1] = 8001
+    failed = evaluate_performance_samples(
+      samples,
+      performance_evidence(samples["gateId"]),
+      self.schema_dir,
+    )
+    self.assertEqual("FAIL", failed["status"])
+    self.assertEqual("PERFORMANCE_OPEN_TIME_EXCEEDED", failed["errorCode"])
+
+  def test_performance_command_latency_uses_nearest_rank_p95(self):
+    samples = performance_samples("performance.xiaomi.command-p95")
+    samples["commands"][1]["milliseconds"] = [1] * 28 + [251, 1000]
+    result = evaluate_performance_samples(
+      samples,
+      performance_evidence(samples["gateId"]),
+      self.schema_dir,
+    )
+
+    self.assertEqual("FAIL", result["status"])
+    self.assertEqual("PERFORMANCE_COMMAND_P95_EXCEEDED", result["errorCode"])
+    self.assertEqual(251, next(
+      metric["value"] for metric in result["metrics"]
+      if metric["name"] == "maximum-command-p95-milliseconds"
+    ))
+
+  def test_performance_gestures_require_three_passing_rounds_per_format(self):
+    samples = performance_samples("performance.xiaomi.gesture-fps")
+    result = evaluate_performance_samples(
+      samples,
+      performance_evidence(samples["gateId"]),
+      self.schema_dir,
+    )
+    self.assertEqual("PASS", result["status"])
+
+    samples["gestures"][0]["rounds"][0]["medianMilliFps"] = 44999
+    samples["gestures"][1]["rounds"][1]["maxFreezeMilliseconds"] = 1001
+    failed = evaluate_performance_samples(
+      samples,
+      performance_evidence(samples["gateId"]),
+      self.schema_dir,
+    )
+    self.assertEqual("FAIL", failed["status"])
+    self.assertEqual("PERFORMANCE_GESTURE_BUDGET_EXCEEDED", failed["errorCode"])
+
+  def test_performance_collection_can_fail_closed_as_infrastructure_incomplete(self):
+    samples = performance_samples("performance.xiaomi.open-time")
+    samples["collectionStatus"] = "INFRA_INCOMPLETE"
+    samples["errorCode"] = "OFFICIAL_CHROME_MISSING"
+    del samples["openTime"]
+
+    result = evaluate_performance_samples(
+      samples,
+      performance_evidence(samples["gateId"]),
+      self.schema_dir,
+    )
+    self.assertEqual("INFRA_INCOMPLETE", result["status"])
+    self.assertEqual("OFFICIAL_CHROME_MISSING", result["errorCode"])
+    self.assertEqual([], result["metrics"])
+    validate_contract(result, "gate-result", self.schema_dir)
+
+  def test_performance_cli_hashes_samples_into_a_canonical_gate_result(self):
+    gate_id = "performance.xiaomi.open-time"
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      samples_path = root / "evidence" / "raw" / "release-run-001" / gate_id / "samples.json"
+      output_path = root / "open-time.json"
+      samples_path.parent.mkdir(parents=True)
+      samples_path.write_text(
+        json.dumps(performance_samples(gate_id)),
+        encoding="utf-8",
+      )
+
+      exit_code = main([
+        "evaluate-performance",
+        "--samples",
+        str(samples_path),
+        "--repository-root",
+        str(root),
+        "--schema-dir",
+        str(self.schema_dir),
+        "--output",
+        str(output_path),
+      ])
+
+      self.assertEqual(0, exit_code)
+      result = json.loads(output_path.read_bytes())
+      self.assertEqual("PASS", result["status"])
+      self.assertEqual(samples_path.stat().st_size, result["evidence"][0]["size"])
+      self.assertEqual(
+        hashlib.sha256(samples_path.read_bytes()).hexdigest(),
+        result["evidence"][0]["sha256"],
+      )
 
 
 if __name__ == "__main__":
