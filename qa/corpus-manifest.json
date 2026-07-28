@@ -3,6 +3,13 @@
   "manifestType": "corpus",
   "corpusId": "jetonlyoffice-mobile-v1",
   "productVersion": "9.4.0",
+  "readiness": "INFRA_INCOMPLETE",
+  "missingPerformanceFormats": [
+    "docx",
+    "pdf",
+    "pptx",
+    "xlsx"
+  ],
   "entries": [
     {
       "id": "pdf.sample",
@@ -13,7 +20,7 @@
       "size": 1329569,
       "license": "Apache-2.0",
       "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.pdf",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["pages", "text"]
     },
     {
@@ -25,7 +32,7 @@
       "size": 1411,
       "license": "AGPL-3.0-only",
       "provenance": "scripts/qa/build_odf_corpus.py at source tree 9.4.0",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["objects", "text"]
     },
     {
@@ -37,7 +44,7 @@
       "size": 87354,
       "license": "Apache-2.0",
       "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.pptx",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["objects", "text"]
     },
     {
@@ -49,7 +56,7 @@
       "size": 1401,
       "license": "AGPL-3.0-only",
       "provenance": "scripts/qa/build_odf_corpus.py at source tree 9.4.0",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["formulas", "tables"]
     },
     {
@@ -61,7 +68,7 @@
       "size": 76825,
       "license": "Apache-2.0",
       "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.xlsx",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["cells", "worksheets"]
     },
     {
@@ -73,7 +80,7 @@
       "size": 410390,
       "license": "Apache-2.0",
       "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.docx",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["paragraphs", "tables"]
     },
     {
@@ -85,7 +92,7 @@
       "size": 1429,
       "license": "AGPL-3.0-only",
       "provenance": "scripts/qa/build_odf_corpus.py at source tree 9.4.0",
-      "purposes": ["functional", "performance", "resilience"],
+      "purposes": ["functional", "resilience"],
       "features": ["paragraphs", "tables"]
     }
   ]

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("aggregate", "bind-policy", "verify-corpus", "check-commands")]
+    [ValidateSet("aggregate", "bind-policy", "verify-corpus", "check-commands", "evaluate-performance")]
     [string]$Command,
 
     [Parameter(ValueFromRemainingArguments = $true)]
