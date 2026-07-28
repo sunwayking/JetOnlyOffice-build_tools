@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "entrypoints": [
+    {
+      "id": "bootstrap-source",
+      "path": "scripts/bootstrap-source.ps1",
+      "networkPolicy": "online-only",
+      "inputs": [
+        "locks/sources.lock.json",
+        "locks/toolchain.lock.json",
+        "locks/images.lock.json"
+      ],
+      "outputs": [
+        "cache/bootstrap-manifest.json"
+      ]
+    },
+    {
+      "id": "build",
+      "path": "scripts/build.ps1",
+      "networkPolicy": "none",
+      "inputs": [
+        "cache/bootstrap-manifest.json"
+      ],
+      "outputs": [
+        "artifacts/build-manifest.json"
+      ]
+    },
+    {
+      "id": "package",
+      "path": "scripts/package.ps1",
+      "networkPolicy": "none",
+      "inputs": [
+        "artifacts/build-manifest.json"
+      ],
+      "outputs": [
+        "artifacts/artifact-manifest.json"
+      ]
+    },
+    {
+      "id": "verify",
+      "path": "scripts/verify.ps1",
+      "networkPolicy": "none",
+      "inputs": [
+        "artifacts/artifact-manifest.json"
+      ],
+      "outputs": [
+        "artifacts/release-evidence.json"
+      ]
+    }
+  ],
+  "exitCodes": {
+    "0": "success",
+    "2": "contract or invocation error",
+    "3": "locked input missing or mismatched",
+    "4": "build package or verification failure"
+  }
+}
