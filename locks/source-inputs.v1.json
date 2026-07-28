@@ -185,6 +185,23 @@
       }
     },
     {
+      "id": "document-templates-integration",
+      "role": "build-input",
+      "checkoutPath": "sources/document-templates-integration",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-document-templates.git",
+      "upstream": "https://github.com/ONLYOFFICE/document-templates.git",
+      "commit": "d600e9b0728213e775d122fcbf30f4491b8cdfe5",
+      "refHint": "document-server-integration v9.4.0.129 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
+      }
+    },
+    {
       "id": "documentserver",
       "role": "superproject",
       "checkoutPath": "sources/DocumentServer",
@@ -199,6 +216,40 @@
         "status": "declared",
         "path": "LICENSE",
         "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "inno-dependency-installer",
+      "role": "package-input",
+      "checkoutPath": "sources/InnoDependencyInstaller",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-InnoDependencyInstaller.git",
+      "upstream": "https://github.com/DomGries/InnoDependencyInstaller.git",
+      "commit": "1bad4b4da07256c8a77c30787b59bc4a81f252a4",
+      "refHint": "document-server-package v9.4.0.129 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE.md",
+        "spdx": "MIT"
+      }
+    },
+    {
+      "id": "plugin-aiautofill",
+      "role": "build-input",
+      "checkoutPath": "sources/plugin-aiautofill",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-plugin-aiautofill.git",
+      "upstream": "https://github.com/ONLYOFFICE/plugin-aiautofill.git",
+      "commit": "ea67d52df5d8c51cb7a9546fe215364118a226d0",
+      "refHint": "document-server-integration v9.4.0.129 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
       }
     },
     {
@@ -288,6 +339,120 @@
     }
   ],
   "relationships": [
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/csharp-mvc/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/csharp-mvc/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/csharp/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/csharp/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/go/static/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/go/static/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/java-spring/src/main/resources/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/java/src/main/resources/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/java/src/main/resources/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/nodejs/public/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "plugin-aiautofill",
+      "path": "web/documentserver-example/nodejs/public/assets/plugin-aiautofill",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/php-laravel/public/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/php/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/php/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/python/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/python/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/ruby/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/ruby/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-package",
+      "child": "inno-dependency-installer",
+      "path": "exe/InnoDependencyInstaller",
+      "mode": "160000"
+    },
     {
       "parent": "documentserver",
       "child": "core",

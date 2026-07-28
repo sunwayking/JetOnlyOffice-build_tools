@@ -35,6 +35,10 @@ jobs:
             target: JetOnlyOffice-document-formats
           - upstream: ONLYOFFICE/document-server-package
             target: JetOnlyOffice-document-server-package
+          - upstream: ONLYOFFICE/plugin-aiautofill
+            target: JetOnlyOffice-plugin-aiautofill
+          - upstream: DomGries/InnoDependencyInstaller
+            target: JetOnlyOffice-InnoDependencyInstaller
           - upstream: ONLYOFFICE/Docker-DocumentServer
             target: JetOnlyOffice-Docker-DocumentServer
           - upstream: ONLYOFFICE-data/build_tools_data
@@ -42,6 +46,12 @@ jobs:
     env:
       MIRROR_TOKEN: ${{ secrets.JETONLYOFFICE_MIRROR_TOKEN }}
     steps:
+      - name: Check out locked mirror tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Require an explicit cross-repository token
         shell: bash
         run: |
@@ -67,14 +77,14 @@ jobs:
           auth_header="$(printf 'x-access-token:%s' "${MIRROR_TOKEN}" | base64 -w 0)"
           echo "::add-mask::${auth_header}"
           target_url="https://github.com/sunwayking/${TARGET}.git"
-          git -C source.git \
-            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
-            push "${target_url}" 'refs/heads/upstream/*:refs/heads/upstream/*'
-          if git -C source.git show-ref --tags --quiet; then
-            git -C source.git \
-              -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
-              push "${target_url}" 'refs/tags/*:refs/tags/*'
-          fi
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0='http.https://github.com/.extraheader'
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth_header}"
+
+          git -C source.git push \
+            "${target_url}" 'refs/heads/upstream/*:refs/heads/upstream/*'
+          MIRROR_TAG_BATCH_SIZE=100 \
+            ./scripts/mirror-tags.sh source.git "${target_url}"
 
           {
             echo "### ${UPSTREAM}"

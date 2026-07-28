@@ -373,6 +373,10 @@ def repository_metadata(repository, cache, commit):
 
 
 def verify_relationships(inputs, caches, commits):
+  declared = {
+    (relationship["parent"], relationship["path"]): relationship
+    for relationship in inputs["relationships"]
+  }
   for relationship in inputs["relationships"]:
     parent = relationship["parent"]
     expected_child = commits[relationship["child"]]
@@ -399,6 +403,29 @@ def verify_relationships(inputs, caches, commits):
         f"{parent}:{relationship['path']}: gitlink does not match the source policy",
         3,
       )
+
+  for repository_id in sorted(caches):
+    output = _run_git(
+      ["ls-tree", "-r", commits[repository_id]],
+      cwd=caches[repository_id],
+      exit_code=3,
+    )
+    for line in output.splitlines():
+      fields = line.split(None, 3)
+      if len(fields) != 4 or fields[0] != "160000":
+        continue
+      _, object_type, object_id, path = fields
+      relationship = declared.get((repository_id, path))
+      if relationship is None:
+        raise ResolutionError(
+          f"{repository_id}:{path}: gitlink is not declared by the source policy",
+          3,
+        )
+      if object_type != "commit" or object_id != commits[relationship["child"]]:
+        raise ResolutionError(
+          f"{repository_id}:{path}: gitlink does not match the source policy",
+          3,
+        )
 
 
 def build_source_lock(inputs, cache_directory, self_root):

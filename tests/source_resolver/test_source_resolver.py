@@ -168,6 +168,32 @@ class SourceResolverTests(unittest.TestCase):
         verify_relationships(inputs, caches, commits)
       self.assertTrue(child_checkout.is_dir())
 
+  def test_relationship_verification_rejects_unlocked_gitlink(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, child_bare, child_commit = create_repository(directory, "child")
+      parent_checkout, _, _ = create_repository(directory, "parent")
+      run_git(
+        parent_checkout,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{child_commit},nested/child",
+      )
+      run_git(parent_checkout, "commit", "-m", "add undeclared child gitlink")
+      parent_commit = run_git(parent_checkout, "rev-parse", "HEAD^{commit}")
+      parent_bare = Path(directory) / "parent-final.git"
+      run_git(directory, "clone", "--bare", str(parent_checkout), str(parent_bare))
+
+      with self.assertRaisesRegex(
+        ResolutionError,
+        "parent:nested/child: gitlink is not declared",
+      ):
+        verify_relationships(
+          {"relationships": []},
+          {"parent": parent_bare, "child": child_bare},
+          {"parent": parent_commit, "child": child_commit},
+        )
+
   def test_materialize_produces_detached_clean_locked_checkout(self):
     with tempfile.TemporaryDirectory() as directory:
       _, bare, commit = create_repository(directory)
