@@ -5,6 +5,8 @@ import copy
 import hashlib
 import tempfile
 import json
+import zipfile
+import xml.etree.ElementTree as ET
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -305,6 +307,33 @@ class QaContractTests(unittest.TestCase):
       (root / Path(manifest["entries"][0]["path"])).write_bytes(b"drift")
       with self.assertRaisesRegex(ContractError, "size mismatch"):
         verify_corpus(manifest, root, self.schema_dir)
+
+  def test_committed_odf_corpus_is_structurally_valid(self):
+    expected = {
+      "odt": "application/vnd.oasis.opendocument.text",
+      "ods": "application/vnd.oasis.opendocument.spreadsheet",
+      "odp": "application/vnd.oasis.opendocument.presentation",
+    }
+    for extension, media_type in expected.items():
+      path = REPOSITORY_ROOT / "qa" / "corpus" / "generated" / f"basic.{extension}"
+      with zipfile.ZipFile(path) as archive:
+        self.assertEqual("mimetype", archive.infolist()[0].filename)
+        self.assertEqual(zipfile.ZIP_STORED, archive.infolist()[0].compress_type)
+        self.assertEqual(media_type.encode("ascii"), archive.read("mimetype"))
+        for member in (
+          "content.xml",
+          "styles.xml",
+          "meta.xml",
+          "META-INF/manifest.xml",
+        ):
+          ET.fromstring(archive.read(member))
+
+  def test_committed_corpus_manifest_matches_exact_bytes(self):
+    manifest = load_json(REPOSITORY_ROOT / "qa" / "corpus-manifest.json")
+    validate_contract(manifest, "corpus-manifest", self.schema_dir)
+    report = verify_corpus(manifest, REPOSITORY_ROOT, self.schema_dir)
+    self.assertEqual(7, report["verified"])
+    self.assertGreater(report["bytes"], 0)
 
   def test_command_coverage_requires_one_complete_catalog_per_editor(self):
     catalogs = []
