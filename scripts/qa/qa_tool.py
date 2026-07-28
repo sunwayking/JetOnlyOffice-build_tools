@@ -50,7 +50,12 @@ def verify_corpus(manifest, root, schema_dir):
       )
     verified += 1
     total_bytes += size
-  return {"verified": verified, "bytes": total_bytes}
+  return {
+    "verified": verified,
+    "bytes": total_bytes,
+    "readiness": manifest["readiness"],
+    "missingPerformanceFormats": manifest["missingPerformanceFormats"],
+  }
 
 
 def check_command_coverage(catalogs, required_editors, schema_dir):

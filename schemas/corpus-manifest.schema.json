@@ -9,6 +9,8 @@
     "manifestType",
     "corpusId",
     "productVersion",
+    "readiness",
+    "missingPerformanceFormats",
     "entries"
   ],
   "properties": {
@@ -24,6 +26,24 @@
     "productVersion": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "readiness": {
+      "enum": [
+        "READY",
+        "INFRA_INCOMPLETE"
+      ]
+    },
+    "missingPerformanceFormats": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "docx",
+          "pdf",
+          "pptx",
+          "xlsx"
+        ]
+      }
     },
     "entries": {
       "type": "array",

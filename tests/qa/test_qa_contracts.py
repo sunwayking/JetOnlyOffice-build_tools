@@ -82,6 +82,8 @@ def corpus_manifest():
     "manifestType": "corpus",
     "corpusId": "jetonlyoffice-9.4-v1",
     "productVersion": "9.4.0",
+    "readiness": "READY",
+    "missingPerformanceFormats": [],
     "entries": [
       {
         "id": "standard-" + file_format,
@@ -203,6 +205,18 @@ class QaContractTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "missing performance formats: xlsx"):
       validate_contract(no_performance_xlsx, "corpus-manifest", self.schema_dir)
 
+    incomplete = corpus_manifest()
+    for entry in incomplete["entries"]:
+      if "performance" in entry["purposes"]:
+        entry["purposes"].remove("performance")
+    incomplete["readiness"] = "INFRA_INCOMPLETE"
+    incomplete["missingPerformanceFormats"] = ["docx", "pdf", "pptx", "xlsx"]
+    validate_contract(incomplete, "corpus-manifest", self.schema_dir)
+
+    incomplete["missingPerformanceFormats"].pop()
+    with self.assertRaisesRegex(ContractError, "must exactly match"):
+      validate_contract(incomplete, "corpus-manifest", self.schema_dir)
+
   def test_gate_result_is_first_attempt_content_addressed_evidence(self):
     validate_contract(gate_result(), "gate-result", self.schema_dir)
     validate_contract(gate_result("INFRA_INCOMPLETE"), "gate-result", self.schema_dir)
@@ -303,6 +317,7 @@ class QaContractTests(unittest.TestCase):
       report = verify_corpus(manifest, root, self.schema_dir)
       self.assertEqual(7, report["verified"])
       self.assertEqual(7 * len(payload), report["bytes"])
+      self.assertEqual("READY", report["readiness"])
 
       (root / Path(manifest["entries"][0]["path"])).write_bytes(b"drift")
       with self.assertRaisesRegex(ContractError, "size mismatch"):
@@ -334,6 +349,11 @@ class QaContractTests(unittest.TestCase):
     report = verify_corpus(manifest, REPOSITORY_ROOT, self.schema_dir)
     self.assertEqual(7, report["verified"])
     self.assertGreater(report["bytes"], 0)
+    self.assertEqual("INFRA_INCOMPLETE", report["readiness"])
+    self.assertEqual(
+      ["docx", "pdf", "pptx", "xlsx"],
+      report["missingPerformanceFormats"],
+    )
 
   def test_command_coverage_requires_one_complete_catalog_per_editor(self):
     catalogs = []
