@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/release-policy.schema.json",
+  "title": "JetOnlyOffice release gate policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyType",
+    "releaseId",
+    "productVersion",
+    "sourceLockSha256",
+    "gateCatalogSha256",
+    "gates"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "policyType": {
+      "const": "release-gates"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "productVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "gateCatalogSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "category",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "category": {
+            "$ref": "common.schema.json#/$defs/gateCategory"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

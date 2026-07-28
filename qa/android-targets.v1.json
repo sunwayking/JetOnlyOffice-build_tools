@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "androidVersions": [
+    {
+      "version": "10",
+      "apiLevel": 29
+    },
+    {
+      "version": "11",
+      "apiLevel": 30
+    },
+    {
+      "version": "12",
+      "apiLevel": 31
+    },
+    {
+      "version": "13",
+      "apiLevel": 33
+    },
+    {
+      "version": "14",
+      "apiLevel": 34
+    },
+    {
+      "version": "15",
+      "apiLevel": 35
+    },
+    {
+      "version": "16",
+      "apiLevel": 36
+    }
+  ],
+  "performanceFloor": {
+    "model": "2409BRN2CC",
+    "device": "pond",
+    "minimumRamMiB": 3500,
+    "chrome": {
+      "package": "com.android.chrome",
+      "channel": "stable",
+      "versionLockRequired": true,
+      "signingCertificateSha256Required": true
+    },
+    "systemWebView": {
+      "package": "com.google.android.webview",
+      "versionLockRequired": true,
+      "signingCertificateSha256Required": true
+    }
+  },
+  "tablet": {
+    "state": "UNLOCKED",
+    "minimumShortEdgeCssPx": 600,
+    "requiredOrientations": [
+      "landscape",
+      "portrait"
+    ],
+    "requiredRuntimes": [
+      "chrome",
+      "system-webview"
+    ]
+  }
+}

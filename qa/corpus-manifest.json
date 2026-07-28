@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "manifestType": "corpus",
+  "corpusId": "jetonlyoffice-mobile-v1",
+  "productVersion": "9.4.0",
+  "entries": [
+    {
+      "id": "pdf.sample",
+      "editor": "pdf",
+      "format": "pdf",
+      "path": "qa/corpus/upstream/sample.pdf",
+      "sha256": "52a4c59f9858efa9bbe6740bbacd1005f09c33db0aae11e39ff730f00a379bb6",
+      "size": 1329569,
+      "license": "Apache-2.0",
+      "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.pdf",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["pages", "text"]
+    },
+    {
+      "id": "presentation.odp",
+      "editor": "presentation",
+      "format": "odp",
+      "path": "qa/corpus/generated/basic.odp",
+      "sha256": "d06900edba4dbaf2c64bc43d84cf0542794b8678f70527b806e1e83f0773019b",
+      "size": 1411,
+      "license": "AGPL-3.0-only",
+      "provenance": "scripts/qa/build_odf_corpus.py at source tree 9.4.0",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["objects", "text"]
+    },
+    {
+      "id": "presentation.pptx",
+      "editor": "presentation",
+      "format": "pptx",
+      "path": "qa/corpus/upstream/sample.pptx",
+      "sha256": "524d1144395e5889f217ee9f84c7331433e2ac99735d933f82390ca9a49dcb5d",
+      "size": 87354,
+      "license": "Apache-2.0",
+      "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.pptx",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["objects", "text"]
+    },
+    {
+      "id": "spreadsheet.ods",
+      "editor": "spreadsheet",
+      "format": "ods",
+      "path": "qa/corpus/generated/basic.ods",
+      "sha256": "b8f2729478ebf1488e5b2ec19be44d32114f377e26e2c8921b3b3b3dfa56b0a1",
+      "size": 1401,
+      "license": "AGPL-3.0-only",
+      "provenance": "scripts/qa/build_odf_corpus.py at source tree 9.4.0",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["formulas", "tables"]
+    },
+    {
+      "id": "spreadsheet.xlsx",
+      "editor": "spreadsheet",
+      "format": "xlsx",
+      "path": "qa/corpus/upstream/sample.xlsx",
+      "sha256": "3d8a1ab5d84e5644995bd3384dd6c567ceeaacade34cf90cabd9d0bc430a5e41",
+      "size": 76825,
+      "license": "Apache-2.0",
+      "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.xlsx",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["cells", "worksheets"]
+    },
+    {
+      "id": "word.docx",
+      "editor": "word",
+      "format": "docx",
+      "path": "qa/corpus/upstream/sample.docx",
+      "sha256": "d678383aee1f2deb84808353fcf77e1ffd865495aa5079ff9bca90a24a9ca0f5",
+      "size": 410390,
+      "license": "Apache-2.0",
+      "provenance": "JetOnlyOffice-document-templates@71430c9f183489e8912f54f9dc859e369cf0dfb4:sample/sample.docx",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["paragraphs", "tables"]
+    },
+    {
+      "id": "word.odt",
+      "editor": "word",
+      "format": "odt",
+      "path": "qa/corpus/generated/basic.odt",
+      "sha256": "fa46a3cf695beb2ba1d0f90f0591a4aec1fc9f6408337db60bf8224fa5970684",
+      "size": 1429,
+      "license": "AGPL-3.0-only",
+      "provenance": "scripts/qa/build_odf_corpus.py at source tree 9.4.0",
+      "purposes": ["functional", "performance", "resilience"],
+      "features": ["paragraphs", "tables"]
+    }
+  ]
+}

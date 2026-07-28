@@ -15,3 +15,7 @@ tests/puppeteer/package.json
 tests/puppeteer/package-lock.json
 scripts/sdkjs_common/jsdoc/node_modules
 scripts/sdkjs_common/jsdoc/package-lock.json
+qa/playwright/node_modules/
+qa/playwright/test-results/
+qa/playwright/playwright-report/
+qa/playwright/evidence/

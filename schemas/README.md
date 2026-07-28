@@ -8,6 +8,12 @@ packaging, and release verification:
 - `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend images.
 - `build-manifest.schema.json` inventories the offline build output.
 - `artifact-manifest.schema.json` inventories packages and supply-chain files.
+- `command-catalog.schema.json` proves every Desktop command is Mobile-mapped or ADR-excluded.
+- `corpus-manifest.schema.json` pins the release and performance corpora.
+- `gate-catalog.schema.json` freezes the source-independent release gate matrix.
+- `gate-result.schema.json` records immutable first-attempt evidence and status.
+- `release-policy.schema.json` binds the gate matrix to a source lock.
+- `release-evidence.schema.json` aggregates all blocking and non-blocking results.
 - `entrypoints.v1.json` freezes the four public PowerShell entrypoints and their
   network policy.
 
