@@ -612,6 +612,21 @@ class QaContractTests(unittest.TestCase):
     self.assertTrue(all(item["blocking"] for item in gates.values() if item["category"] != "ios"))
     self.assertTrue(all(not item["blocking"] for item in gates.values() if item["category"] == "ios"))
 
+  def test_android_targets_lock_webview_without_promoting_missing_chrome(self):
+    targets = load_json(REPOSITORY_ROOT / "qa" / "android-targets.v1.json")
+    floor = targets["performanceFloor"]
+
+    self.assertEqual("UNLOCKED", floor["chrome"]["state"])
+    self.assertNotIn("version", floor["chrome"])
+    self.assertNotIn("signingCertificateSha256", floor["chrome"])
+    self.assertEqual("LOCKED", floor["systemWebView"]["state"])
+    self.assertEqual("143.0.7499.192", floor["systemWebView"]["version"])
+    self.assertEqual(
+      "6faf3c4140407473400934d117815a21af1cfefc5c0bee61c858bc3d72ba6fe5",
+      floor["systemWebView"]["signingCertificateSha256"],
+    )
+    self.assertEqual("UNLOCKED", targets["tablet"]["state"])
+
   def test_gate_catalog_binds_to_an_immutable_release_policy(self):
     catalog = load_json(REPOSITORY_ROOT / "qa" / "gate-catalog.v1.json")
     policy = bind_release_policy(
