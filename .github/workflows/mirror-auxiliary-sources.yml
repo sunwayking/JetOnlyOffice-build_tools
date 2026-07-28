@@ -67,6 +67,7 @@ jobs:
           set -euo pipefail
           git clone --mirror "https://github.com/${UPSTREAM}.git" source.git
           git -C source.git fsck --full --strict
+          git -C source.git lfs fetch --all origin
 
           while read -r ref object; do
             name="${ref#refs/heads/}"
@@ -81,6 +82,11 @@ jobs:
           export GIT_CONFIG_KEY_0='http.https://github.com/.extraheader'
           export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth_header}"
 
+          git -C source.git remote add target "${target_url}"
+          git -C source.git \
+            -c "lfs.url=${target_url}/info/lfs" \
+            lfs push --all target
+
           git -C source.git push \
             "${target_url}" 'refs/heads/upstream/*:refs/heads/upstream/*'
           MIRROR_TAG_BATCH_SIZE=100 \
@@ -92,5 +98,6 @@ jobs:
             echo "- target: sunwayking/${TARGET}"
             echo "- heads: $(git -C source.git for-each-ref refs/heads --format='%(refname)' | wc -l)"
             echo "- tags: $(git -C source.git for-each-ref refs/tags --format='%(refname)' | wc -l)"
+            echo "- lfs objects: $(find source.git/lfs/objects -type f 2>/dev/null | wc -l)"
             echo "- object check: full strict"
           } >> "${GITHUB_STEP_SUMMARY}"

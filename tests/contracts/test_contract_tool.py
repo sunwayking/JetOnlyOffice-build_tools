@@ -75,6 +75,7 @@ def source_lock():
         "projectFork": True,
         "buildInput": True,
         "active": True,
+        "lfsObjects": [],
         "license": license_record(),
       },
       {
@@ -89,6 +90,7 @@ def source_lock():
         "projectFork": True,
         "buildInput": True,
         "active": True,
+        "lfsObjects": [],
         "license": license_record(),
       },
     ],
@@ -303,6 +305,28 @@ class ContractToolTests(unittest.TestCase):
     value = source_lock()
     value["relationships"][0]["child"] = "missing"
     with self.assertRaisesRegex(ContractError, "repository is not locked"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+  def test_source_lock_rejects_incomplete_license_and_ambiguous_lfs_paths(self):
+    for invalid_expression in ("NOASSERTION", "TBD", "MIT OR", " "):
+      value = source_lock()
+      value["repositories"][0]["license"]["spdx"] = invalid_expression
+      with self.assertRaisesRegex(ContractError, "reviewed source set"):
+        validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["lfsObjects"] = [
+      {"oid": SHA256_A, "size": 1, "paths": ["asset.bin"]},
+      {"oid": SHA256_B, "size": 1, "paths": ["asset.bin"]},
+    ]
+    with self.assertRaisesRegex(ContractError, "paths must be unique across objects"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["lfsObjects"] = [
+      {"oid": SHA256_A, "size": 1, "paths": ["C:/outside.bin"]},
+    ]
+    with self.assertRaisesRegex(ContractError, "normalized and relative"):
       validate_contract(value, "source-lock", self.schema_dir)
 
   def test_contracts_reject_path_traversal(self):

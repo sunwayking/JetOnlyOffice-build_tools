@@ -123,6 +123,8 @@ class MirrorTagTests(unittest.TestCase):
     self.assertRegex(workflow, r"actions/checkout@[0-9a-f]{40}")
     self.assertIn("./scripts/mirror-tags.sh", workflow)
     self.assertIn("MIRROR_TAG_BATCH_SIZE=100", workflow)
+    self.assertIn("lfs fetch --all origin", workflow)
+    self.assertIn("lfs push --all target", workflow)
     self.assertNotIn("push --mirror", workflow)
     self.assertNotIn("'refs/tags/*:refs/tags/*'", workflow)
 

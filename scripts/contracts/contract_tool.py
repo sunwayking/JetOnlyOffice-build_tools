@@ -32,6 +32,12 @@ EXPECTED_ENVIRONMENT = {
   "buildPath": "/work",
   "concurrency": 4,
 }
+SOURCE_LICENSE_EXPRESSIONS = {
+  "AGPL-3.0-only",
+  "Apache-2.0",
+  "MIT",
+}
+WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 
 MAX_SAFE_INTEGER = 9007199254740991
 
@@ -235,12 +241,17 @@ def _validate_schema(value, schema, store, current_name, path="$"):
 
 def _validate_relative_path(value, path):
   candidate = PurePosixPath(value)
+  parts = value.split("/")
   if (
     candidate.is_absolute()
     or value in ("", ".")
     or "\\" in value
     or "//" in value
-    or any(part in ("", ".", "..") for part in value.split("/"))
+    or re.match(r"^[A-Za-z]:", value)
+    or any(part in ("", ".", "..") for part in parts)
+    or any(part.rstrip(" .") != part for part in parts)
+    or any(WINDOWS_DEVICE_PATTERN.match(part) for part in parts)
+    or any(any(ord(character) < 32 or character in '<>:"|?*' for character in part) for part in parts)
   ):
     raise ContractError(f"{path}: path must be normalized and relative")
 
@@ -277,6 +288,22 @@ def _validate_source_lock(value):
     _validate_relative_path(repository["license"]["path"], prefix + ".license.path")
     _validate_https(repository["origin"], prefix + ".origin")
     _validate_https(repository["upstream"], prefix + ".upstream")
+    if repository["license"]["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
+      raise ContractError(prefix + ".license.spdx: expression is not in the reviewed source set")
+    _validate_sorted_unique(
+      repository["lfsObjects"],
+      lambda item: item["oid"],
+      prefix + ".lfsObjects",
+    )
+    lfs_paths = []
+    for object_index, lfs_object in enumerate(repository["lfsObjects"]):
+      object_prefix = f"{prefix}.lfsObjects[{object_index}]"
+      _validate_sorted_unique(lfs_object["paths"], lambda path: path, object_prefix + ".paths")
+      for lfs_path in lfs_object["paths"]:
+        _validate_relative_path(lfs_path, object_prefix + ".paths")
+      lfs_paths.extend(lfs_object["paths"])
+    if len(lfs_paths) != len(set(lfs_paths)):
+      raise ContractError(prefix + ".lfsObjects: paths must be unique across objects")
   maximum_commit_time = max(item["commitTime"] for item in repositories)
   if value["sourceDateEpoch"] != maximum_commit_time:
     raise ContractError("$.sourceDateEpoch: must equal the maximum repository commitTime")
