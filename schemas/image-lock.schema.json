@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/image-lock.schema.json",
+  "title": "JetOnlyOffice image lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "lockType",
+    "platform",
+    "images"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "lockType": {
+      "const": "image"
+    },
+    "platform": {
+      "const": "linux-amd64"
+    },
+    "images": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "role",
+          "reference",
+          "digest",
+          "platform",
+          "sourceUrl"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "role": {
+            "enum": [
+              "builder",
+              "runtime",
+              "buildkit",
+              "dockerfile-frontend"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "$ref": "common.schema.json#/$defs/ociDigest"
+          },
+          "platform": {
+            "const": "linux/amd64"
+          },
+          "sourceUrl": {
+            "$ref": "common.schema.json#/$defs/httpsUri"
+          }
+        }
+      }
+    }
+  }
+}
