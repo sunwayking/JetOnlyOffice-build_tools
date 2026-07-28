@@ -6,6 +6,7 @@ packaging, and release verification:
 - `source-lock.schema.json` pins every Git repository and gitlink.
 - `toolchain-lock.schema.json` pins every non-container tool input.
 - `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend images.
+- `bootstrap-manifest.schema.json` binds verified source, toolchain cache, and image inputs.
 - `build-manifest.schema.json` inventories the offline build output.
 - `artifact-manifest.schema.json` inventories packages and supply-chain files.
 - `command-catalog.schema.json` proves every Desktop command is Mobile-mapped or ADR-excluded.

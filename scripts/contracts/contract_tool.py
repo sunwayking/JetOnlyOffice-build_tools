@@ -13,6 +13,7 @@ CONTRACT_SCHEMAS = {
   "source-lock": "source-lock.schema.json",
   "toolchain-lock": "toolchain-lock.schema.json",
   "image-lock": "image-lock.schema.json",
+  "bootstrap-manifest": "bootstrap-manifest.schema.json",
   "build-manifest": "build-manifest.schema.json",
   "artifact-manifest": "artifact-manifest.schema.json",
   "command-catalog": "command-catalog.schema.json",
@@ -288,11 +289,33 @@ def _validate_image_lock(value):
   _validate_sorted_unique(images, lambda item: item["id"], "$.images")
   required_roles = {"builder", "runtime", "buildkit", "dockerfile-frontend"}
   roles = {item["role"] for item in images}
+  if len(roles) != len(images):
+    raise ContractError("$.images: roles must be unique")
   missing = sorted(required_roles - roles)
   if missing:
     raise ContractError("$.images: missing required roles: " + ", ".join(missing))
   for index, image in enumerate(images):
     _validate_https(image["sourceUrl"], f"$.images[{index}].sourceUrl")
+
+
+def _validate_bootstrap_manifest(value):
+  _validate_environment(value["environment"], "$.environment")
+  files = value["toolchainFiles"]
+  _validate_sorted_unique(files, lambda item: item["id"], "$.toolchainFiles")
+  paths = [item["path"] for item in files]
+  if len(paths) != len(set(paths)):
+    raise ContractError("$.toolchainFiles: paths must be unique")
+  for index, item in enumerate(files):
+    _validate_relative_path(item["path"], f"$.toolchainFiles[{index}].path")
+  images = value["images"]
+  _validate_sorted_unique(images, lambda item: item["id"], "$.images")
+  required_roles = {"builder", "runtime", "buildkit", "dockerfile-frontend"}
+  roles = {item["role"] for item in images}
+  if len(roles) != len(images):
+    raise ContractError("$.images: roles must be unique")
+  missing = sorted(required_roles - roles)
+  if missing:
+    raise ContractError("$.images: missing required roles: " + ", ".join(missing))
 
 
 def _validate_build_manifest(value):
@@ -524,6 +547,7 @@ SEMANTIC_VALIDATORS = {
   "source-lock": _validate_source_lock,
   "toolchain-lock": _validate_toolchain_lock,
   "image-lock": _validate_image_lock,
+  "bootstrap-manifest": _validate_bootstrap_manifest,
   "build-manifest": _validate_build_manifest,
   "artifact-manifest": _validate_artifact_manifest,
   "command-catalog": _validate_command_catalog,
