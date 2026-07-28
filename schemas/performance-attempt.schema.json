@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/performance-attempt.schema.json",
+  "title": "JetOnlyOffice performance first-attempt receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "attemptType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "sourceLockSha256",
+    "samplesSha256",
+    "resultSha256",
+    "status"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "attemptType": {
+      "const": "performance-first-attempt"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "enum": [
+        "performance.xiaomi.command-p95",
+        "performance.xiaomi.gesture-fps",
+        "performance.xiaomi.open-time"
+      ]
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "samplesSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "resultSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "status": {
+      "$ref": "common.schema.json#/$defs/gateStatus"
+    }
+  }
+}

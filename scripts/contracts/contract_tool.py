@@ -19,6 +19,9 @@ CONTRACT_SCHEMAS = {
   "artifact-manifest": "artifact-manifest.schema.json",
   "command-catalog": "command-catalog.schema.json",
   "corpus-manifest": "corpus-manifest.schema.json",
+  "performance-attempt": "performance-attempt.schema.json",
+  "performance-browser-trace": "performance-browser-trace.schema.json",
+  "performance-open-trace": "performance-open-trace.schema.json",
   "performance-samples": "performance-samples.schema.json",
   "gate-result": "gate-result.schema.json",
   "release-policy": "release-policy.schema.json",
@@ -90,19 +93,27 @@ def _unique_object(pairs):
   return result
 
 
-def load_json(path):
-  path = Path(path)
+def load_json_bytes(payload, source="JSON payload"):
   try:
     return json.loads(
-      path.read_text(encoding="utf-8"),
+      payload.decode("utf-8"),
       object_pairs_hook=_unique_object,
       parse_float=_reject_float,
       parse_constant=_reject_constant,
     )
+  except UnicodeDecodeError as error:
+    raise ContractError(f"invalid UTF-8 in {source}: {error}") from error
+  except json.JSONDecodeError as error:
+    raise ContractError(f"invalid JSON in {source}: {error}") from error
+
+
+def load_json(path):
+  path = Path(path)
+  try:
+    payload = path.read_bytes()
   except OSError as error:
     raise ContractError(f"cannot read {path}: {error}") from error
-  except json.JSONDecodeError as error:
-    raise ContractError(f"invalid JSON in {path}: {error}") from error
+  return load_json_bytes(payload, str(path))
 
 
 def _check_canonical_value(value, path="$"):
@@ -568,6 +579,10 @@ def _validate_performance_samples(value):
 
   required_formats = set(MOBILE_PERFORMANCE_FORMATS)
   if expected_field == "openTime":
+    if len(attestation["traces"]) != 1:
+      raise ContractError(
+        "$.attestation.traces: open-time requires exactly one raw sequence trace"
+      )
     _validate_sorted_unique(
       value[expected_field],
       lambda item: item["format"],
@@ -614,6 +629,58 @@ def _validate_performance_samples(value):
         raise ContractError(
           f"$.gestures[{format_index}].rounds: rounds 1, 2 and 3 are required"
         )
+
+
+def _validate_performance_open_trace(value):
+  events = value["events"]
+  if len(events) != 44:
+    raise ContractError("$.events: exactly 44 ordered open events are required")
+
+  expected = [
+    ("warmup", file_format, 0)
+    for file_format in MOBILE_PERFORMANCE_FORMATS
+  ]
+  expected.extend(
+    ("measured", file_format, iteration)
+    for file_format in MOBILE_PERFORMANCE_FORMATS
+    for iteration in range(1, 11)
+  )
+  actual = [
+    (item["phase"], item["format"], item["iteration"])
+    for item in events
+  ]
+  if actual != expected:
+    raise ContractError(
+      "$.events: warmups must precede ten consecutive opens for each format"
+    )
+  if [item["sequence"] for item in events] != list(range(1, 45)):
+    raise ContractError("$.events: sequence must be the integers 1 through 44")
+
+  references = [
+    reference
+    for item in events
+    for reference in (
+      item["connectionEventId"],
+      item["interactiveEventId"],
+      item["collaborationEventId"],
+    )
+  ]
+  if len(references) != len(set(references)):
+    raise ContractError("$.events: raw browser event references must be unique")
+
+
+def _validate_performance_browser_trace(value):
+  events = value["events"]
+  identifiers = [item["id"] for item in events]
+  if len(identifiers) != len(set(identifiers)):
+    raise ContractError("$.events: raw browser event IDs must be unique")
+  timestamps = [item["timestampMilliseconds"] for item in events]
+  if timestamps != sorted(timestamps):
+    raise ContractError("$.events: raw browser events must use monotonic order")
+
+
+def _validate_performance_attempt(_value):
+  return
 
 
 def _validate_blocking_matrix(gates, path):
@@ -754,6 +821,9 @@ SEMANTIC_VALIDATORS = {
   "artifact-manifest": _validate_artifact_manifest,
   "command-catalog": _validate_command_catalog,
   "corpus-manifest": _validate_corpus_manifest,
+  "performance-attempt": _validate_performance_attempt,
+  "performance-browser-trace": _validate_performance_browser_trace,
+  "performance-open-trace": _validate_performance_open_trace,
   "performance-samples": _validate_performance_samples,
   "gate-result": _validate_gate_result,
   "release-policy": _validate_release_policy,

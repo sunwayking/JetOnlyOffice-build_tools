@@ -17,6 +17,12 @@ packaging, and release verification:
 - `corpus-manifest.schema.json` pins the release and performance corpora.
 - `performance-samples.schema.json` records complete or infrastructure-blocked
   Xiaomi performance measurements before recomputing gate results.
+- `performance-attempt.schema.json` is the write-once receipt binding the first
+  sample digest, recomputed result digest and blocking status.
+- `performance-browser-trace.schema.json` binds raw browser events to the
+  versioned collector executable that captured their monotonic timestamps.
+- `performance-open-trace.schema.json` proves four retained warmups followed by
+  ten ordered measured opens per format and binds their real ready timestamps.
 - `gate-catalog.schema.json` freezes the source-independent release gate matrix.
 - `gate-result.schema.json` records immutable first-attempt evidence and status.
 - `release-policy.schema.json` binds the gate matrix to a source lock.
