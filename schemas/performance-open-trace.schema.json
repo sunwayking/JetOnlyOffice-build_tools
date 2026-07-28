@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/performance-open-trace.schema.json",
+  "title": "JetOnlyOffice Mobile open performance trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "traceType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "sourceLockSha256",
+    "rawTrace",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "traceType": {
+      "const": "mobile-open-sequence"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "const": "performance.xiaomi.open-time"
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "rawTrace": {
+      "$ref": "common.schema.json#/$defs/fileRecord"
+    },
+    "events": {
+      "type": "array",
+      "minItems": 44,
+      "maxItems": 44,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sequence",
+          "phase",
+          "format",
+          "iteration",
+          "connectionEventId",
+          "interactiveEventId",
+          "collaborationEventId"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "phase": {
+            "enum": [
+              "warmup",
+              "measured"
+            ]
+          },
+          "format": {
+            "enum": [
+              "docx",
+              "pdf",
+              "pptx",
+              "xlsx"
+            ]
+          },
+          "iteration": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "connectionEventId": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "interactiveEventId": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "collaborationEventId": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          }
+        }
+      }
+    }
+  }
+}

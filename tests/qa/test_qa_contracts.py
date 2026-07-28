@@ -214,16 +214,6 @@ def performance_samples(gate_id):
   return value
 
 
-def performance_evidence(gate_id):
-  return {
-    "path": f"evidence/raw/release-run-001/{gate_id}/samples.json",
-    "mode": "0644",
-    "sha256": SHA256,
-    "size": 1024,
-    "mediaType": "application/json",
-  }
-
-
 def _write_evidence_record(root, relative_path, value):
   path = root / Path(relative_path)
   path.parent.mkdir(parents=True, exist_ok=True)
@@ -236,6 +226,30 @@ def _write_evidence_record(root, relative_path, value):
     "size": len(payload),
     "mediaType": "application/json",
   }
+
+
+def _write_bytes_record(root, relative_path, payload, media_type, mode="0644"):
+  path = root / Path(relative_path)
+  path.parent.mkdir(parents=True, exist_ok=True)
+  path.write_bytes(payload)
+  return {
+    "path": Path(relative_path).as_posix(),
+    "mode": mode,
+    "sha256": hashlib.sha256(payload).hexdigest(),
+    "size": len(payload),
+    "mediaType": media_type,
+  }
+
+
+def persist_performance_samples(samples, root):
+  return _write_evidence_record(
+    root,
+    (
+      f"evidence/raw/{samples['runId']}/{samples['gateId']}"
+      "/samples.json"
+    ),
+    samples,
+  )
 
 
 @contextmanager
@@ -254,12 +268,14 @@ def attested_performance_samples(gate_id):
         "device": "pond",
         "minimumRamMiB": 3500,
         "chrome": {
+          "state": "LOCKED",
           "package": "com.android.chrome",
           "channel": "stable",
           "version": "138.0.7204.157",
           "signingCertificateSha256": chrome_sha256,
         },
         "systemWebView": {
+          "state": "LOCKED",
           "package": "com.google.android.webview",
           "version": "143.0.7499.192",
           "signingCertificateSha256": webview_sha256,
@@ -297,10 +313,96 @@ def attested_performance_samples(gate_id):
       f"{evidence_prefix}/device-facts.json",
       facts,
     )
+    if gate_id == "performance.xiaomi.open-time":
+      cursor = 1000
+      sequence = 1
+      trace_events = []
+      raw_events = []
+
+      def append_open(phase, file_format, iteration, duration):
+        nonlocal cursor, sequence
+        event_prefix = f"open-{sequence:03d}"
+        connection_id = event_prefix + "-connection"
+        interactive_id = event_prefix + "-interactive"
+        collaboration_id = event_prefix + "-collaboration"
+        trace_events.append({
+          "sequence": sequence,
+          "phase": phase,
+          "format": file_format,
+          "iteration": iteration,
+          "connectionEventId": connection_id,
+          "interactiveEventId": interactive_id,
+          "collaborationEventId": collaboration_id,
+        })
+        raw_events.extend([
+          {
+            "id": connection_id,
+            "type": "connection-start",
+            "timestampMilliseconds": cursor,
+          },
+          {
+            "id": interactive_id,
+            "type": "first-interactive-frame",
+            "timestampMilliseconds": cursor + duration - 100,
+          },
+          {
+            "id": collaboration_id,
+            "type": "collaboration-initialized",
+            "timestampMilliseconds": cursor + duration,
+          },
+        ])
+        sequence += 1
+        cursor += duration + 1
+
+      for file_format in ("docx", "pdf", "pptx", "xlsx"):
+        append_open("warmup", file_format, 0, 4000)
+      for format_samples in samples["openTime"]:
+        for iteration, duration in enumerate(format_samples["milliseconds"], 1):
+          append_open("measured", format_samples["format"], iteration, duration)
+
+      collector_record = _write_bytes_record(
+        root,
+        f"{evidence_prefix}/collector.py",
+        b"# locked JetOnlyOffice performance collector fixture\n",
+        "text/x-python",
+        "0755",
+      )
+      raw_trace_record = _write_evidence_record(
+        root,
+        f"{evidence_prefix}/browser-trace.json",
+        {
+          "schemaVersion": 1,
+          "traceType": "browser-open-events",
+          "releaseId": samples["releaseId"],
+          "runId": samples["runId"],
+          "gateId": gate_id,
+          "sourceLockSha256": samples["sourceLockSha256"],
+          "runtime": "chrome",
+          "clock": "monotonic-milliseconds",
+          "collector": {
+            "name": "jetonlyoffice-mobile-performance-collector",
+            "version": "1.0.0",
+            "executable": collector_record,
+          },
+          "events": raw_events,
+        },
+      )
+      trace_payload = {
+        "schemaVersion": 1,
+        "traceType": "mobile-open-sequence",
+        "releaseId": samples["releaseId"],
+        "runId": samples["runId"],
+        "gateId": gate_id,
+        "sourceLockSha256": samples["sourceLockSha256"],
+        "rawTrace": raw_trace_record,
+        "events": trace_events,
+      }
+    else:
+      trace_payload = {"traceEvents": []}
     trace_record = _write_evidence_record(
       root,
       f"{evidence_prefix}/trace.json",
-      {"traceEvents": []},
+      trace_payload,
     )
     samples["environment"] = {
       "kind": "device",
@@ -330,7 +432,35 @@ def attested_performance_samples(gate_id):
       "deviceFacts": facts_record,
       "traces": [trace_record],
     }
-    yield samples, performance_evidence(gate_id), root
+    yield samples, persist_performance_samples(samples, root), root
+
+
+def rewrite_open_trace(samples, root, mutate):
+  trace_record = samples["attestation"]["traces"][0]
+  trace_path = root / trace_record["path"]
+  trace = json.loads(trace_path.read_bytes())
+  raw_trace_record = trace["rawTrace"]
+  raw_trace = json.loads((root / raw_trace_record["path"]).read_bytes())
+  mutate(trace, raw_trace)
+  trace["rawTrace"] = _write_evidence_record(
+    root,
+    raw_trace_record["path"],
+    raw_trace,
+  )
+  samples["attestation"]["traces"][0] = _write_evidence_record(
+    root,
+    trace_record["path"],
+    trace,
+  )
+
+
+def set_last_open_duration(trace, raw_trace, milliseconds):
+  event = trace["events"][-1]
+  raw_by_id = {item["id"]: item for item in raw_trace["events"]}
+  started = raw_by_id[event["connectionEventId"]]["timestampMilliseconds"]
+  raw_by_id[event["collaborationEventId"]]["timestampMilliseconds"] = (
+    started + milliseconds
+  )
 
 
 class QaContractTests(unittest.TestCase):
@@ -425,6 +555,7 @@ class QaContractTests(unittest.TestCase):
       "release-run-001",
       "c" * 64,
       self.schema_dir,
+      REPOSITORY_ROOT,
     )
     self.assertEqual("PASS", evidence["outcome"])
     self.assertEqual([], evidence["blockers"])
@@ -443,6 +574,7 @@ class QaContractTests(unittest.TestCase):
       "release-run-001",
       "c" * 64,
       self.schema_dir,
+      REPOSITORY_ROOT,
     )
     self.assertEqual("BLOCKED", blocked["outcome"])
     self.assertEqual(
@@ -462,6 +594,7 @@ class QaContractTests(unittest.TestCase):
       "release-run-001",
       "c" * 64,
       self.schema_dir,
+      REPOSITORY_ROOT,
     )
     self.assertEqual(
       [{"gateId": "browser.desktop.chromium", "reason": "MISSING"}],
@@ -612,13 +745,16 @@ class QaContractTests(unittest.TestCase):
     self.assertTrue(all(item["blocking"] for item in gates.values() if item["category"] != "ios"))
     self.assertTrue(all(not item["blocking"] for item in gates.values() if item["category"] == "ios"))
 
-  def test_android_targets_lock_webview_without_promoting_missing_chrome(self):
+  def test_android_targets_lock_current_xiaomi_browser_runtimes(self):
     targets = load_json(REPOSITORY_ROOT / "qa" / "android-targets.v1.json")
     floor = targets["performanceFloor"]
 
-    self.assertEqual("UNLOCKED", floor["chrome"]["state"])
-    self.assertNotIn("version", floor["chrome"])
-    self.assertNotIn("signingCertificateSha256", floor["chrome"])
+    self.assertEqual("LOCKED", floor["chrome"]["state"])
+    self.assertEqual("150.0.7871.186", floor["chrome"]["version"])
+    self.assertEqual(
+      "1975b2f17177bc89a5dff31f9e64a6cae281a53dc1d1d59b1d147fe1c82afa00",
+      floor["chrome"]["signingCertificateSha256"],
+    )
     self.assertEqual("LOCKED", floor["systemWebView"]["state"])
     self.assertEqual("143.0.7499.192", floor["systemWebView"]["version"])
     self.assertEqual(
@@ -667,10 +803,16 @@ class QaContractTests(unittest.TestCase):
         metric["value"] for metric in result["metrics"]
         if metric["name"] == "maximum-open-milliseconds"
       ))
-      self.assertEqual(4, len(result["evidence"]))
+      self.assertEqual(6, len(result["evidence"]))
       validate_contract(result, "gate-result", self.schema_dir)
 
-      samples["openTime"][0]["milliseconds"][-1] = 8001
+      samples["openTime"][-1]["milliseconds"][-1] = 8001
+      rewrite_open_trace(
+        samples,
+        root,
+        lambda trace, raw_trace: set_last_open_duration(trace, raw_trace, 8001),
+      )
+      evidence = persist_performance_samples(samples, root)
       failed = evaluate_performance_samples(
         samples,
         evidence,
@@ -684,6 +826,7 @@ class QaContractTests(unittest.TestCase):
     with attested_performance_samples("performance.xiaomi.command-p95") as fixture:
       samples, evidence, root = fixture
       samples["commands"][1]["milliseconds"] = [1] * 28 + [251, 1000]
+      evidence = persist_performance_samples(samples, root)
       result = evaluate_performance_samples(
         samples,
         evidence,
@@ -711,6 +854,7 @@ class QaContractTests(unittest.TestCase):
 
       samples["gestures"][0]["rounds"][0]["medianMilliFps"] = 44999
       samples["gestures"][1]["rounds"][1]["maxFreezeMilliseconds"] = 1001
+      evidence = persist_performance_samples(samples, root)
       failed = evaluate_performance_samples(
         samples,
         evidence,
@@ -721,29 +865,40 @@ class QaContractTests(unittest.TestCase):
       self.assertEqual("PERFORMANCE_GESTURE_BUDGET_EXCEEDED", failed["errorCode"])
 
   def test_performance_collection_can_fail_closed_as_infrastructure_incomplete(self):
-    samples = performance_samples("performance.xiaomi.open-time")
-    samples["collectionStatus"] = "INFRA_INCOMPLETE"
-    samples["errorCode"] = "OFFICIAL_CHROME_MISSING"
-    del samples["openTime"]
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, _, root = fixture
+      samples["collectionStatus"] = "INFRA_INCOMPLETE"
+      samples["errorCode"] = "OFFICIAL_CHROME_MISSING"
+      del samples["openTime"]
+      del samples["attestation"]
+      evidence = persist_performance_samples(samples, root)
 
-    result = evaluate_performance_samples(
-      samples,
-      performance_evidence(samples["gateId"]),
-      self.schema_dir,
-      REPOSITORY_ROOT,
-    )
-    self.assertEqual("INFRA_INCOMPLETE", result["status"])
-    self.assertEqual("OFFICIAL_CHROME_MISSING", result["errorCode"])
-    self.assertEqual([], result["metrics"])
-    validate_contract(result, "gate-result", self.schema_dir)
+      result = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
+      self.assertEqual("INFRA_INCOMPLETE", result["status"])
+      self.assertEqual("OFFICIAL_CHROME_MISSING", result["errorCode"])
+      self.assertEqual([], result["metrics"])
+      validate_contract(result, "gate-result", self.schema_dir)
 
   def test_performance_cli_hashes_samples_into_a_canonical_gate_result(self):
     gate_id = "performance.xiaomi.open-time"
     with attested_performance_samples(gate_id) as fixture:
       samples, _, root = fixture
       samples_path = root / "evidence" / "raw" / "release-run-001" / gate_id / "samples.json"
-      output_path = root / "open-time.json"
+      output_path = (
+        root / "evidence" / "results" / "release-run-001" / gate_id / "result.json"
+      )
       samples_path.parent.mkdir(parents=True, exist_ok=True)
+      samples["openTime"][-1]["milliseconds"][-1] = 8001
+      rewrite_open_trace(
+        samples,
+        root,
+        lambda trace, raw_trace: set_last_open_duration(trace, raw_trace, 8001),
+      )
       samples_path.write_text(
         json.dumps(samples),
         encoding="utf-8",
@@ -763,7 +918,7 @@ class QaContractTests(unittest.TestCase):
 
       self.assertEqual(0, exit_code)
       result = json.loads(output_path.read_bytes())
-      self.assertEqual("PASS", result["status"])
+      self.assertEqual("FAIL", result["status"])
       sample_record = next(
         item for item in result["evidence"] if item["path"].endswith("/samples.json")
       )
@@ -773,7 +928,9 @@ class QaContractTests(unittest.TestCase):
         sample_record["sha256"],
       )
       first_result = output_path.read_bytes()
-      with redirect_stderr(io.StringIO()):
+      samples_path.write_text("{}", encoding="utf-8")
+      stderr = io.StringIO()
+      with redirect_stderr(stderr):
         self.assertEqual(2, main([
           "evaluate-performance",
           "--samples",
@@ -786,38 +943,83 @@ class QaContractTests(unittest.TestCase):
           str(output_path),
         ]))
       self.assertEqual(first_result, output_path.read_bytes())
+      self.assertIn("first-attempt gate result or receipt already exists", stderr.getvalue())
+      receipt_path = samples_path.parent / "first-attempt.json"
+      self.assertTrue(receipt_path.is_file())
+      output_path.unlink()
+      stderr = io.StringIO()
+      with redirect_stderr(stderr):
+        self.assertEqual(2, main([
+          "evaluate-performance",
+          "--samples",
+          str(samples_path),
+          "--repository-root",
+          str(root),
+          "--schema-dir",
+          str(self.schema_dir),
+          "--output",
+          str(output_path),
+        ]))
+      self.assertIn("first-attempt gate result or receipt already exists", stderr.getvalue())
+      self.assertFalse(output_path.exists())
 
-  def test_performance_rejects_unlocked_or_mismatched_runtime_facts(self):
+  def test_performance_cli_rejects_noncanonical_first_attempt_paths(self):
+    gate_id = "performance.xiaomi.open-time"
+    with attested_performance_samples(gate_id) as fixture:
+      samples, _, root = fixture
+      samples_path = root / "evidence" / "raw" / "release-run-001" / gate_id / "samples.json"
+      samples_path.parent.mkdir(parents=True, exist_ok=True)
+      samples_path.write_text(json.dumps(samples), encoding="utf-8")
+
+      stderr = io.StringIO()
+      with redirect_stderr(stderr):
+        exit_code = main([
+          "evaluate-performance",
+          "--samples",
+          str(samples_path),
+          "--repository-root",
+          str(root),
+          "--schema-dir",
+          str(self.schema_dir),
+          "--output",
+          str(root / "alternate-result.json"),
+        ])
+
+      self.assertEqual(2, exit_code)
+      self.assertIn("canonical first-attempt result path", stderr.getvalue())
+
+  def test_performance_reports_unlocked_chrome_as_infrastructure_incomplete(self):
     with attested_performance_samples("performance.xiaomi.open-time") as fixture:
       samples, evidence, root = fixture
       target_path = root / samples["attestation"]["androidTargets"]["path"]
       targets = json.loads(target_path.read_bytes())
+      targets["performanceFloor"]["chrome"]["state"] = "UNLOCKED"
       del targets["performanceFloor"]["chrome"]["version"]
+      del targets["performanceFloor"]["chrome"]["signingCertificateSha256"]
       canonical_target_path = root / "qa" / "android-targets.v1.json"
       canonical_target_path.write_text(json.dumps(targets), encoding="utf-8")
-      target_path.write_text(json.dumps(targets), encoding="utf-8")
       samples["attestation"]["androidTargets"] = _write_evidence_record(
         root,
         samples["attestation"]["androidTargets"]["path"],
         targets,
       )
+      evidence = persist_performance_samples(samples, root)
 
-      with self.assertRaisesRegex(ContractError, "locked chrome version is missing"):
-        evaluate_performance_samples(
-          samples,
-          evidence,
-          self.schema_dir,
-          root,
-        )
+      result = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
+      self.assertEqual("INFRA_INCOMPLETE", result["status"])
+      self.assertEqual("OFFICIAL_CHROME_UNLOCKED", result["errorCode"])
+      self.assertEqual([], result["metrics"])
 
+  def test_performance_rejects_mismatched_runtime_facts(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
       samples["environment"]["dimensions"][4]["value"] = "999.0"
-      targets["performanceFloor"]["chrome"]["version"] = "138.0.7204.157"
-      canonical_target_path.write_text(json.dumps(targets), encoding="utf-8")
-      samples["attestation"]["androidTargets"] = _write_evidence_record(
-        root,
-        samples["attestation"]["androidTargets"]["path"],
-        targets,
-      )
+      evidence = persist_performance_samples(samples, root)
       with self.assertRaisesRegex(ContractError, "does not match attested runtime facts"):
         evaluate_performance_samples(
           samples,
@@ -826,12 +1028,247 @@ class QaContractTests(unittest.TestCase):
           root,
         )
 
+      samples["environment"]["dimensions"][4]["value"] = "138.0.7204.157"
+      facts_record = samples["attestation"]["deviceFacts"]
+      facts = json.loads((root / facts_record["path"]).read_bytes())
+      facts["systemWebView"]["signingCertificateSha256"] = "e" * 64
+      samples["attestation"]["deviceFacts"] = _write_evidence_record(
+        root,
+        facts_record["path"],
+        facts,
+      )
+      evidence = persist_performance_samples(samples, root)
+      with self.assertRaisesRegex(
+        ContractError,
+        "device system-webview signingCertificateSha256 does not match its lock",
+      ):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_performance_open_time_requires_complete_bound_raw_sequence(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      rewrite_open_trace(
+        samples,
+        root,
+        lambda trace, _raw_trace: trace["events"].pop(0),
+      )
+      evidence = persist_performance_samples(samples, root)
+
+      with self.assertRaisesRegex(ContractError, "(?:at least|exactly) 44"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_performance_open_time_values_must_match_raw_sequence(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      samples["openTime"][-1]["milliseconds"][-1] = 7999
+      evidence = persist_performance_samples(samples, root)
+
+      with self.assertRaisesRegex(ContractError, "do not match raw open trace"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_performance_rejects_samples_not_bound_to_hashed_bytes(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      samples["openTime"][-1]["milliseconds"][-1] = 7999
+
+      with self.assertRaisesRegex(ContractError, "hashed evidence bytes"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_release_aggregation_rejects_overwritten_first_samples(self):
+    gate_id = "performance.xiaomi.open-time"
+    with attested_performance_samples(gate_id) as fixture:
+      samples, evidence, root = fixture
+      samples_path = root / evidence["path"]
+      result = evaluate_performance_samples(
+        samples,
+        evidence,
+        self.schema_dir,
+        root,
+      )
+      policy = release_policy()
+      policy["gates"] = [{
+        "id": gate_id,
+        "category": "performance",
+        "blocking": True,
+      }]
+      samples_path.write_text("{}", encoding="utf-8")
+
+      with self.assertRaisesRegex(ContractError, "(?:size|SHA-256) mismatch"):
+        aggregate_release_evidence(
+          policy,
+          [result],
+          samples["runId"],
+          "c" * 64,
+          self.schema_dir,
+          root,
+        )
+
+  def test_release_aggregation_recomputes_and_rejects_forged_pass(self):
+    gate_id = "performance.xiaomi.open-time"
+    with attested_performance_samples(gate_id) as fixture:
+      samples, _, root = fixture
+      samples["openTime"][-1]["milliseconds"][-1] = 8001
+      rewrite_open_trace(
+        samples,
+        root,
+        lambda trace, raw_trace: set_last_open_duration(trace, raw_trace, 8001),
+      )
+      persist_performance_samples(samples, root)
+      samples_path = (
+        root / "evidence" / "raw" / samples["runId"] / gate_id / "samples.json"
+      )
+      output_path = (
+        root / "evidence" / "results" / samples["runId"] / gate_id / "result.json"
+      )
+      self.assertEqual(0, main([
+        "evaluate-performance",
+        "--samples",
+        str(samples_path),
+        "--repository-root",
+        str(root),
+        "--schema-dir",
+        str(self.schema_dir),
+        "--output",
+        str(output_path),
+      ]))
+      forged = json.loads(output_path.read_bytes())
+      self.assertEqual("FAIL", forged["status"])
+      forged["status"] = "PASS"
+      del forged["errorCode"]
+      policy = release_policy()
+      policy["gates"] = [{
+        "id": gate_id,
+        "category": "performance",
+        "blocking": True,
+      }]
+
+      with self.assertRaisesRegex(ContractError, "machine recomputation"):
+        aggregate_release_evidence(
+          policy,
+          [forged],
+          samples["runId"],
+          "c" * 64,
+          self.schema_dir,
+          root,
+        )
+
+  def test_release_aggregation_accepts_and_binds_first_attempt_receipt(self):
+    gate_id = "performance.xiaomi.open-time"
+    with attested_performance_samples(gate_id) as fixture:
+      samples, _, root = fixture
+      samples_path = (
+        root / "evidence" / "raw" / samples["runId"] / gate_id / "samples.json"
+      )
+      output_path = (
+        root / "evidence" / "results" / samples["runId"] / gate_id / "result.json"
+      )
+      self.assertEqual(0, main([
+        "evaluate-performance",
+        "--samples",
+        str(samples_path),
+        "--repository-root",
+        str(root),
+        "--schema-dir",
+        str(self.schema_dir),
+        "--output",
+        str(output_path),
+      ]))
+      result = json.loads(output_path.read_bytes())
+      policy = release_policy()
+      policy["gates"] = [{
+        "id": gate_id,
+        "category": "performance",
+        "blocking": True,
+      }]
+
+      release = aggregate_release_evidence(
+        policy,
+        [result],
+        samples["runId"],
+        "c" * 64,
+        self.schema_dir,
+        root,
+      )
+      self.assertEqual("PASS", release["outcome"])
+
+      receipt_path = samples_path.parent / "first-attempt.json"
+      receipt = json.loads(receipt_path.read_bytes())
+      receipt["resultSha256"] = "f" * 64
+      receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+      with self.assertRaisesRegex(ContractError, "receipt does not match"):
+        aggregate_release_evidence(
+          policy,
+          [result],
+          samples["runId"],
+          "c" * 64,
+          self.schema_dir,
+          root,
+        )
+
   def test_performance_rejects_tampered_raw_trace_evidence(self):
     with attested_performance_samples("performance.xiaomi.open-time") as fixture:
       samples, evidence, root = fixture
       trace_path = root / samples["attestation"]["traces"][0]["path"]
-      trace_path.write_bytes(trace_path.read_bytes().replace(b"[]", b"{}"))
+      payload = bytearray(trace_path.read_bytes())
+      payload[0] = ord("[")
+      trace_path.write_bytes(payload)
 
+      with self.assertRaisesRegex(ContractError, "SHA-256 mismatch"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_performance_binds_raw_browser_trace_and_collector_bytes(self):
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      sequence_trace = json.loads(
+        (root / samples["attestation"]["traces"][0]["path"]).read_bytes()
+      )
+      raw_trace_path = root / sequence_trace["rawTrace"]["path"]
+      raw_payload = bytearray(raw_trace_path.read_bytes())
+      raw_payload[0] = ord("[")
+      raw_trace_path.write_bytes(raw_payload)
+      with self.assertRaisesRegex(ContractError, "SHA-256 mismatch"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+    with attested_performance_samples("performance.xiaomi.open-time") as fixture:
+      samples, evidence, root = fixture
+      sequence_trace = json.loads(
+        (root / samples["attestation"]["traces"][0]["path"]).read_bytes()
+      )
+      raw_trace = json.loads((root / sequence_trace["rawTrace"]["path"]).read_bytes())
+      collector_path = root / raw_trace["collector"]["executable"]["path"]
+      collector_payload = bytearray(collector_path.read_bytes())
+      collector_payload[0] = ord("!")
+      collector_path.write_bytes(collector_payload)
       with self.assertRaisesRegex(ContractError, "SHA-256 mismatch"):
         evaluate_performance_samples(
           samples,
