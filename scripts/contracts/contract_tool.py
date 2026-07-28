@@ -15,6 +15,12 @@ CONTRACT_SCHEMAS = {
   "image-lock": "image-lock.schema.json",
   "build-manifest": "build-manifest.schema.json",
   "artifact-manifest": "artifact-manifest.schema.json",
+  "command-catalog": "command-catalog.schema.json",
+  "corpus-manifest": "corpus-manifest.schema.json",
+  "gate-result": "gate-result.schema.json",
+  "release-policy": "release-policy.schema.json",
+  "release-evidence": "release-evidence.schema.json",
+  "gate-catalog": "gate-catalog.schema.json",
 }
 
 EXPECTED_ENVIRONMENT = {
@@ -352,12 +358,180 @@ def _validate_artifact_manifest(value):
       )
 
 
+def _validate_command_catalog(value):
+  commands = value["commands"]
+  _validate_sorted_unique(commands, lambda item: item["id"], "$.commands")
+  if len(commands) != value["inventoryCount"]:
+    raise ContractError("$.commands: length does not match inventoryCount")
+  editor_prefix = value["editor"] + "."
+  for index, command in enumerate(commands):
+    prefix = f"$.commands[{index}]"
+    if not command["id"].startswith(editor_prefix):
+      raise ContractError(prefix + ".id: must use the catalog editor prefix")
+    _validate_relative_path(command["desktop"]["path"], prefix + ".desktop.path")
+    for field in ("contexts", "permissions", "tests"):
+      if command[field] != sorted(set(command[field])):
+        raise ContractError(f"{prefix}.{field}: values must be sorted and unique")
+    if command["disposition"] == "mapped":
+      if "mobile" not in command:
+        raise ContractError(prefix + ".mobile: mobile mapping is required")
+      if "adr" in command:
+        raise ContractError(prefix + ".adr: mapped commands cannot be excluded")
+      entrypoints = command["mobile"]["entrypoints"]
+      if entrypoints != sorted(set(entrypoints)):
+        raise ContractError(prefix + ".mobile.entrypoints: values must be sorted and unique")
+    else:
+      if "adr" not in command:
+        raise ContractError(prefix + ".adr: ADR is required for excluded commands")
+      if "mobile" in command:
+        raise ContractError(prefix + ".mobile: excluded commands cannot have a mapping")
+      _validate_relative_path(command["adr"], prefix + ".adr")
+      if not command["adr"].startswith("docs/adr/"):
+        raise ContractError(prefix + ".adr: exclusions must reference docs/adr")
+
+
+def _validate_corpus_manifest(value):
+  entries = value["entries"]
+  _validate_sorted_unique(entries, lambda item: item["id"], "$.entries")
+  paths = [item["path"] for item in entries]
+  if len(paths) != len(set(paths)):
+    raise ContractError("$.entries: paths must be unique")
+  editor_by_format = {
+    "docx": "word",
+    "odt": "word",
+    "xlsx": "spreadsheet",
+    "ods": "spreadsheet",
+    "pptx": "presentation",
+    "odp": "presentation",
+    "pdf": "pdf",
+  }
+  for index, entry in enumerate(entries):
+    prefix = f"$.entries[{index}]"
+    _validate_relative_path(entry["path"], prefix + ".path")
+    if entry["editor"] != editor_by_format[entry["format"]]:
+      raise ContractError(prefix + ".editor: does not match format")
+    for field in ("purposes", "features"):
+      if entry[field] != sorted(set(entry[field])):
+        raise ContractError(f"{prefix}.{field}: values must be sorted and unique")
+  release_formats = set(editor_by_format)
+  present_formats = {item["format"] for item in entries}
+  missing_release = sorted(release_formats - present_formats)
+  if missing_release:
+    raise ContractError("$.entries: missing release formats: " + ", ".join(missing_release))
+  required_performance = {"docx", "xlsx", "pptx", "pdf"}
+  performance_formats = {
+    item["format"] for item in entries if "performance" in item["purposes"]
+  }
+  missing_performance = sorted(required_performance - performance_formats)
+  if missing_performance:
+    raise ContractError(
+      "$.entries: missing performance formats: " + ", ".join(missing_performance)
+    )
+
+
+def _validate_gate_result(value):
+  if value["finishedAt"] < value["startedAt"]:
+    raise ContractError("$.finishedAt: must not precede startedAt")
+  status = value["status"]
+  if status == "PASS" and "errorCode" in value:
+    raise ContractError("$.errorCode: successful gates cannot have an errorCode")
+  if status != "PASS" and "errorCode" not in value:
+    raise ContractError("$.errorCode: errorCode is required for non-passing gates")
+  dimensions = value["environment"]["dimensions"]
+  _validate_sorted_unique(dimensions, lambda item: item["name"], "$.environment.dimensions")
+  metrics = value["metrics"]
+  _validate_sorted_unique(metrics, lambda item: item["name"], "$.metrics")
+  evidence = value["evidence"]
+  _validate_sorted_unique(evidence, lambda item: item["path"], "$.evidence")
+  evidence_prefix = f'evidence/raw/{value["runId"]}/{value["gateId"]}/'
+  for index, item in enumerate(evidence):
+    path = item["path"]
+    _validate_relative_path(path, f"$.evidence[{index}].path")
+    if not path.startswith(evidence_prefix):
+      raise ContractError(
+        f"$.evidence[{index}].path: must use immutable raw evidence prefix {evidence_prefix}"
+      )
+
+
+def _validate_blocking_matrix(gates, path):
+  for index, gate in enumerate(gates):
+    should_block = gate["category"] != "ios"
+    if gate["blocking"] != should_block:
+      raise ContractError(
+        f"{path}[{index}].blocking: only iOS evidence may be non-blocking"
+      )
+
+
+def _validate_release_policy(value):
+  gates = value["gates"]
+  _validate_sorted_unique(gates, lambda item: item["id"], "$.gates")
+  if not any(item["blocking"] for item in gates):
+    raise ContractError("$.gates: at least one blocking gate is required")
+  _validate_blocking_matrix(gates, "$.gates")
+
+
+def _validate_release_evidence(value):
+  gates = value["gates"]
+  _validate_sorted_unique(gates, lambda item: item["gateId"], "$.gates")
+  gate_by_id = {item["gateId"]: item for item in gates}
+  for index, gate in enumerate(gates):
+    if gate["status"] == "PASS" and "errorCode" in gate:
+      raise ContractError(f"$.gates[{index}].errorCode: successful gate cannot have an error")
+    if gate["status"] != "PASS" and "errorCode" not in gate:
+      raise ContractError(f"$.gates[{index}].errorCode: non-passing gate requires an error")
+  for field in ("blockers", "nonBlockingIssues"):
+    _validate_sorted_unique(value[field], lambda item: item["gateId"], f"$.{field}")
+  blocker_by_id = {item["gateId"]: item for item in value["blockers"]}
+  advisory_by_id = {item["gateId"]: item for item in value["nonBlockingIssues"]}
+  if set(blocker_by_id) & set(advisory_by_id):
+    raise ContractError("$.blockers: a gate cannot be blocking and non-blocking")
+  for gate_id, gate in gate_by_id.items():
+    issue = blocker_by_id.get(gate_id) if gate["blocking"] else advisory_by_id.get(gate_id)
+    if gate["status"] == "PASS":
+      if issue:
+        raise ContractError(f"$.gates: passing gate is reported as an issue: {gate_id}")
+    elif issue is None:
+      classification = "blocking" if gate["blocking"] else "non-blocking"
+      raise ContractError(
+        f"$.gates: unreported non-passing {classification} gate: {gate_id}"
+      )
+    elif issue["reason"] != gate["status"]:
+      raise ContractError(f"$.gates: issue reason does not match status: {gate_id}")
+  for gate_id, issue in blocker_by_id.items():
+    gate = gate_by_id.get(gate_id)
+    if gate and not gate["blocking"]:
+      raise ContractError(f"$.blockers: non-blocking gate is classified as blocking: {gate_id}")
+    if gate and issue["reason"] == "MISSING":
+      raise ContractError(f"$.blockers: present gate cannot be missing: {gate_id}")
+  for gate_id, issue in advisory_by_id.items():
+    gate = gate_by_id.get(gate_id)
+    if gate and gate["blocking"]:
+      raise ContractError(f"$.nonBlockingIssues: blocking gate is classified as non-blocking: {gate_id}")
+    if gate and issue["reason"] == "MISSING":
+      raise ContractError(f"$.nonBlockingIssues: present gate cannot be missing: {gate_id}")
+  expected_outcome = "BLOCKED" if value["blockers"] else "PASS"
+  if value["outcome"] != expected_outcome:
+    raise ContractError("$.outcome: does not match blocking gate results")
+
+
+def _validate_gate_catalog(value):
+  gates = value["gates"]
+  _validate_sorted_unique(gates, lambda item: item["id"], "$.gates")
+  _validate_blocking_matrix(gates, "$.gates")
+
+
 SEMANTIC_VALIDATORS = {
   "source-lock": _validate_source_lock,
   "toolchain-lock": _validate_toolchain_lock,
   "image-lock": _validate_image_lock,
   "build-manifest": _validate_build_manifest,
   "artifact-manifest": _validate_artifact_manifest,
+  "command-catalog": _validate_command_catalog,
+  "corpus-manifest": _validate_corpus_manifest,
+  "gate-result": _validate_gate_result,
+  "release-policy": _validate_release_policy,
+  "release-evidence": _validate_release_evidence,
+  "gate-catalog": _validate_gate_catalog,
 }
 
 

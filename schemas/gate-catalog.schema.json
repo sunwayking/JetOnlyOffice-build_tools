@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/gate-catalog.schema.json",
+  "title": "JetOnlyOffice release gate catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogType",
+    "catalogId",
+    "gates"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogType": {
+      "const": "release-gates"
+    },
+    "catalogId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "category",
+          "blocking",
+          "owner",
+          "automation",
+          "requirement"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "category": {
+            "$ref": "common.schema.json#/$defs/gateCategory"
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "owner": {
+            "enum": [
+              "source",
+              "build-release",
+              "common-word",
+              "pdf",
+              "sheet-slide",
+              "qa",
+              "release"
+            ]
+          },
+          "automation": {
+            "enum": [
+              "automated",
+              "device",
+              "hybrid"
+            ]
+          },
+          "requirement": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

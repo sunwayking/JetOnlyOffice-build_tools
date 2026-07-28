@@ -19,6 +19,50 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9._-]*$"
     },
+    "editor": {
+      "enum": [
+        "word",
+        "spreadsheet",
+        "presentation",
+        "pdf"
+      ]
+    },
+    "permissionProfile": {
+      "enum": [
+        "edit",
+        "review",
+        "comment",
+        "fillForms",
+        "view"
+      ]
+    },
+    "gateCategory": {
+      "enum": [
+        "source",
+        "build",
+        "artifact",
+        "command",
+        "functional",
+        "permission",
+        "collaboration",
+        "resilience",
+        "browser",
+        "android",
+        "tablet",
+        "ios",
+        "accessibility",
+        "privacy",
+        "performance",
+        "reproducibility"
+      ]
+    },
+    "gateStatus": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INFRA_INCOMPLETE"
+      ]
+    },
     "relativePath": {
       "type": "string",
       "minLength": 1,
