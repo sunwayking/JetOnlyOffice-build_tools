@@ -1,0 +1,35 @@
+name: QA contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/qa-contracts.yml'
+      - 'qa/**'
+      - 'schemas/**'
+      - 'scripts/contracts/**'
+      - 'scripts/qa/**'
+      - 'tests/qa/**'
+  push:
+    branches:
+      - develop
+    paths:
+      - '.github/workflows/qa-contracts.yml'
+      - 'qa/**'
+      - 'schemas/**'
+      - 'scripts/contracts/**'
+      - 'scripts/qa/**'
+      - 'tests/qa/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify QA contracts and device fact parsers
+        run: python -m unittest discover -s tests/qa -v
