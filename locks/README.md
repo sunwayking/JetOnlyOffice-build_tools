@@ -66,6 +66,13 @@ because their locked bytes do not yet provide a complete, precise mapping; a
 product name, copyright line, package family, or nearby license is not
 accepted as a substitute.
 
+Thirteen dictionary language packs are now mapped payload by payload to exact
+license blobs in the locked tree: `ar`, `bg_BG`, `en_CA`, `en_ZA`, `es_ES`,
+`lv_LV`, `nb_NO`, `nn_NO`, `oc_FR`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`.
+The remaining thirty-six language packs stay incomplete; thirty-four have
+candidate text that still requires a precise mapping and `az_Latn_AZ` plus
+`ru_RU` have no in-tree license candidate.
+
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
 object through the public mirror's anonymous batch API, verifies its size and

@@ -998,11 +998,293 @@
           "**/LICENSE*",
           "**/license*"
         ],
-        "reason": "The repository has per-dictionary license candidates but no reviewed asset-to-license inventory; the listed language packs have no in-tree license candidate.",
+        "reason": "Thirteen language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reviewedComponents": [
+          {
+            "id": "ar",
+            "spdx": "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "ar/ar.aff",
+                "locator": "ar/COPYING.txt",
+                "sha256": "73480d918cd78d655508e80aa88c022cbd53634524a0f714b5f2519f2cf19124"
+              },
+              {
+                "type": "git-blob",
+                "path": "ar/ar.dic",
+                "locator": "ar/COPYING.txt",
+                "sha256": "73480d918cd78d655508e80aa88c022cbd53634524a0f714b5f2519f2cf19124"
+              },
+              {
+                "type": "git-blob",
+                "path": "ar/th_ar.dat",
+                "locator": "ar/COPYING.txt",
+                "sha256": "73480d918cd78d655508e80aa88c022cbd53634524a0f714b5f2519f2cf19124"
+              }
+            ]
+          },
+          {
+            "id": "bg_BG",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "bg_BG/bg_BG.aff",
+                "locator": "bg_BG/COPYING",
+                "sha256": "100035c1d3964e5528165e539619e2c5c01a421771daa43329809e06d779d692"
+              },
+              {
+                "type": "git-blob",
+                "path": "bg_BG/bg_BG.dic",
+                "locator": "bg_BG/COPYING",
+                "sha256": "100035c1d3964e5528165e539619e2c5c01a421771daa43329809e06d779d692"
+              },
+              {
+                "type": "git-blob",
+                "path": "bg_BG/hyph_bg_BG.dic",
+                "locator": "bg_BG/COPYING",
+                "sha256": "100035c1d3964e5528165e539619e2c5c01a421771daa43329809e06d779d692"
+              }
+            ]
+          },
+          {
+            "id": "en_CA",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "en_CA/en_CA.aff",
+                "locator": "en_CA/license.txt",
+                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_CA/en_CA.dic",
+                "locator": "en_CA/license.txt",
+                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+              }
+            ]
+          },
+          {
+            "id": "en_ZA",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "en_ZA/en_ZA.aff",
+                "locator": "en_ZA/license.txt",
+                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_ZA/en_ZA.dic",
+                "locator": "en_ZA/license.txt",
+                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+              }
+            ]
+          },
+          {
+            "id": "es_ES",
+            "spdx": "GPL-3.0-or-later OR LGPL-3.0-or-later OR MPL-1.1",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "es_ES/es_ES.aff",
+                "locator": "es_ES/LICENSE.md",
+                "sha256": "2b70fd5cb8d3b34cc6ae322c969557a2270b99017594addb2531ef5ffd9e1b17"
+              },
+              {
+                "type": "git-blob",
+                "path": "es_ES/es_ES.dic",
+                "locator": "es_ES/LICENSE.md",
+                "sha256": "2b70fd5cb8d3b34cc6ae322c969557a2270b99017594addb2531ef5ffd9e1b17"
+              },
+              {
+                "type": "git-blob",
+                "path": "es_ES/hyph_es_ES.dic",
+                "locator": "es_ES/LICENSE.md",
+                "sha256": "2b70fd5cb8d3b34cc6ae322c969557a2270b99017594addb2531ef5ffd9e1b17"
+              }
+            ]
+          },
+          {
+            "id": "lv_LV",
+            "spdx": "LGPL-2.1-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "lv_LV/hyph_lv_LV.dic",
+                "locator": "lv_LV/license.txt",
+                "sha256": "bb117c0fbd7f57f64170b690285d7df07c2371b578e3b3cd3aa2e1155ef461a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "lv_LV/lv_LV.aff",
+                "locator": "lv_LV/license.txt",
+                "sha256": "bb117c0fbd7f57f64170b690285d7df07c2371b578e3b3cd3aa2e1155ef461a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "lv_LV/lv_LV.dic",
+                "locator": "lv_LV/license.txt",
+                "sha256": "bb117c0fbd7f57f64170b690285d7df07c2371b578e3b3cd3aa2e1155ef461a0"
+              }
+            ]
+          },
+          {
+            "id": "nb_NO",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "nb_NO/hyph_nb_NO.dic",
+                "locator": "nb_NO/COPYING",
+                "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89"
+              },
+              {
+                "type": "git-blob",
+                "path": "nb_NO/nb_NO.aff",
+                "locator": "nb_NO/COPYING",
+                "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89"
+              },
+              {
+                "type": "git-blob",
+                "path": "nb_NO/nb_NO.dic",
+                "locator": "nb_NO/COPYING",
+                "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89"
+              }
+            ]
+          },
+          {
+            "id": "nn_NO",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "nn_NO/hyph_nn_NO.dic",
+                "locator": "nn_NO/COPYING",
+                "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89"
+              },
+              {
+                "type": "git-blob",
+                "path": "nn_NO/nn_NO.aff",
+                "locator": "nn_NO/COPYING",
+                "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89"
+              },
+              {
+                "type": "git-blob",
+                "path": "nn_NO/nn_NO.dic",
+                "locator": "nn_NO/COPYING",
+                "sha256": "e7431ac20e815b6797369e802f9e4bb1b0082485060d8b096235f035d741bd89"
+              }
+            ]
+          },
+          {
+            "id": "oc_FR",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "oc_FR/oc_FR.aff",
+                "locator": "oc_FR/LICENSES-en.txt",
+                "sha256": "3d2815ba38e153311beadeb0954da46de8dbf3abfc9752f302491e72ecd6e9a4"
+              },
+              {
+                "type": "git-blob",
+                "path": "oc_FR/oc_FR.dic",
+                "locator": "oc_FR/LICENSES-en.txt",
+                "sha256": "3d2815ba38e153311beadeb0954da46de8dbf3abfc9752f302491e72ecd6e9a4"
+              }
+            ]
+          },
+          {
+            "id": "sk_SK",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "sk_SK/hyph_sk_SK.dic",
+                "locator": "sk_SK/LICENSE.txt",
+                "sha256": "dc06f891b13dcb6fe1ede36c0c9020f0e57e6777aca951ecaceefa95a19d7cfc"
+              },
+              {
+                "type": "git-blob",
+                "path": "sk_SK/sk_SK.aff",
+                "locator": "sk_SK/LICENSE.txt",
+                "sha256": "dc06f891b13dcb6fe1ede36c0c9020f0e57e6777aca951ecaceefa95a19d7cfc"
+              },
+              {
+                "type": "git-blob",
+                "path": "sk_SK/sk_SK.dic",
+                "locator": "sk_SK/LICENSE.txt",
+                "sha256": "dc06f891b13dcb6fe1ede36c0c9020f0e57e6777aca951ecaceefa95a19d7cfc"
+              }
+            ]
+          },
+          {
+            "id": "sv_SE",
+            "spdx": "LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "sv_SE/hyph_sv_SE.dic",
+                "locator": "sv_SE/README_hyph_sv_SE.txt",
+                "sha256": "eee15b8d93b2413256ae1cb8af7d1489935571e0eaf15d9b27bab1203d3aafc2"
+              },
+              {
+                "type": "git-blob",
+                "path": "sv_SE/sv_SE.aff",
+                "locator": "sv_SE/LICENSE_en_US.txt",
+                "sha256": "236df23d082b84cf68c70337c7e1739a106d78c133a2d6eb02bb5389f2ddefd3"
+              },
+              {
+                "type": "git-blob",
+                "path": "sv_SE/sv_SE.dic",
+                "locator": "sv_SE/LICENSE_en_US.txt",
+                "sha256": "236df23d082b84cf68c70337c7e1739a106d78c133a2d6eb02bb5389f2ddefd3"
+              }
+            ]
+          },
+          {
+            "id": "tr_TR",
+            "spdx": "MPL-2.0",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "tr_TR/tr_TR.aff",
+                "locator": "tr_TR/LICENSE",
+                "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+              },
+              {
+                "type": "git-blob",
+                "path": "tr_TR/tr_TR.dic",
+                "locator": "tr_TR/LICENSE",
+                "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04"
+              }
+            ]
+          },
+          {
+            "id": "vi_VN",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "vi_VN/vi_VN.aff",
+                "locator": "vi_VN/LICENSES-en.txt",
+                "sha256": "d32e4c8faf974bdeb87da10a5951556b33744cf9b50a7f06125074e11f30d7f6"
+              },
+              {
+                "type": "git-blob",
+                "path": "vi_VN/vi_VN.dic",
+                "locator": "vi_VN/LICENSES-en.txt",
+                "sha256": "d32e4c8faf974bdeb87da10a5951556b33744cf9b50a7f06125074e11f30d7f6"
+              }
+            ]
+          }
+        ],
         "unresolvedComponents": [
-          "ar",
           "az_Latn_AZ",
-          "bg_BG",
           "ca_ES",
           "ca_ES_valencia",
           "cs_CZ",
@@ -1012,11 +1294,8 @@
           "de_DE",
           "el_GR",
           "en_AU",
-          "en_CA",
           "en_GB",
           "en_US",
-          "en_ZA",
-          "es_ES",
           "eu_ES",
           "fr_FR",
           "gl_ES",
@@ -1028,27 +1307,19 @@
           "ko_KR",
           "lb_LU",
           "lt_LT",
-          "lv_LV",
           "mn_MN",
-          "nb_NO",
           "nl_NL",
-          "nn_NO",
-          "oc_FR",
           "pl_PL",
           "pt_BR",
           "pt_PT",
           "ro_RO",
           "ru_RU",
-          "sk_SK",
           "sl_SI",
           "sr_Cyrl_RS",
           "sr_Latn_RS",
-          "sv_SE",
-          "tr_TR",
           "uk_UA",
           "uz_Cyrl_UZ",
-          "uz_Latn_UZ",
-          "vi_VN"
+          "uz_Latn_UZ"
         ]
       }
     },
