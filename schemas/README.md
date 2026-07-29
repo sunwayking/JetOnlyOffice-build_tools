@@ -9,9 +9,16 @@ packaging, and release verification:
   inventory derived from locked Git trees.
 - `source-lfs-audit.schema.json` proves locked Git LFS objects are anonymously
   downloadable from public JetOnlyOffice mirrors.
-- `toolchain-lock.schema.json` pins every non-container tool input.
-- `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend images.
-- `build-manifest.schema.json` inventories the offline build output.
+- `toolchain-lock.schema.json` pins every non-container tool input, its
+  build/package/runtime consumers, and its deterministic offline
+  materialization target.
+- `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend image
+  repository and config digests.
+- `bootstrap-manifest.schema.json` binds verified source, toolchain cache, and
+  image inputs.
+- `build-manifest.schema.json` inventories the offline build output and binds
+  the executable package driver while preserving regular-file and symlink
+  identity.
 - `artifact-manifest.schema.json` inventories packages and supply-chain files.
 - `command-catalog.schema.json` proves every Desktop command is Mobile-mapped or ADR-excluded.
 - `corpus-manifest.schema.json` pins the release and performance corpora.

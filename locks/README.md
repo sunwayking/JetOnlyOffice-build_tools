@@ -66,3 +66,18 @@ fails the source gate.
 fills and verifies the Git/LFS cache before materializing source. `-Command
 Verify` performs local commit, tree, license, and LFS content verification and
 does not contact a remote.
+
+`images.lock.json` is the reviewed `linux/amd64` image lock. Each entry binds
+both the repository manifest digest and the platform config digest. The four
+records were pulled from their public repositories and inspected on the local
+Docker Linux engine; bootstrap repeats those checks before writing its
+manifest. The Ubuntu image is the minimal builder/runtime base, not evidence
+that the compiler toolchain has been closed.
+
+The formal `toolchain.lock.json` remains intentionally absent. Every eventual
+tool record must declare its exact bytes, media type, license, sorted `build`,
+`package`, or `runtime` consumers, and deterministic materialization. The
+materialization target is one of the private toolchain root, copied source
+workspace, or offline package cache; supported inputs are regular files, DEBs,
+and tar archives. The contract requires all three consumer classes to be
+covered, so a one-file placeholder cannot satisfy the release toolchain gate.

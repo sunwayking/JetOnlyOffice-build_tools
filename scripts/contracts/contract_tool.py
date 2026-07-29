@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+import posixpath
 import re
 import sys
 from urllib.parse import urlparse
@@ -15,6 +16,7 @@ CONTRACT_SCHEMAS = {
   "source-lfs-audit": "source-lfs-audit.schema.json",
   "toolchain-lock": "toolchain-lock.schema.json",
   "image-lock": "image-lock.schema.json",
+  "bootstrap-manifest": "bootstrap-manifest.schema.json",
   "build-manifest": "build-manifest.schema.json",
   "artifact-manifest": "artifact-manifest.schema.json",
   "command-catalog": "command-catalog.schema.json",
@@ -290,6 +292,47 @@ def _validate_environment(environment, path):
     raise ContractError(f"{path}: environment does not match the release profile")
 
 
+def _validate_file_record(record, path):
+  _validate_relative_path(record["path"], path + ".path")
+  target = record.get("symlinkTarget")
+  if record["type"] == "file":
+    if target is not None:
+      raise ContractError(path + ".symlinkTarget: allowed only for symlinks")
+    return
+  if target is None:
+    raise ContractError(path + ".symlinkTarget: required for symlinks")
+  if (
+    "\\" in target
+    or target.startswith("/")
+    or target != posixpath.normpath(target)
+    or re.match(r"^[A-Za-z]:", target)
+  ):
+    raise ContractError(path + ".symlinkTarget: must be a normalized relative target")
+  resolved = posixpath.normpath(
+    posixpath.join(posixpath.dirname(record["path"]), target)
+  )
+  if resolved == ".." or resolved.startswith("../"):
+    raise ContractError(path + ".symlinkTarget: target escapes the manifest root")
+
+
+def _validate_symlink_graph(files, path):
+  targets = {
+    item["path"]: posixpath.normpath(
+      posixpath.join(posixpath.dirname(item["path"]), item["symlinkTarget"])
+    )
+    for item in files
+    if item["type"] == "symlink"
+  }
+  for start in targets:
+    visited = set()
+    current = start
+    while current in targets:
+      if current in visited:
+        raise ContractError(f"{path}: symbolic link cycle includes {current}")
+      visited.add(current)
+      current = targets[current]
+
+
 def _validate_source_lock(value):
   repositories = value["repositories"]
   _validate_sorted_unique(repositories, lambda item: item["id"], "$.repositories")
@@ -348,7 +391,50 @@ def _validate_toolchain_lock(value):
   tools = value["tools"]
   _validate_sorted_unique(tools, lambda item: item["id"], "$.tools")
   for index, tool in enumerate(tools):
-    _validate_https(tool["sourceUrl"], f"$.tools[{index}].sourceUrl")
+    prefix = f"$.tools[{index}]"
+    _validate_https(tool["sourceUrl"], prefix + ".sourceUrl")
+    if tool["consumers"] != sorted(set(tool["consumers"])):
+      raise ContractError(
+        f"$.tools[{index}].consumers: values must be sorted and unique"
+      )
+    materialization = tool["materialization"]
+    _validate_relative_path(
+      materialization["destination"], prefix + ".materialization.destination"
+    )
+    if not re.fullmatch(r"[A-Za-z0-9._+@/-]+", materialization["destination"]):
+      raise ContractError(
+        prefix + ".materialization.destination: path contains unsafe characters"
+      )
+    materialization_type = materialization["type"]
+    strip_components = materialization.get("stripComponents")
+    mode = materialization.get("mode")
+    archive_types = {"tar", "tar-gzip", "tar-xz"}
+    if materialization_type == "file":
+      if mode is None:
+        raise ContractError(prefix + ".materialization.mode: required for files")
+      if strip_components is not None:
+        raise ContractError(
+          prefix + ".materialization.stripComponents: allowed only for archives"
+        )
+    else:
+      if mode is not None:
+        raise ContractError(prefix + ".materialization.mode: allowed only for files")
+      if materialization_type in archive_types and strip_components is None:
+        raise ContractError(
+          prefix + ".materialization.stripComponents: required for archives"
+        )
+      if materialization_type not in archive_types and strip_components is not None:
+        raise ContractError(
+          prefix + ".materialization.stripComponents: allowed only for archives"
+        )
+  consumers = {
+    consumer
+    for tool in tools
+    for consumer in tool["consumers"]
+  }
+  missing = sorted({"build", "package", "runtime"} - consumers)
+  if missing:
+    raise ContractError("$.tools: missing consumers: " + ", ".join(missing))
 
 
 def _validate_image_lock(value):
@@ -356,6 +442,8 @@ def _validate_image_lock(value):
   _validate_sorted_unique(images, lambda item: item["id"], "$.images")
   required_roles = {"builder", "runtime", "buildkit", "dockerfile-frontend"}
   roles = {item["role"] for item in images}
+  if len(roles) != len(images):
+    raise ContractError("$.images: roles must be unique")
   missing = sorted(required_roles - roles)
   if missing:
     raise ContractError("$.images: missing required roles: " + ", ".join(missing))
@@ -363,12 +451,48 @@ def _validate_image_lock(value):
     _validate_https(image["sourceUrl"], f"$.images[{index}].sourceUrl")
 
 
+def _validate_bootstrap_manifest(value):
+  _validate_environment(value["environment"], "$.environment")
+  files = value["toolchainFiles"]
+  _validate_sorted_unique(files, lambda item: item["id"], "$.toolchainFiles")
+  paths = [item["path"] for item in files]
+  if len(paths) != len(set(paths)):
+    raise ContractError("$.toolchainFiles: paths must be unique")
+  for index, item in enumerate(files):
+    _validate_relative_path(item["path"], f"$.toolchainFiles[{index}].path")
+  images = value["images"]
+  _validate_sorted_unique(images, lambda item: item["id"], "$.images")
+  required_roles = {"builder", "runtime", "buildkit", "dockerfile-frontend"}
+  roles = {item["role"] for item in images}
+  if len(roles) != len(images):
+    raise ContractError("$.images: roles must be unique")
+  missing = sorted(required_roles - roles)
+  if missing:
+    raise ContractError("$.images: missing required roles: " + ", ".join(missing))
+
+
 def _validate_build_manifest(value):
   _validate_environment(value["environment"], "$.environment")
   files = value["files"]
   _validate_sorted_unique(files, lambda item: item["path"], "$.files")
   for index, item in enumerate(files):
-    _validate_relative_path(item["path"], f"$.files[{index}].path")
+    _validate_file_record(item, f"$.files[{index}]")
+  _validate_symlink_graph(files, "$.files")
+  driver = value["packageDriver"]
+  _validate_relative_path(driver["path"], "$.packageDriver.path")
+  matches = [item for item in files if item["path"] == driver["path"]]
+  if len(matches) != 1:
+    raise ContractError("$.packageDriver.path: driver is not inventoried in files")
+  file_record = matches[0]
+  if file_record["type"] != "file":
+    raise ContractError("$.packageDriver.path: driver must be a regular file")
+  for field in ("mode", "size", "sha256"):
+    if driver[field] != file_record[field]:
+      raise ContractError(
+        f"$.packageDriver.{field}: does not match the inventoried driver"
+      )
+  if int(driver["mode"], 8) & 0o111 == 0:
+    raise ContractError("$.packageDriver.mode: driver must be executable")
 
 
 def _validate_artifact_manifest(value):
@@ -865,6 +989,7 @@ SEMANTIC_VALIDATORS = {
   "source-lfs-audit": _validate_source_lfs_audit,
   "toolchain-lock": _validate_toolchain_lock,
   "image-lock": _validate_image_lock,
+  "bootstrap-manifest": _validate_bootstrap_manifest,
   "build-manifest": _validate_build_manifest,
   "artifact-manifest": _validate_artifact_manifest,
   "command-catalog": _validate_command_catalog,

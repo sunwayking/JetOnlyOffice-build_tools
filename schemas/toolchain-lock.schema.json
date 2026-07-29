@@ -44,7 +44,10 @@
           "sourceUrl",
           "sha256",
           "size",
-          "license"
+          "mediaType",
+          "consumers",
+          "license",
+          "materialization"
         ],
         "properties": {
           "id": {
@@ -84,9 +87,62 @@
             "type": "integer",
             "minimum": 1
           },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "consumers": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "build",
+                "package",
+                "runtime"
+              ]
+            }
+          },
           "license": {
             "type": "string",
             "minLength": 1
+          },
+          "materialization": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "root",
+              "type",
+              "destination"
+            ],
+            "properties": {
+              "root": {
+                "enum": [
+                  "toolchain",
+                  "sources",
+                  "offline-cache"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "file",
+                  "deb",
+                  "tar",
+                  "tar-gzip",
+                  "tar-xz"
+                ]
+              },
+              "destination": {
+                "$ref": "common.schema.json#/$defs/relativePath"
+              },
+              "stripComponents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "mode": {
+                "type": "string",
+                "pattern": "^[0-7]{4}$"
+              }
+            }
           }
         }
       }

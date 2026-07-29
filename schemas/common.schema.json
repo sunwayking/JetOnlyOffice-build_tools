@@ -162,6 +162,50 @@
           "$ref": "#/$defs/repositoryId"
         }
       }
+    },
+    "buildFileRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path",
+        "mode",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "file",
+            "symlink"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "mode": {
+          "type": "string",
+          "pattern": "^[0-7]{4}$"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceId": {
+          "$ref": "#/$defs/repositoryId"
+        },
+        "symlinkTarget": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "lockType": "image",
+  "platform": "linux-amd64",
+  "images": [
+    {
+      "id": "builder",
+      "role": "builder",
+      "reference": "ubuntu:24.04",
+      "digest": "sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90",
+      "configDigest": "sha256:ef91e4b15da8323a1523adb2b371998dcd3063dae8553cc2744c178ccc065bc4",
+      "platform": "linux/amd64",
+      "sourceUrl": "https://hub.docker.com/_/ubuntu"
+    },
+    {
+      "id": "buildkit",
+      "role": "buildkit",
+      "reference": "moby/buildkit:v0.31.1",
+      "digest": "sha256:6b59b7df63a8cb9902736f9ddf7fcff8261613d3e7449b8ea8b7537fc399c03a",
+      "configDigest": "sha256:61b4b32fef9693ecf4c9759ec1bd50f64eeffab59676a4f00a1b124df5fad249",
+      "platform": "linux/amd64",
+      "sourceUrl": "https://hub.docker.com/r/moby/buildkit"
+    },
+    {
+      "id": "frontend",
+      "role": "dockerfile-frontend",
+      "reference": "docker/dockerfile:1.19.0",
+      "digest": "sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6",
+      "configDigest": "sha256:6742480c08d7878bbb82a5f5b55d7cb17c5dea60d2068cb2bd37994f3a5c680e",
+      "platform": "linux/amd64",
+      "sourceUrl": "https://hub.docker.com/r/docker/dockerfile"
+    },
+    {
+      "id": "runtime",
+      "role": "runtime",
+      "reference": "ubuntu:24.04",
+      "digest": "sha256:4fbb8e6a8395de5a7550b33509421a2bafbc0aab6c06ba2cef9ebffbc7092d90",
+      "configDigest": "sha256:ef91e4b15da8323a1523adb2b371998dcd3063dae8553cc2744c178ccc065bc4",
+      "platform": "linux/amd64",
+      "sourceUrl": "https://hub.docker.com/_/ubuntu"
+    }
+  ]
+}

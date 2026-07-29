@@ -17,6 +17,7 @@
     "sourceDateEpoch",
     "environment",
     "network",
+    "packageDriver",
     "files"
   ],
   "properties": {
@@ -58,11 +59,41 @@
     "network": {
       "const": "none"
     },
+    "packageDriver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "path",
+        "mode",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "type": {
+          "const": "file"
+        },
+        "path": {
+          "$ref": "common.schema.json#/$defs/relativePath"
+        },
+        "mode": {
+          "type": "string",
+          "pattern": "^[0-7]{4}$"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
     "files": {
       "type": "array",
       "minItems": 1,
       "items": {
-        "$ref": "common.schema.json#/$defs/fileRecord"
+        "$ref": "common.schema.json#/$defs/buildFileRecord"
       }
     }
   }

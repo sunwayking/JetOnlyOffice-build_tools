@@ -4,8 +4,12 @@ param(
     [string]$Command = "Bootstrap",
 
     [string]$LockPath = (Join-Path $PSScriptRoot "..\locks\sources.lock.json"),
+    [string]$ToolchainLockPath = (Join-Path $PSScriptRoot "..\locks\toolchain.lock.json"),
+    [string]$ImageLockPath = (Join-Path $PSScriptRoot "..\locks\images.lock.json"),
     [string]$CacheDirectory = (Join-Path $PSScriptRoot "..\cache"),
-    [string]$SourceDirectory = (Join-Path $PSScriptRoot "..\workspace")
+    [string]$SourceDirectory = (Join-Path $PSScriptRoot "..\workspace"),
+    [string]$BootstrapManifestPath = (Join-Path $PSScriptRoot "..\cache\bootstrap-manifest.json"),
+    [string]$DockerExecutable = "docker"
 )
 
 $python = $null
@@ -30,6 +34,18 @@ $tool = Join-Path $PSScriptRoot "source_resolver.py"
 $schemaDirectory = Join-Path $PSScriptRoot "..\schemas"
 $arguments = @($tool)
 
+if ($Command -eq "Bootstrap") {
+    $baselineTool = Join-Path $PSScriptRoot "offline_baseline.py"
+    & $python $baselineTool preflight-bootstrap `
+        --source-lock $LockPath `
+        --toolchain-lock $ToolchainLockPath `
+        --image-lock $ImageLockPath `
+        --schema-dir $schemaDirectory
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
+
 switch ($Command) {
     "Bootstrap" {
         $arguments += @(
@@ -51,4 +67,21 @@ switch ($Command) {
 }
 
 & $python @arguments
-exit $LASTEXITCODE
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+if ($Command -eq "Bootstrap") {
+    $baselineTool = Join-Path $PSScriptRoot "offline_baseline.py"
+    & $python $baselineTool bootstrap `
+        --source-lock $LockPath `
+        --toolchain-lock $ToolchainLockPath `
+        --image-lock $ImageLockPath `
+        --cache-directory $CacheDirectory `
+        --docker $DockerExecutable `
+        --schema-dir $schemaDirectory `
+        --output $BootstrapManifestPath
+    exit $LASTEXITCODE
+}
+
+exit 0
