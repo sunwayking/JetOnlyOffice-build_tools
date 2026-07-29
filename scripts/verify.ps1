@@ -7,6 +7,7 @@ param(
     [string]$ReferenceArtifactDirectory,
     [string]$ReleasePolicyPath = (Join-Path $PSScriptRoot "..\artifacts\release-policy.json"),
     [string]$GateResultDirectory = (Join-Path $PSScriptRoot "..\artifacts\gate-results"),
+    [string]$RepositoryRoot = (Join-Path $PSScriptRoot ".."),
     [string]$RunId = "verify-local",
     [string]$Image,
     [string]$OutputPath = (Join-Path $PSScriptRoot "..\artifacts\release-evidence.json")
@@ -44,6 +45,7 @@ $arguments = @(
     "--reference-artifact-directory", $ReferenceArtifactDirectory,
     "--release-policy", $ReleasePolicyPath,
     "--gate-result-directory", $GateResultDirectory,
+    "--repository-root", $RepositoryRoot,
     "--run-id", $RunId,
     "--schema-dir", (Join-Path $PSScriptRoot "..\schemas"),
     "--output", $OutputPath

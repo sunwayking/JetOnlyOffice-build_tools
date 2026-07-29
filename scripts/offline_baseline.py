@@ -19,6 +19,9 @@ from source_resolver import ResolutionError, verify_materialized
 from qa.qa_tool import aggregate_release_evidence
 
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
 class BaselineError(ValueError):
   def __init__(self, message, exit_code):
     super().__init__(message)
@@ -943,6 +946,7 @@ def verify(args):
     args.run_id,
     canonical_sha256(artifact_manifest),
     args.schema_dir,
+    args.repository_root,
   )
   write_canonical(args.output, evidence)
   if evidence["outcome"] != "PASS":
@@ -1003,6 +1007,7 @@ def main(argv=None):
   verify_parser.add_argument("--run-id", required=True)
   verify_parser.add_argument("--image")
   verify_parser.add_argument("--schema-dir", required=True)
+  verify_parser.add_argument("--repository-root", default=str(REPOSITORY_ROOT))
   verify_parser.add_argument("--output", required=True)
 
   args = parser.parse_args(argv)

@@ -7,10 +7,14 @@ import json
 import os
 import sys
 import unittest
+from argparse import Namespace
+from unittest.mock import patch
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT))
+sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
+from offline_baseline import verify as verify_offline_baseline  # noqa: E402
 SHA1_A = "a" * 40
 SHA1_B = "b" * 40
 SHA256_A = "a" * 64
@@ -324,6 +328,70 @@ def bind_package_driver(manifest, root=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(PACKAGE_DRIVER_PAYLOAD)
   return manifest
+
+
+class OfflineBaselineVerificationUnitTests(unittest.TestCase):
+  def test_verify_passes_repository_root_to_evidence_aggregation(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = contract_source_lock()
+      source_path = root / "locks" / "sources.lock.json"
+      write_json(source_path, source)
+
+      artifact_directory = root / "artifacts"
+      reference_directory = root / "reference" / "artifacts"
+      manifest = artifact_manifest()
+      reference_manifest = artifact_manifest()
+      source_hash = canonical_sha256(source)
+      manifest["sourceLockSha256"] = source_hash
+      reference_manifest["sourceLockSha256"] = source_hash
+      materialize_artifacts(root, manifest)
+      materialize_artifacts(root / "reference", reference_manifest)
+      manifest_path = artifact_directory / "artifact-manifest.json"
+      reference_manifest_path = reference_directory / "artifact-manifest.json"
+      write_json(manifest_path, manifest)
+      write_json(reference_manifest_path, reference_manifest)
+
+      policy_path = artifact_directory / "release-policy.json"
+      write_json(policy_path, {
+        "schemaVersion": 1,
+        "policyType": "release-gates",
+        "releaseId": manifest["releaseId"],
+        "productVersion": manifest["productVersion"],
+        "sourceLockSha256": source_hash,
+        "gateCatalogSha256": "d" * 64,
+        "gates": [{
+          "id": "browser.desktop.chromium",
+          "category": "browser",
+          "blocking": True,
+        }],
+      })
+      gate_directory = artifact_directory / "gate-results"
+      gate_directory.mkdir(parents=True)
+      output = artifact_directory / "release-evidence.json"
+      args = Namespace(
+        artifact_manifest=str(manifest_path),
+        reference_artifact_manifest=str(reference_manifest_path),
+        source_lock=str(source_path),
+        artifact_directory=str(artifact_directory),
+        reference_artifact_directory=str(reference_directory),
+        release_policy=str(policy_path),
+        gate_result_directory=str(gate_directory),
+        run_id="verify-regression",
+        image=None,
+        schema_dir=str(REPOSITORY_ROOT / "schemas"),
+        repository_root=str(root),
+        output=str(output),
+      )
+
+      with patch(
+        "offline_baseline.aggregate_release_evidence",
+        return_value={"outcome": "PASS"},
+      ) as aggregate:
+        verify_offline_baseline(args)
+
+      self.assertEqual(str(root), aggregate.call_args.args[-1])
+      self.assertEqual("PASS", json.loads(output.read_text(encoding="utf-8"))["outcome"])
 
 
 @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
