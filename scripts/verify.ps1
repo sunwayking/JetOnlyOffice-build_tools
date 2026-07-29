@@ -10,6 +10,8 @@ param(
     [string]$RepositoryRoot = (Join-Path $PSScriptRoot ".."),
     [string]$RunId = "verify-local",
     [string]$Image,
+    [string]$DiffoscopeExecutable = "diffoscope",
+    [string]$DiffoscopeDirectory = (Join-Path $PSScriptRoot "..\artifacts\diffoscope"),
     [string]$OutputPath = (Join-Path $PSScriptRoot "..\artifacts\release-evidence.json")
 )
 
@@ -46,6 +48,8 @@ $arguments = @(
     "--release-policy", $ReleasePolicyPath,
     "--gate-result-directory", $GateResultDirectory,
     "--repository-root", $RepositoryRoot,
+    "--diffoscope", $DiffoscopeExecutable,
+    "--diffoscope-directory", $DiffoscopeDirectory,
     "--run-id", $RunId,
     "--schema-dir", (Join-Path $PSScriptRoot "..\schemas"),
     "--output", $OutputPath

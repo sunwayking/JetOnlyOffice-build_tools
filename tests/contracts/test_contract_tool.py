@@ -241,6 +241,8 @@ def artifact_manifest():
     ("checksums", "checksums", "checksums.sha256"),
     ("cyclonedx", "cyclonedx", "sbom/release.cdx.json"),
     ("deb", "deb", "packages/jetonlyoffice.deb"),
+    ("licenses", "licenses", "licenses/jetonlyoffice-licenses.tar.zst"),
+    ("notice", "notice", "licenses/NOTICE.txt"),
     ("oci", "oci", "images/jetonlyoffice.oci.tar"),
     ("provenance", "provenance", "provenance/intoto.jsonl"),
     ("rootfs", "rootfs", "packages/rootfs.tar.zst"),
@@ -587,6 +589,13 @@ class ContractToolTests(unittest.TestCase):
     del value["tools"][0]["license"]
     with self.assertRaisesRegex(ContractError, "missing required property license"):
       validate_contract(value, "toolchain-lock", self.schema_dir)
+    for invalid_license in ("NOASSERTION", "TBD", "UNKNOWN", " MIT "):
+      value = toolchain_lock()
+      value["tools"][0]["license"] = invalid_license
+      with self.subTest(license=invalid_license), self.assertRaisesRegex(
+        ContractError, "reviewed SPDX expression"
+      ):
+        validate_contract(value, "toolchain-lock", self.schema_dir)
 
   def test_toolchain_lock_requires_sorted_complete_consumer_coverage(self):
     value = toolchain_lock()

@@ -398,6 +398,14 @@ def _validate_toolchain_lock(value):
   for index, tool in enumerate(tools):
     prefix = f"$.tools[{index}]"
     _validate_https(tool["sourceUrl"], prefix + ".sourceUrl")
+    license_expression = tool["license"]
+    if (
+      license_expression != license_expression.strip()
+      or license_expression.upper() in {"NOASSERTION", "NONE", "TBD", "UNKNOWN"}
+    ):
+      raise ContractError(
+        prefix + ".license: must contain a reviewed SPDX expression"
+      )
     if tool["consumers"] != sorted(set(tool["consumers"])):
       raise ContractError(
         f"$.tools[{index}].consumers: values must be sorted and unique"
@@ -516,6 +524,8 @@ def _validate_artifact_manifest(value):
     "cyclonedx",
     "provenance",
     "checksums",
+    "licenses",
+    "notice",
   }
   types = {item["type"] for item in artifacts}
   missing = sorted(required_types - types)

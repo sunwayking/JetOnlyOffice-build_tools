@@ -5,10 +5,11 @@ from contextlib import contextmanager
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -248,6 +249,35 @@ def verify_local_image(docker, image):
   if expected_repository_digest not in repository_digests:
     raise BaselineError(
       f"locked image repository digest mismatch for {image['id']}", 3
+    )
+
+
+@contextmanager
+def export_locked_runtime_rootfs(docker, image, parent_directory):
+  pinned = image["reference"] + "@" + image["digest"]
+  container_id = run_external(
+    [docker, "create", "--pull=never", "--platform", "linux/amd64", pinned],
+    "locked runtime container creation",
+  ).strip()
+  if not container_id:
+    raise BaselineError("locked runtime container creation returned no id", 3)
+  try:
+    with tempfile.TemporaryDirectory(
+      dir=parent_directory, prefix=".runtime-rootfs-"
+    ) as directory:
+      archive = Path(directory) / "runtime-rootfs.tar"
+      run_external(
+        [docker, "export", "--output", str(archive), container_id],
+        "locked runtime rootfs export",
+      )
+      if not archive.is_file() or archive.stat().st_size == 0:
+        raise BaselineError("locked runtime rootfs export is empty", 3)
+      yield archive
+  finally:
+    subprocess.run(
+      [docker, "rm", "--force", container_id],
+      capture_output=True,
+      check=False,
     )
 
 
@@ -624,6 +654,12 @@ def build(args):
       "--mount",
       "type=bind,src=" + source_directory.as_posix() + ",dst=/input/sources,readonly",
       "--mount",
+      "type=bind,src=" + Path(args.source_lock).resolve().as_posix() + ",dst=/input/sources.lock.json,readonly",
+      "--mount",
+      "type=bind,src=" + Path(args.toolchain_lock).resolve().as_posix() + ",dst=/input/toolchain.lock.json,readonly",
+      "--mount",
+      "type=bind,src=" + Path(args.image_lock).resolve().as_posix() + ",dst=/input/images.lock.json,readonly",
+      "--mount",
       "type=bind,src=" + cache_view.as_posix() + ",dst=/input/cache,readonly",
       "--mount",
       "type=bind,src=" + staging_directory.as_posix() + ",dst=/output",
@@ -738,6 +774,287 @@ def promote_manifest_files(manifest, staging_root, artifact_root, output, descri
   write_canonical(output, manifest)
 
 
+def one_artifact(manifest, artifact_type):
+  matches = [item for item in manifest["artifacts"] if item["type"] == artifact_type]
+  if len(matches) != 1:
+    raise BaselineError(
+      f"artifact manifest must contain exactly one {artifact_type} artifact", 4
+    )
+  return matches[0]
+
+
+def verify_checksums_artifact(manifest, artifact_root):
+  record = one_artifact(manifest, "checksums")
+  path = Path(artifact_root) / record["path"]
+  try:
+    actual = path.read_text(encoding="ascii").splitlines()
+  except (OSError, UnicodeError) as error:
+    raise BaselineError(f"checksums artifact is invalid: {error}", 4) from error
+  expected = [
+    f"{item['sha256']}  {item['path']}"
+    for item in sorted(manifest["artifacts"], key=lambda value: value["id"])
+    if item["type"] != "checksums"
+  ]
+  if actual != expected:
+    raise BaselineError("checksums artifact does not bind the artifact manifest", 4)
+
+
+def verify_provenance_artifact(manifest, artifact_root, source_lock):
+  record = one_artifact(manifest, "provenance")
+  try:
+    value = load_json(Path(artifact_root) / record["path"])
+  except ContractError as error:
+    raise BaselineError(f"provenance artifact is invalid: {error}", 4) from error
+  carriers = sorted(
+    (item for item in manifest["artifacts"] if item["type"] in {"deb", "rootfs", "oci"}),
+    key=lambda item: item["id"],
+  )
+  expected_subject = [
+    {"name": item["id"], "digest": {"sha256": item["sha256"]}}
+    for item in carriers
+  ]
+  if value.get("_type") != "https://in-toto.io/Statement/v1":
+    raise BaselineError("provenance artifact is not an in-toto v1 statement", 4)
+  if value.get("predicateType") != "https://slsa.dev/provenance/v1":
+    raise BaselineError("provenance artifact is not SLSA provenance v1", 4)
+  if value.get("subject") != expected_subject:
+    raise BaselineError("provenance artifact subjects do not match release carriers", 4)
+  external = value.get("predicate", {}).get("buildDefinition", {}).get(
+    "externalParameters", {}
+  )
+  if external.get("sourceLockSha256") != canonical_sha256(source_lock):
+    raise BaselineError("provenance artifact source lock binding does not match", 4)
+  if external.get("network") != "none":
+    raise BaselineError("provenance artifact does not attest an offline build", 4)
+
+
+def safe_tar_members(archive, description):
+  members = archive.getmembers()
+  result = {}
+  for member in members:
+    name = member.name
+    if "\\" in name:
+      raise BaselineError(f"{description} contains an unsafe path: {name}", 4)
+    normalized = name
+    while normalized.startswith("./"):
+      normalized = normalized[2:]
+    if normalized in ("", "."):
+      continue
+    candidate = PurePosixPath(normalized)
+    if candidate.is_absolute() or ".." in candidate.parts:
+      raise BaselineError(f"{description} contains an unsafe path: {name}", 4)
+    if normalized in result:
+      raise BaselineError(f"{description} contains a duplicate path: {normalized}", 4)
+    result[normalized] = member
+  return result
+
+
+def read_tar_member(archive, members, name, description):
+  member = members.get(name)
+  if member is None or not member.isfile():
+    raise BaselineError(f"{description} is missing: {name}", 4)
+  stream = archive.extractfile(member)
+  if stream is None:
+    raise BaselineError(f"{description} cannot be read: {name}", 4)
+  return stream.read()
+
+
+def extract_tar_member(archive, members, name, description, output):
+  member = members.get(name)
+  if member is None or not member.isfile():
+    raise BaselineError(f"{description} is missing: {name}", 4)
+  source = archive.extractfile(member)
+  if source is None:
+    raise BaselineError(f"{description} cannot be read: {name}", 4)
+  digest = hashlib.sha256()
+  size = 0
+  with Path(output).open("wb") as destination:
+    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+      destination.write(chunk)
+      digest.update(chunk)
+      size += len(chunk)
+  return digest.hexdigest(), size
+
+
+def verify_oci_artifact(manifest, artifact_root):
+  record = one_artifact(manifest, "oci")
+  path = Path(artifact_root) / record["path"]
+  try:
+    with tempfile.TemporaryDirectory(prefix="jetonlyoffice-oci-verify-") as directory:
+      layer_path = Path(directory) / "layer.tar"
+      with tarfile.open(path, "r:") as archive:
+        members = safe_tar_members(archive, "OCI layout")
+        index_bytes = read_tar_member(archive, members, "index.json", "OCI layout")
+        index = json.loads(index_bytes.decode("utf-8"))
+        descriptors = index.get("manifests", [])
+        if len(descriptors) != 1:
+          raise BaselineError("OCI layout must contain exactly one image manifest", 4)
+        descriptor = descriptors[0]
+        if descriptor.get("digest") != record["ociDigest"]:
+          raise BaselineError("OCI layout digest does not match artifact manifest", 4)
+        digest = record["ociDigest"].removeprefix("sha256:")
+        manifest_bytes = read_tar_member(
+          archive, members, "blobs/sha256/" + digest, "OCI image manifest"
+        )
+        if hashlib.sha256(manifest_bytes).hexdigest() != digest:
+          raise BaselineError("OCI image manifest digest is invalid", 4)
+        image_manifest = json.loads(manifest_bytes.decode("utf-8"))
+        config_descriptor = image_manifest.get("config", {})
+        config_digest = str(config_descriptor.get("digest", "")).removeprefix("sha256:")
+        config_bytes = read_tar_member(
+          archive, members, "blobs/sha256/" + config_digest, "OCI image config"
+        )
+        if hashlib.sha256(config_bytes).hexdigest() != config_digest:
+          raise BaselineError("OCI image config digest is invalid", 4)
+        config = json.loads(config_bytes.decode("utf-8"))
+        image_config = config.get("config", {})
+        if image_config.get("Entrypoint") != ["/usr/local/bin/jetonlyoffice-entrypoint"]:
+          raise BaselineError("OCI image does not use the JWT fail-closed entrypoint", 4)
+        environment = image_config.get("Env", [])
+        if "JWT_ENABLED=true" not in environment or any(
+          item.startswith("JWT_SECRET=") for item in environment
+        ):
+          raise BaselineError("OCI image embeds an unsafe JWT configuration", 4)
+        layers = image_manifest.get("layers", [])
+        if len(layers) != 1:
+          raise BaselineError("OCI image must contain exactly one normalized rootfs layer", 4)
+        layer_digest = str(layers[0].get("digest", "")).removeprefix("sha256:")
+        actual_digest, actual_size = extract_tar_member(
+          archive, members, "blobs/sha256/" + layer_digest,
+          "OCI rootfs layer", layer_path,
+        )
+        if actual_digest != layer_digest or actual_size != layers[0].get("size"):
+          raise BaselineError("OCI rootfs layer digest or size is invalid", 4)
+      with tarfile.open(layer_path, "r:") as layer:
+        layer_members = safe_tar_members(layer, "OCI rootfs layer")
+        entrypoint = read_tar_member(
+          layer, layer_members, "usr/local/bin/jetonlyoffice-entrypoint",
+          "OCI JWT entrypoint",
+        )
+  except BaselineError:
+    raise
+  except (OSError, tarfile.TarError, UnicodeError, json.JSONDecodeError) as error:
+    raise BaselineError(f"OCI artifact is invalid: {error}", 4) from error
+  expected_entrypoint = require_file(
+    Path(__file__).resolve().parent / "container" / "jwt-entrypoint.sh",
+    "JWT entrypoint source",
+    exit_code=4,
+  ).read_bytes()
+  if entrypoint != expected_entrypoint:
+    raise BaselineError("OCI JWT entrypoint does not match the locked source", 4)
+
+
+def verify_supply_chain_artifacts(manifest, artifact_root, source_lock):
+  for artifact_type in (
+    "deb", "rootfs", "oci", "source", "spdx", "cyclonedx", "provenance",
+    "checksums", "licenses", "notice",
+  ):
+    one_artifact(manifest, artifact_type)
+  verify_checksums_artifact(manifest, artifact_root)
+  verify_provenance_artifact(manifest, artifact_root, source_lock)
+  verify_oci_artifact(manifest, artifact_root)
+
+
+def reproducibility_mismatches(manifest, reference_manifest):
+  mismatches = []
+  for artifact_type in ("deb", "rootfs", "oci"):
+    primary = [item for item in manifest["artifacts"] if item["type"] == artifact_type]
+    reference = [
+      item for item in reference_manifest["artifacts"] if item["type"] == artifact_type
+    ]
+    if len(primary) != 1 or len(reference) != 1:
+      raise BaselineError(
+        f"expected exactly one {artifact_type} artifact per build", 4
+      )
+    differences = []
+    if primary[0]["sha256"] != reference[0]["sha256"]:
+      differences.append("sha256")
+    if artifact_type == "oci" and primary[0]["ociDigest"] != reference[0]["ociDigest"]:
+      differences.append("ociDigest")
+    if differences:
+      mismatches.append({
+        "artifactType": artifact_type,
+        "differences": differences,
+        "primary": {
+          "path": primary[0]["path"],
+          "sha256": primary[0]["sha256"],
+          **({"ociDigest": primary[0]["ociDigest"]} if artifact_type == "oci" else {}),
+        },
+        "reference": {
+          "path": reference[0]["path"],
+          "sha256": reference[0]["sha256"],
+          **({"ociDigest": reference[0]["ociDigest"]} if artifact_type == "oci" else {}),
+        },
+      })
+  return mismatches
+
+
+def generate_diffoscope_reports(
+  mismatches, artifact_directory, reference_artifact_directory,
+  executable, output_directory,
+):
+  output_directory = Path(output_directory).resolve()
+  if output_directory.exists() and not output_directory.is_dir():
+    raise BaselineError(
+      f"diffoscope output is not a directory: {output_directory}", 4
+    )
+  output_directory.mkdir(parents=True, exist_ok=True)
+  artifact_directory = Path(artifact_directory).resolve()
+  reference_artifact_directory = Path(reference_artifact_directory).resolve()
+  reports = []
+  for mismatch in mismatches:
+    artifact_type = mismatch["artifactType"]
+    primary_path = artifact_directory / mismatch["primary"]["path"]
+    reference_path = reference_artifact_directory / mismatch["reference"]["path"]
+    report = output_directory / f"{artifact_type}.html"
+    report.unlink(missing_ok=True)
+    try:
+      result = subprocess.run(
+        [executable, "--html", str(report), str(primary_path), str(reference_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+      )
+    except OSError as error:
+      summary = {
+        "schemaVersion": 1,
+        "outcome": "BLOCKED",
+        "errorCode": "DIFFOSCOPE_UNAVAILABLE",
+        "mismatches": mismatches,
+      }
+      write_canonical(output_directory / "reproducibility-report.json", summary)
+      raise BaselineError(
+        f"REPRODUCIBILITY_MISMATCH: diffoscope cannot start: {error}", 4
+      ) from error
+    if result.returncode not in (0, 1) or not report.is_file() or report.stat().st_size == 0:
+      summary = {
+        "schemaVersion": 1,
+        "outcome": "BLOCKED",
+        "errorCode": "DIFFOSCOPE_FAILED",
+        "mismatches": mismatches,
+      }
+      write_canonical(output_directory / "reproducibility-report.json", summary)
+      detail = result.stderr.strip() or result.stdout.strip() or "report was not produced"
+      raise BaselineError(
+        f"REPRODUCIBILITY_MISMATCH: diffoscope failed for {artifact_type}: {detail}", 4
+      )
+    reports.append({
+      "artifactType": artifact_type,
+      "path": report.name,
+      "sha256": sha256_file(report),
+      "size": report.stat().st_size,
+    })
+  summary = {
+    "schemaVersion": 1,
+    "outcome": "BLOCKED",
+    "errorCode": "REPRODUCIBILITY_MISMATCH",
+    "mismatches": mismatches,
+    "reports": reports,
+  }
+  write_canonical(output_directory / "reproducibility-report.json", summary)
+  return output_directory / "reproducibility-report.json"
+
+
 def package(args):
   build_manifest = load_contract(
     args.build_manifest,
@@ -766,6 +1083,7 @@ def package(args):
   builder = verify_build_bindings(
     build_manifest, source_lock, toolchain_lock, image_lock, 3
   )
+  runtime = locked_image(image_lock, "runtime")
   driver = build_manifest["packageDriver"]
   driver_record = next(
     (item for item in build_manifest["files"] if item["path"] == driver["path"]),
@@ -779,6 +1097,7 @@ def package(args):
     raise BaselineError(f"locked build output is missing: {build_output_directory}", 3)
   verify_manifest_files(build_manifest, artifact_directory, "locked build output")
   verify_local_image(args.docker, builder)
+  verify_local_image(args.docker, runtime)
   output, output_relative = prepare_fresh_output(
     args.output, artifact_directory, "offline package output"
   )
@@ -793,7 +1112,9 @@ def package(args):
     dir=artifact_directory, prefix=".package-work-"
   ) as work_directory, locked_cache_view(
     toolchain_lock, cache_directory, bootstrap_manifest, {"package", "runtime"}
-  ) as cache_view:
+  ) as cache_view, export_locked_runtime_rootfs(
+    args.docker, runtime, artifact_directory
+  ) as runtime_rootfs:
     staging_directory = Path(staging_directory)
     command = [
       args.docker,
@@ -844,12 +1165,28 @@ def package(args):
       "JETONLYOFFICE_PACKAGE_DRIVER_PATH=/artifacts/" + driver["path"],
       "--env",
       "JETONLYOFFICE_PACKAGE_DRIVER_MODE=" + driver["mode"],
+      "--env",
+      "JETONLYOFFICE_SOURCE_LOCK_PATH=/input/locks/sources.lock.json",
+      "--env",
+      "JETONLYOFFICE_TOOLCHAIN_LOCK_PATH=/input/locks/toolchain.lock.json",
+      "--env",
+      "JETONLYOFFICE_IMAGE_LOCK_PATH=/input/locks/images.lock.json",
+      "--env",
+      "JETONLYOFFICE_RUNTIME_ROOTFS_PATH=/input/runtime-rootfs.tar",
       "--mount",
       "type=bind,src=" + staging_directory.as_posix() + ",dst=/artifacts",
       "--mount",
       "type=bind,src=" + build_output_directory.as_posix() + ",dst=/artifacts/build-output,readonly",
       "--mount",
       "type=bind,src=" + Path(args.build_manifest).resolve().as_posix() + ",dst=/artifacts/build-manifest.json,readonly",
+      "--mount",
+      "type=bind,src=" + Path(args.source_lock).resolve().as_posix() + ",dst=/input/locks/sources.lock.json,readonly",
+      "--mount",
+      "type=bind,src=" + Path(args.toolchain_lock).resolve().as_posix() + ",dst=/input/locks/toolchain.lock.json,readonly",
+      "--mount",
+      "type=bind,src=" + Path(args.image_lock).resolve().as_posix() + ",dst=/input/locks/images.lock.json,readonly",
+      "--mount",
+      "type=bind,src=" + runtime_rootfs.as_posix() + ",dst=/input/runtime-rootfs.tar,readonly",
       "--mount",
       "type=bind,src=" + cache_view.as_posix() + ",dst=/input/cache,readonly",
       "--mount",
@@ -894,6 +1231,15 @@ def verify(args):
   artifact_directory = Path(args.artifact_directory).resolve()
   verify_manifest_files(artifact_manifest, artifact_directory, "packaged artifact")
 
+  reference_artifact_directory = Path(args.reference_artifact_directory).resolve()
+  if (
+    Path(args.artifact_manifest).resolve() == Path(args.reference_artifact_manifest).resolve()
+    or artifact_directory == reference_artifact_directory
+  ):
+    raise BaselineError(
+      "independent build must use a different manifest and artifact directory", 4
+    )
+
   reference_manifest = load_contract(
     args.reference_artifact_manifest,
     "artifact-manifest",
@@ -905,18 +1251,33 @@ def verify(args):
     args.reference_artifact_directory,
     "independent packaged artifact",
   )
-  for field in ("releaseId", "productVersion", "platform", "sourceLockSha256"):
+  for field in (
+    "releaseId", "productVersion", "platform", "sourceLockSha256",
+    "buildManifestSha256",
+  ):
     if reference_manifest[field] != artifact_manifest[field]:
       raise BaselineError(f"independent artifact manifest {field} does not match", 4)
-  for artifact_type in ("deb", "rootfs", "oci"):
-    primary = [item for item in artifact_manifest["artifacts"] if item["type"] == artifact_type]
-    reference = [item for item in reference_manifest["artifacts"] if item["type"] == artifact_type]
-    if len(primary) != 1 or len(reference) != 1:
-      raise BaselineError(f"expected exactly one {artifact_type} artifact per build", 4)
-    if primary[0]["sha256"] != reference[0]["sha256"]:
-      raise BaselineError(f"REPRODUCIBILITY_MISMATCH: {artifact_type} SHA-256 differs", 4)
-    if artifact_type == "oci" and primary[0]["ociDigest"] != reference[0]["ociDigest"]:
-      raise BaselineError("REPRODUCIBILITY_MISMATCH: OCI digest differs", 4)
+  mismatches = reproducibility_mismatches(artifact_manifest, reference_manifest)
+  if mismatches:
+    output_directory = getattr(args, "diffoscope_directory", None)
+    if not output_directory:
+      output_directory = Path(args.output).resolve().parent / "diffoscope"
+    summary = generate_diffoscope_reports(
+      mismatches,
+      artifact_directory,
+      args.reference_artifact_directory,
+      getattr(args, "diffoscope", "diffoscope"),
+      output_directory,
+    )
+    types = ", ".join(item["artifactType"] for item in mismatches)
+    raise BaselineError(
+      f"REPRODUCIBILITY_MISMATCH: {types} differ; diffoscope evidence: {summary}", 4
+    )
+
+  verify_supply_chain_artifacts(artifact_manifest, artifact_directory, source_lock)
+  verify_supply_chain_artifacts(
+    reference_manifest, args.reference_artifact_directory, source_lock
+  )
 
   oci = next(item for item in artifact_manifest["artifacts"] if item["type"] == "oci")
   if args.image and oci["ociDigest"] != args.image:
@@ -1006,6 +1367,8 @@ def main(argv=None):
   verify_parser.add_argument("--gate-result-directory", required=True)
   verify_parser.add_argument("--run-id", required=True)
   verify_parser.add_argument("--image")
+  verify_parser.add_argument("--diffoscope", default="diffoscope")
+  verify_parser.add_argument("--diffoscope-directory")
   verify_parser.add_argument("--schema-dir", required=True)
   verify_parser.add_argument("--repository-root", default=str(REPOSITORY_ROOT))
   verify_parser.add_argument("--output", required=True)

@@ -189,6 +189,9 @@ def fake_docker(root, build_manifest):
     "import json, pathlib, shutil, sys\n"
     "arguments = sys.argv[1:]\n"
     f"if arguments[:2] == ['image', 'inspect']:\n  print(json.dumps([{{'Id': {OCI_B!r}, 'RepoDigests': ['ubuntu@' + {OCI_A!r}], 'Os': 'linux', 'Architecture': 'amd64'}}])); raise SystemExit(0)\n"
+    "if arguments and arguments[0] == 'create':\n  print('fake-runtime-container'); raise SystemExit(0)\n"
+    "if arguments and arguments[0] == 'export':\n  pathlib.Path(arguments[arguments.index('--output') + 1]).write_bytes(b'runtime rootfs'); raise SystemExit(0)\n"
+    "if arguments and arguments[0] == 'rm':\n  raise SystemExit(0)\n"
     "mounts = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--mount']\n"
     "environments = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--env']\n"
     "def mount_source(destination):\n"
@@ -241,6 +244,9 @@ def fake_package_docker(root, manifest):
     "import json, pathlib, shutil, sys\n"
     "arguments = sys.argv[1:]\n"
     f"if arguments[:2] == ['image', 'inspect']:\n  print(json.dumps([{{'Id': {OCI_B!r}, 'RepoDigests': ['ubuntu@' + {OCI_A!r}], 'Os': 'linux', 'Architecture': 'amd64'}}])); raise SystemExit(0)\n"
+    "if arguments and arguments[0] == 'create':\n  print('fake-runtime-container'); raise SystemExit(0)\n"
+    "if arguments and arguments[0] == 'export':\n  pathlib.Path(arguments[arguments.index('--output') + 1]).write_bytes(b'runtime rootfs'); raise SystemExit(0)\n"
+    "if arguments and arguments[0] == 'rm':\n  raise SystemExit(0)\n"
     "mounts = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--mount']\n"
     "environments = [arguments[index + 1] for index, item in enumerate(arguments) if item == '--env']\n"
     "def mount_source(destination):\n"
@@ -282,8 +288,11 @@ def fake_noop_docker(root, name="fake-noop-docker"):
   log = root / (name + "-arguments.json")
   driver = root / (name + ".py")
   driver.write_text(
-    "import json, sys\n"
+    "import json, pathlib, sys\n"
     f"if sys.argv[1:3] == ['image', 'inspect']:\n  print(json.dumps([{{'Id': {OCI_B!r}, 'RepoDigests': ['ubuntu@' + {OCI_A!r}], 'Os': 'linux', 'Architecture': 'amd64'}}])); raise SystemExit(0)\n"
+    "if len(sys.argv) > 1 and sys.argv[1] == 'create':\n  print('fake-runtime-container'); raise SystemExit(0)\n"
+    "if len(sys.argv) > 1 and sys.argv[1] == 'export':\n  pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_bytes(b'runtime rootfs'); raise SystemExit(0)\n"
+    "if len(sys.argv) > 1 and sys.argv[1] == 'rm':\n  raise SystemExit(0)\n"
     f"open({str(log)!r}, 'w', encoding='utf-8').write(json.dumps(sys.argv[1:]))\n",
     encoding="utf-8",
   )
@@ -390,15 +399,131 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
       with patch(
         "offline_baseline.aggregate_release_evidence",
         return_value={"outcome": "PASS"},
-      ) as aggregate:
+      ) as aggregate, patch(
+        "offline_baseline.verify_supply_chain_artifacts",
+      ) as verify_supply_chain:
         verify_offline_baseline(args)
 
+      self.assertEqual(2, verify_supply_chain.call_count)
       self.assertEqual(str(root), aggregate.call_args.args[-1])
       self.assertEqual("PASS", json.loads(output.read_text(encoding="utf-8"))["outcome"])
 
 
 @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
 class OfflineBaselineEntrypointTests(unittest.TestCase):
+  def test_verify_rejects_primary_artifacts_reused_as_independent_build(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = contract_source_lock()
+      source_path = root / "locks" / "sources.lock.json"
+      write_json(source_path, source)
+      manifest = artifact_manifest()
+      manifest["sourceLockSha256"] = canonical_sha256(source)
+      materialize_artifacts(root, manifest)
+      manifest_path = root / "artifacts" / "artifact-manifest.json"
+      write_json(manifest_path, manifest)
+      result = subprocess.run(
+        [
+          "pwsh", "-NoProfile", "-File",
+          str(REPOSITORY_ROOT / "scripts" / "verify.ps1"),
+          "-ArtifactManifestPath", str(manifest_path),
+          "-ReferenceArtifactManifestPath", str(manifest_path),
+          "-SourceLockPath", str(source_path),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-ReferenceArtifactDirectory", str(root / "artifacts"),
+          "-ReleasePolicyPath", str(root / "artifacts" / "release-policy.json"),
+          "-GateResultDirectory", str(root / "artifacts" / "gate-results"),
+          "-OutputPath", str(root / "artifacts" / "release-evidence.json"),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+      self.assertEqual(4, result.returncode, result.stderr)
+      self.assertIn("must use a different manifest and artifact directory", result.stderr)
+
+  def test_verify_generates_diffoscope_report_before_blocking_mismatch(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = contract_source_lock()
+      source_path = root / "locks" / "sources.lock.json"
+      write_json(source_path, source)
+      manifest = artifact_manifest()
+      reference_manifest = artifact_manifest()
+      source_hash = canonical_sha256(source)
+      manifest["sourceLockSha256"] = source_hash
+      reference_manifest["sourceLockSha256"] = source_hash
+      materialize_artifacts(root, manifest)
+      materialize_artifacts(root / "reference", reference_manifest)
+      reference_deb = next(
+        item for item in reference_manifest["artifacts"] if item["type"] == "deb"
+      )
+      reference_deb_path = root / "reference" / "artifacts" / reference_deb["path"]
+      reference_deb_path.write_bytes(b"independent deb differs\n")
+      reference_deb["size"] = reference_deb_path.stat().st_size
+      reference_deb["sha256"] = hashlib.sha256(reference_deb_path.read_bytes()).hexdigest()
+      manifest_path = root / "artifacts" / "artifact-manifest.json"
+      reference_manifest_path = root / "reference" / "artifacts" / "artifact-manifest.json"
+      write_json(manifest_path, manifest)
+      write_json(reference_manifest_path, reference_manifest)
+
+      diffoscope_log = root / "diffoscope-arguments.json"
+      diffoscope_driver = root / "fake-diffoscope.py"
+      diffoscope_driver.write_text(
+        "import json, pathlib, sys\n"
+        "arguments = sys.argv[1:]\n"
+        "pathlib.Path(arguments[arguments.index('--html') + 1]).write_text('<html>different</html>', encoding='utf-8')\n"
+        f"pathlib.Path({str(diffoscope_log)!r}).write_text(json.dumps(arguments), encoding='utf-8')\n"
+        "raise SystemExit(1)\n",
+        encoding="utf-8",
+      )
+      if os.name == "nt":
+        diffoscope = root / "fake-diffoscope.cmd"
+        diffoscope.write_text(
+          f'@echo off\r\n"{sys.executable}" "{diffoscope_driver}" %*\r\n',
+          encoding="utf-8",
+        )
+      else:
+        diffoscope = root / "fake-diffoscope"
+        diffoscope.write_text(
+          f'#!/bin/sh\nexec "{sys.executable}" "{diffoscope_driver}" "$@"\n',
+          encoding="utf-8",
+        )
+        diffoscope.chmod(0o755)
+      diffoscope_directory = root / "artifacts" / "diffoscope"
+      result = subprocess.run(
+        [
+          "pwsh", "-NoProfile", "-File",
+          str(REPOSITORY_ROOT / "scripts" / "verify.ps1"),
+          "-ArtifactManifestPath", str(manifest_path),
+          "-ReferenceArtifactManifestPath", str(reference_manifest_path),
+          "-SourceLockPath", str(source_path),
+          "-ArtifactDirectory", str(root / "artifacts"),
+          "-ReferenceArtifactDirectory", str(root / "reference" / "artifacts"),
+          "-ReleasePolicyPath", str(root / "artifacts" / "release-policy.json"),
+          "-GateResultDirectory", str(root / "artifacts" / "gate-results"),
+          "-DiffoscopeExecutable", str(diffoscope),
+          "-DiffoscopeDirectory", str(diffoscope_directory),
+          "-OutputPath", str(root / "artifacts" / "release-evidence.json"),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+      self.assertEqual(4, result.returncode, result.stderr)
+      self.assertIn("REPRODUCIBILITY_MISMATCH", result.stderr)
+      report = diffoscope_directory / "deb.html"
+      self.assertTrue(report.is_file())
+      arguments = json.loads(diffoscope_log.read_text(encoding="utf-8"))
+      self.assertEqual(str(report), arguments[arguments.index("--html") + 1])
+      summary = json.loads(
+        (diffoscope_directory / "reproducibility-report.json").read_text(encoding="utf-8")
+      )
+      self.assertEqual("BLOCKED", summary["outcome"])
+      self.assertEqual("deb", summary["mismatches"][0]["artifactType"])
+
   def test_verify_requires_independent_artifact_manifest(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
@@ -731,6 +856,8 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         + build_manifest["packageDriver"]["mode"],
         environments,
       )
+      self.assertIn("JETONLYOFFICE_RUNTIME_ROOTFS_PATH=/input/runtime-rootfs.tar",
+                    environments)
       cache_mount = next(item for item in arguments if "dst=/input/cache,readonly" in item)
       self.assertNotIn((root / "cache").as_posix(), cache_mount)
       self.assertTrue(
@@ -739,6 +866,13 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       self.assertTrue(
         any("dst=/artifacts/build-manifest.json,readonly" in item for item in arguments)
       )
+      self.assertTrue(
+        any("dst=/input/runtime-rootfs.tar,readonly" in item for item in arguments)
+      )
+      for lock_name in ("sources.lock.json", "toolchain.lock.json", "images.lock.json"):
+        self.assertTrue(
+          any(f"dst=/input/locks/{lock_name},readonly" in item for item in arguments)
+        )
       second = subprocess.run(
         command,
         capture_output=True,
@@ -895,7 +1029,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
         for index, item in enumerate(arguments)
         if item == "--mount" and "readonly" in arguments[index + 1]
       ]
-      self.assertEqual(3, len(readonly_mounts))
+      self.assertEqual(6, len(readonly_mounts))
       second = subprocess.run(
         command,
         capture_output=True,
