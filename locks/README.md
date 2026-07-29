@@ -50,15 +50,19 @@ evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
 exit code 3 while legal mappings are incomplete, even when candidate files
 exist.
 
-At the current lock, this closes the GLEW archive and six font components
-(`fonts-telu-extra`, `freefont`, `samyak`, `samyak-fonts`,
-`tibetan-machine`, and `ttf-khmeros-core`). The release gate remains blocked
+At the current lock, this closes the GLEW archive and twenty-six font components
+(`abyssinica`, `asana`, `caladea`, `crosextra`, `droid`, `fonts-telu-extra`,
+`freefont`, all eleven `lohit-*` components, `noto`, `opensans`, `padauk`,
+`samyak`, `samyak-fonts`, `tibetan-machine`, `ttf-khmeros-core`, and
+`ubuntu-font-family`). The release gate remains blocked
 for `build-tools-data` Android, CEF, Python, Qt, and sysroot payloads; the
 `ASC.ttf`, `fonts-beng-extra`, `kacst`, `kacst-one`, `liberation`, and
-`wqy-zenhei` font components; and the `az_Latn_AZ` and `ru_RU` dictionaries.
-Those entries stay unresolved because their locked bytes do not yet provide a
-complete, precise mapping; a product name, copyright line, package family, or
-nearby license is not accepted as a substitute.
+`wqy-zenhei` font components remain unresolved. The `ancient-scripts`,
+`arphic-ukai`, `dejavu`, `fonts-gujr-extra`, `nanum`, `openoffice`, and
+`takao-gothic` components still require review. Those entries stay incomplete
+because their locked bytes do not yet provide a complete, precise mapping; a
+product name, copyright line, package family, or nearby license is not
+accepted as a substitute.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
