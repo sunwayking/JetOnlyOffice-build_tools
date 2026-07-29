@@ -536,6 +536,13 @@ class ContractToolTests(unittest.TestCase):
     del value["tools"][0]["license"]
     with self.assertRaisesRegex(ContractError, "missing required property license"):
       validate_contract(value, "toolchain-lock", self.schema_dir)
+    for invalid_license in ("NOASSERTION", "TBD", "UNKNOWN", " MIT "):
+      value = toolchain_lock()
+      value["tools"][0]["license"] = invalid_license
+      with self.subTest(license=invalid_license), self.assertRaisesRegex(
+        ContractError, "reviewed SPDX expression"
+      ):
+        validate_contract(value, "toolchain-lock", self.schema_dir)
 
   def test_toolchain_lock_requires_sorted_complete_consumer_coverage(self):
     value = toolchain_lock()
