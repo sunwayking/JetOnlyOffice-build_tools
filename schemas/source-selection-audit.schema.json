@@ -39,6 +39,9 @@
             "$ref": "#/$defs/selfSelection"
           },
           {
+            "$ref": "#/$defs/branchSelection"
+          },
+          {
             "$ref": "#/$defs/tagSelection"
           },
           {
@@ -66,6 +69,7 @@
         "type": {
           "enum": [
             "self",
+            "branch",
             "tag",
             "gitlink",
             "cutoff"
@@ -95,6 +99,33 @@
               "const": "self"
             },
             "commit": true
+          }
+        }
+      ]
+    },
+    "branchSelection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/selectionBase"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "type",
+            "commit",
+            "ref"
+          ],
+          "properties": {
+            "repository": true,
+            "type": {
+              "const": "branch"
+            },
+            "commit": true,
+            "ref": {
+              "const": "refs/heads/develop"
+            }
           }
         }
       ]

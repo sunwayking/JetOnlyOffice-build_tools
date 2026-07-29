@@ -47,7 +47,9 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "Apache-2.0",
   "Arphic-1999",
   "BSD-3-Clause AND MIT",
+  "BSD-3-Clause OR CC-BY-3.0",
   "Bitstream-Vera AND LicenseRef-AMSFonts",
+  "EUPL-1.1",
   "GPL-2.0-only",
   "GPL-2.0-only WITH Font-exception-2.0",
   "GPL-2.0-or-later",
@@ -62,6 +64,7 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
   "MIT",
   "MPL-2.0",
+  "MPL-2.0 AND MIT AND LGPL-2.1-or-later",
   "OFL-1.0",
   "OFL-1.1",
   "UFL-1.0",
@@ -1068,6 +1071,10 @@ def _validate_source_selection_audit(value):
   )
   for index, repository in enumerate(repositories):
     path = f"$.repositories[{index}]"
+    if repository["type"] == "branch":
+      if repository["ref"] != "refs/heads/develop":
+        raise ContractError(path + ".ref: expected develop branch ref")
+      continue
     if repository["type"] != "cutoff":
       continue
     if repository["releaseCutoff"] != value["releaseCutoff"]:

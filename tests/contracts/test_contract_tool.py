@@ -366,6 +366,12 @@ def source_selection_audit():
     "status": "passed",
     "repositories": [
       {
+        "repository": "branch-fork",
+        "type": "branch",
+        "commit": SHA1_A,
+        "ref": "refs/heads/develop",
+      },
+      {
         "repository": "build-tools",
         "type": "self",
         "commit": SHA1_A,
@@ -555,8 +561,21 @@ class ContractToolTests(unittest.TestCase):
 
   def test_source_selection_audit_rejects_cutoff_and_order_drift(self):
     value = source_selection_audit()
-    value["repositories"][2]["commitTime"] = 101
+    next(
+      repository
+      for repository in value["repositories"]
+      if repository["type"] == "cutoff"
+    )["commitTime"] = 101
     with self.assertRaisesRegex(ContractError, "exceeds release cutoff"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
+
+    value = source_selection_audit()
+    next(
+      repository
+      for repository in value["repositories"]
+      if repository["type"] == "branch"
+    )["ref"] = "refs/heads/main"
+    with self.assertRaisesRegex(ContractError, "develop branch ref"):
       validate_contract(value, "source-selection-audit", self.schema_dir)
 
     value = source_selection_audit()

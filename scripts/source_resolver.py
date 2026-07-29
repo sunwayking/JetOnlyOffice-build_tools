@@ -206,6 +206,11 @@ def validate_inputs(value):
     for flag in ("projectFork", "buildInput", "active"):
       if not isinstance(repository[flag], bool):
         raise ResolutionError(f"{path}.{flag}: expected boolean", 2)
+    if repository["selection"]["type"] == "branch" and not repository["projectFork"]:
+      raise ResolutionError(
+        f"{path}.selection: branch selection is reserved for project forks",
+        2,
+      )
     _validate_license_input(repository["license"], path + ".license")
 
   if ids != sorted(ids) or len(ids) != len(set(ids)):
@@ -272,6 +277,10 @@ def _validate_selection_input(value, path):
   selection_type = value.get("type")
   if selection_type == "self":
     _require_exact_keys(value, {"type"}, set(), path)
+  elif selection_type == "branch":
+    _require_exact_keys(value, {"type", "ref"}, set(), path)
+    if value["ref"] != "refs/heads/develop":
+      raise ResolutionError(f"{path}.ref: expected develop branch ref", 2)
   elif selection_type == "tag":
     _require_exact_keys(value, {"type", "ref"}, set(), path)
     ref = value["ref"]
@@ -1406,7 +1415,25 @@ def verify_selections(inputs, caches, commits):
     if repository_id not in caches:
       raise ResolutionError(f"{repository_id}: selection cache is unavailable", 3)
     cache = caches[repository_id]
-    if selection_type == "tag":
+    if selection_type == "branch":
+      try:
+        resolved = _run_git(
+          ["rev-parse", selection["ref"] + "^{commit}"],
+          cwd=cache,
+          exit_code=3,
+        )
+      except ResolutionError as error:
+        raise ResolutionError(
+          f"{repository_id}: locked branch is unavailable: {selection['ref']}",
+          3,
+        ) from error
+      if resolved != commit:
+        raise ResolutionError(
+          f"{repository_id}: branch does not resolve to the locked commit",
+          3,
+        )
+      record["ref"] = selection["ref"]
+    elif selection_type == "tag":
       try:
         resolved = _run_git(
           ["rev-parse", selection["ref"] + "^{commit}"],

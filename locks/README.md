@@ -3,10 +3,13 @@
 `source-inputs.v1.json` is the reviewed selection policy used by the internal
 source resolver. It contains fixed commits or the explicit `self` selection
 for the build_tools commit that runs the resolver. Every repository also has a
-machine-checked `selection`: an immutable tag, an exact declared gitlink, the
-last commit reachable from `refs/heads/upstream/` before `releaseCutoff`, or
-the resolver's clean `self` checkout. These refs prove why a fixed commit was
-selected; the fixed commit remains the only checkout selector.
+machine-checked `selection`: an immutable tag, the exact public
+`refs/heads/develop` head of a project fork, an exact declared gitlink, the last
+commit reachable from `refs/heads/upstream/` before `releaseCutoff`, or the
+resolver's clean `self` checkout. These refs prove why a fixed commit was
+selected; the fixed commit remains the only checkout selector. A later develop
+advance makes the prior authoring policy stale and requires an explicit
+re-lock; it never changes an already published immutable release lock.
 
 Source-lock generation re-resolves every selection against the complete public
 mirror before it emits repository metadata. A tag or gitlink that no longer
@@ -43,7 +46,8 @@ expression. The resolver accepts three primary evidence forms: an exact
 license member inside a locked ZIP, copyright/license text in a locked OpenType
 `name` table, or an exact license file stored as a locked Git blob. For
 Git-blob evidence, each payload `path` names the covered payload and `locator`
-names its reviewed license file in the same locked tree. The resolver hashes
+names its reviewed license file, or the exact payload whose own header contains
+a complete license grant, in the same locked tree. The resolver hashes
 the extracted bytes or decoded text, binds every result to the containing Git
 blob and payload SHA-256, and rejects missing, extra, or changed payloads.
 `resolve-sources.ps1 -Command LicenseAudit` reads the locked Git objects from
@@ -63,10 +67,11 @@ remain unresolved because their locked bytes do not provide a complete,
 redistributable, version-specific grant. A product name, copyright line,
 package family, or unrelated nearby license is not accepted as a substitute.
 
-Twelve dictionary language packs are mapped payload by payload to exact
-license blobs in the locked tree: `ar`, `bg_BG`, `en_ZA`, `es_ES`, `lv_LV`,
-`nb_NO`, `nn_NO`, `oc_FR`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`. The
-remaining thirty-seven language packs stay incomplete; thirty-five have
+Nineteen dictionary language packs are mapped payload by payload to exact
+license blobs in the locked tree: `ar`, `bg_BG`, `cs_CZ`, `en_ZA`, `es_ES`,
+`eu_ES`, `fr_FR`, `hu_HU`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`,
+`oc_FR`, `ro_RO`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`. The remaining thirty
+language packs stay incomplete; twenty-eight have
 candidate text that still requires a precise mapping and `az_Latn_AZ` plus
 `ru_RU` have no in-tree license candidate.
 

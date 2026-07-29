@@ -177,6 +177,18 @@ class SourceResolverTests(unittest.TestCase):
 
     value = source_inputs()
     value["repositories"][1]["selection"] = {
+      "type": "branch",
+      "ref": "refs/heads/main",
+    }
+    with self.assertRaisesRegex(ResolutionError, "develop branch ref"):
+      validate_inputs(value)
+
+    value["repositories"][1]["selection"]["ref"] = "refs/heads/develop"
+    with self.assertRaisesRegex(ResolutionError, "reserved for project forks"):
+      validate_inputs(value)
+
+    value = source_inputs()
+    value["repositories"][1]["selection"] = {
       "type": "gitlink",
       "parent": "build-tools",
       "path": "missing",
@@ -184,8 +196,11 @@ class SourceResolverTests(unittest.TestCase):
     with self.assertRaisesRegex(ResolutionError, "does not match a declared relationship"):
       validate_inputs(value)
 
-  def test_selection_verification_resolves_tag_gitlink_cutoff_and_self(self):
+  def test_selection_verification_resolves_branch_tag_gitlink_cutoff_and_self(self):
     with tempfile.TemporaryDirectory() as directory:
+      _, branch_bare, branch_commit = create_repository(directory, "branch")
+      run_git(branch_bare, "update-ref", "refs/heads/develop", branch_commit)
+
       parent_checkout, _, _ = create_repository(directory, "parent")
       child_checkout, child_bare, child_commit = create_repository(directory, "child")
       run_git(
@@ -222,6 +237,10 @@ class SourceResolverTests(unittest.TestCase):
           "mode": "160000",
         }],
         "repositories": [
+          {
+            "id": "branch",
+            "selection": {"type": "branch", "ref": "refs/heads/develop"},
+          },
           {"id": "build-tools", "selection": {"type": "self"}},
           {
             "id": "child",
@@ -236,12 +255,14 @@ class SourceResolverTests(unittest.TestCase):
         ],
       }
       caches = {
+        "branch": branch_bare,
         "child": child_bare,
         "cutoff": cutoff_bare,
         "parent": parent_bare,
         "tagged": tag_bare,
       }
       commits = {
+        "branch": branch_commit,
         "build-tools": SHA1_A,
         "child": child_commit,
         "cutoff": cutoff_commit,
@@ -252,10 +273,16 @@ class SourceResolverTests(unittest.TestCase):
       records = verify_selections(inputs, caches, commits)
 
       self.assertEqual(
-        ["build-tools", "child", "cutoff", "parent", "tagged"],
+        ["branch", "build-tools", "child", "cutoff", "parent", "tagged"],
         [record["repository"] for record in records],
       )
-      self.assertEqual("refs/heads/upstream/main", records[2]["resolvedRef"])
+      self.assertEqual("refs/heads/develop", records[0]["ref"])
+      self.assertEqual("refs/heads/upstream/main", records[3]["resolvedRef"])
+
+      commits["branch"] = SHA1_B
+      with self.assertRaisesRegex(ResolutionError, "branch does not resolve"):
+        verify_selections(inputs, caches, commits)
+      commits["branch"] = branch_commit
 
       commits["tagged"] = SHA1_B
       with self.assertRaisesRegex(ResolutionError, "tag does not resolve"):
@@ -312,6 +339,25 @@ class SourceResolverTests(unittest.TestCase):
       (REPOSITORY_ROOT / "locks" / "source-inputs.v1.json").read_text(encoding="utf-8")
     )
     validate_inputs(value)
+    repositories_by_id = {
+      repository["id"]: repository for repository in value["repositories"]
+    }
+    self.assertEqual(
+      "671c834813f8644f68e63ee28859d5aace5e9aa2",
+      repositories_by_id["documentserver"]["commit"],
+    )
+    self.assertEqual(
+      {"type": "branch", "ref": "refs/heads/develop"},
+      repositories_by_id["documentserver"]["selection"],
+    )
+    self.assertEqual(
+      "dc623fe01acd54c91a9a34a0badf52d5df374b7a",
+      repositories_by_id["sdkjs"]["commit"],
+    )
+    self.assertEqual(
+      "556883bc4fa13e6aef9247441e4477f27102ff60",
+      repositories_by_id["web-apps"]["commit"],
+    )
     findings = policy_findings(value)
     self.assertEqual(
       ["build-tools-data", "core-fonts", "dictionaries"],
@@ -322,12 +368,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "az_Latn_AZ", "ca_ES", "ca_ES_valencia", "cs_CZ",
+        "az_Latn_AZ", "ca_ES", "ca_ES_valencia",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-        "en_CA", "en_GB", "en_US", "eu_ES", "fr_FR", "gl_ES",
-        "hr_HR", "hu_HU", "id_ID", "it_IT", "kk_KZ", "ko_KR", "lb_LU",
-        "lt_LT", "mn_MN", "nl_NL", "pl_PL", "pt_BR", "pt_PT",
-        "ro_RO", "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
+        "en_CA", "en_GB", "en_US", "gl_ES",
+        "hr_HR", "id_ID", "it_IT", "kk_KZ", "ko_KR",
+        "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
+        "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
         "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
       ],
@@ -454,6 +500,38 @@ class SourceResolverTests(unittest.TestCase):
       component["id"]: component
       for component in dictionaries["license"]["reviewedComponents"]
     }
+    expected_dictionary_licenses = {
+      "cs_CZ": ("GPL-2.0-only", {"cs_CZ/cs_CZ_Czech.txt"}, 3),
+      "eu_ES": ("GPL-2.0-only", {"eu_ES/Reamde_eu_ES.txt"}, 2),
+      "fr_FR": (
+        "MPL-2.0 AND MIT AND LGPL-2.1-or-later",
+        {"fr_FR/README_hyph_fr_FR.txt", "fr_FR/fr_FR_README.txt"},
+        3,
+      ),
+      "hu_HU": (
+        "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+        {"hu_HU/README_hu_HU.txt", "hu_HU/hyph_hu_HU.dic"},
+        3,
+      ),
+      "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
+      "nl_NL": (
+        "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
+      ),
+      "ro_RO": ("GPL-2.0-only", {"ro_RO/ro_RO_Romanian.txt"}, 3),
+    }
+    for component_id, (spdx, locators, evidence_count) in (
+      expected_dictionary_licenses.items()
+    ):
+      component = reviewed_dictionaries[component_id]
+      self.assertEqual(spdx, component["spdx"])
+      self.assertEqual(evidence_count, len(component["evidence"]))
+      self.assertEqual(
+        locators,
+        {record["locator"] for record in component["evidence"]},
+      )
+    self.assertIn(
+      "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
+    )
     self.assertNotIn("en_CA", reviewed_dictionaries)
     self.assertIn("en_CA", dictionaries["license"]["unresolvedComponents"])
     expected_lgpl_evidence = {
