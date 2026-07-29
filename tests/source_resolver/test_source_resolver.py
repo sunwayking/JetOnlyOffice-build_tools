@@ -324,7 +324,7 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ", "ca_ES", "ca_ES_valencia", "cs_CZ",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-        "en_GB", "en_US", "eu_ES", "fr_FR", "gl_ES",
+        "en_CA", "en_GB", "en_US", "eu_ES", "fr_FR", "gl_ES",
         "hr_HR", "hu_HU", "id_ID", "it_IT", "kk_KZ", "ko_KR", "lb_LU",
         "lt_LT", "mn_MN", "nl_NL", "pl_PL", "pt_BR", "pt_PT",
         "ro_RO", "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
@@ -432,27 +432,23 @@ class SourceResolverTests(unittest.TestCase):
       component["id"]: component
       for component in dictionaries["license"]["reviewedComponents"]
     }
-    self.assertEqual(
-      {
-        "ar": ("GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1", 3),
-        "bg_BG": ("GPL-2.0-only", 3),
-        "en_CA": ("GPL-2.0-only", 2),
-        "en_ZA": ("GPL-2.0-only", 2),
-        "es_ES": ("GPL-3.0-or-later OR LGPL-3.0-or-later OR MPL-1.1", 3),
-        "lv_LV": ("LGPL-2.1-only", 3),
-        "nb_NO": ("GPL-2.0-only", 3),
-        "nn_NO": ("GPL-2.0-only", 3),
-        "oc_FR": ("GPL-2.0-or-later", 2),
-        "sk_SK": ("GPL-2.0-only", 3),
-        "sv_SE": ("LGPL-3.0-only", 3),
-        "tr_TR": ("MPL-2.0", 2),
-        "vi_VN": ("GPL-2.0-only", 2),
-      },
-      {
-        component_id: (component["spdx"], len(component["evidence"]))
-        for component_id, component in reviewed_dictionaries.items()
-      },
-    )
+    self.assertNotIn("en_CA", reviewed_dictionaries)
+    self.assertIn("en_CA", dictionaries["license"]["unresolvedComponents"])
+    expected_lgpl_evidence = {
+      "bg_BG": "bg_BG/Readme_bg_BG.txt",
+      "en_ZA": "en_ZA/Readme_en_ZA.txt",
+    }
+    for component_id, locator in expected_lgpl_evidence.items():
+      component = reviewed_dictionaries[component_id]
+      self.assertEqual("LGPL-2.1-only", component["spdx"])
+      self.assertEqual(
+        {locator},
+        {record["locator"] for record in component["evidence"]},
+      )
+      self.assertTrue(all(
+        record["path"].startswith(component_id + "/")
+        for record in component["evidence"]
+      ))
 
   def test_incomplete_license_inventory_requires_precise_sorted_components(self):
     value = source_inputs()
@@ -640,11 +636,14 @@ class SourceResolverTests(unittest.TestCase):
     with tempfile.TemporaryDirectory() as directory:
       checkout, _, _ = create_repository(directory)
       license_bytes = b"Permission is hereby granted, free of charge.\n"
+      other_license_bytes = b"This license belongs to another component.\n"
       (checkout / "dictionary").mkdir()
       (checkout / "dictionary" / "dictionary.aff").write_bytes(b"SET UTF-8\n")
       (checkout / "dictionary" / "dictionary.dic").write_bytes(b"1\nword\n")
       (checkout / "dictionary" / "LICENSE.txt").write_bytes(license_bytes)
-      run_git(checkout, "add", "dictionary")
+      (checkout / "other").mkdir()
+      (checkout / "other" / "LICENSE.txt").write_bytes(other_license_bytes)
+      run_git(checkout, "add", "dictionary", "other")
       run_git(checkout, "commit", "-m", "add dictionary payloads")
       commit = run_git(checkout, "rev-parse", "HEAD")
       bare = Path(directory) / "inventory.git"
@@ -698,6 +697,17 @@ class SourceResolverTests(unittest.TestCase):
         "sha256"
       ] = "0" * 64
       with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
+        repository_license_inventory(repository, bare, commit)
+
+      evidence = repository["license"]["reviewedComponents"][0]["evidence"][0]
+      evidence["locator"] = "other/LICENSE.txt"
+      evidence["sha256"] = hashlib.sha256(other_license_bytes).hexdigest()
+      with self.assertRaisesRegex(ResolutionError, "component license candidate"):
+        repository_license_inventory(repository, bare, commit)
+
+      evidence["locator"] = "dictionary"
+      evidence["sha256"] = hashlib.sha256(license_bytes).hexdigest()
+      with self.assertRaisesRegex(ResolutionError, "expected locked git blob"):
         repository_license_inventory(repository, bare, commit)
 
   def test_license_audit_reads_the_standard_git_cache_layout(self):

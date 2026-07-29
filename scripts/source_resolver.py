@@ -651,13 +651,27 @@ def _zip_member_bytes(content, member_path, context):
     raise ResolutionError(f"{context}: invalid ZIP license evidence", 3) from error
 
 
-def _verified_component_evidence(cache, commit, component):
+def _locked_git_blob(cache, commit, path, context):
+  object_id = _run_git(["rev-parse", f"{commit}:{path}"], cwd=cache, exit_code=3)
+  object_type = _run_git(["cat-file", "-t", object_id], cwd=cache, exit_code=3)
+  if object_type != "blob":
+    raise ResolutionError(f"{context}: expected locked git blob", 3)
+  return object_id
+
+
+def _verified_component_evidence(
+  cache,
+  commit,
+  component,
+  candidate_evidence_paths,
+):
+  candidate_evidence_paths = set(candidate_evidence_paths)
   records = []
   for evidence_input in component["evidence"]:
     path = evidence_input["path"]
     context = f"{path}:{evidence_input['locator']}"
-    blob = _run_git(["rev-parse", f"{commit}:{path}"], cwd=cache, exit_code=3)
-    content = _run_git_bytes(["show", f"{commit}:{path}"], cwd=cache)
+    blob = _locked_git_blob(cache, commit, path, context)
+    content = _run_git_bytes(["cat-file", "blob", blob], cwd=cache)
     if evidence_input["type"] == "font-name":
       name_id = int(evidence_input["locator"].split(":", 1)[1])
       evidence_digests = {
@@ -671,9 +685,15 @@ def _verified_component_evidence(cache, commit, component):
       if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
         raise ResolutionError(f"{context}: license evidence digest does not match", 3)
     else:
+      locator = evidence_input["locator"]
+      evidence_blob = _locked_git_blob(cache, commit, locator, context)
+      if locator not in candidate_evidence_paths:
+        raise ResolutionError(
+          f"{context}: git-blob locator is not a component license candidate",
+          3,
+        )
       evidence_content = _run_git_bytes(
-        ["show", f"{commit}:{evidence_input['locator']}"],
-        cwd=cache,
+        ["cat-file", "blob", evidence_blob], cwd=cache
       )
       if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
         raise ResolutionError(f"{context}: license evidence digest does not match", 3)
@@ -760,7 +780,12 @@ def repository_license_inventory(repository, cache, commit):
         )
       component_record["license"] = {
         "spdx": reviewed_component["spdx"],
-        "evidence": _verified_component_evidence(cache, commit, reviewed_component),
+        "evidence": _verified_component_evidence(
+          cache,
+          commit,
+          reviewed_component,
+          component_evidence,
+        ),
       }
     components.append(component_record)
   if actual_unresolved != license_input["unresolvedComponents"]:
