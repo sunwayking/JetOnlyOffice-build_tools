@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/performance-command-trace.schema.json",
+  "title": "JetOnlyOffice Mobile command performance trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "traceType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "sourceLockSha256",
+    "runtime",
+    "clock",
+    "collector",
+    "events"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "traceType": {
+      "const": "mobile-command-events"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "const": "performance.xiaomi.command-p95"
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "runtime": {
+      "enum": [
+        "chrome",
+        "system-webview"
+      ]
+    },
+    "clock": {
+      "const": "monotonic-milliseconds"
+    },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "executable"
+      ],
+      "properties": {
+        "name": {
+          "const": "jetonlyoffice-mobile-performance-collector"
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/repositoryId"
+        },
+        "executable": {
+          "$ref": "common.schema.json#/$defs/fileRecord"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "commandId",
+          "iteration",
+          "inputTimestampMilliseconds",
+          "effectTimestampMilliseconds"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "commandId": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "iteration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "inputTimestampMilliseconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "effectTimestampMilliseconds": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
