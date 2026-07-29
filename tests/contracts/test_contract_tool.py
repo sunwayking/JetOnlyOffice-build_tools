@@ -298,6 +298,25 @@ def source_license_audit():
             ],
           },
           {
+            "id": "licensed-family",
+            "status": "resolved",
+            "payloadPaths": ["licensed-family/font.ttf"],
+            "candidateEvidence": [],
+            "license": {
+              "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+              "evidence": [
+                {
+                  "type": "font-name",
+                  "path": "licensed-family/font.ttf",
+                  "blob": SHA1_A,
+                  "sha256": SHA256_A,
+                  "locator": "name:13",
+                  "evidenceSha256": SHA256_B,
+                }
+              ],
+            },
+          },
+          {
             "id": "missing-family",
             "status": "unresolved",
             "payloadPaths": ["missing-family/font.ttf"],
@@ -481,6 +500,40 @@ class ContractToolTests(unittest.TestCase):
     value["repositories"][0]["components"][1]["payloadPaths"] = ["../font.ttf"]
     with self.assertRaisesRegex(ContractError, "normalized and relative"):
       validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    del value["repositories"][0]["components"][1]["license"]
+    with self.assertRaisesRegex(ContractError, "license"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"][1]["license"]["evidence"][0]["path"] = (
+      "font-family/font.ttf"
+    )
+    with self.assertRaisesRegex(ContractError, "exactly cover"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+  def test_source_license_audit_rejects_derived_status_drift(self):
+    value = source_license_audit()
+    value["status"] = "passed"
+    with self.assertRaisesRegex(ContractError, "audit status"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["status"] = "complete"
+    with self.assertRaisesRegex(ContractError, "repository status"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"] = [
+      value["repositories"][0]["components"][1]
+    ]
+    with self.assertRaisesRegex(ContractError, "repository status"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value["repositories"][0]["status"] = "complete"
+    value["status"] = "passed"
+    validate_contract(value, "source-license-audit", self.schema_dir)
 
   def test_source_lfs_audit_rejects_counts_bytes_and_path_drift(self):
     value = source_lfs_audit()

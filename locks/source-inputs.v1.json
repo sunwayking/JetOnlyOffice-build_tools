@@ -43,7 +43,7 @@
       "buildInput": true,
       "active": true,
       "license": {
-        "status": "missing",
+        "status": "component-scoped",
         "payloadPatterns": [
           "**/*.7z",
           "**/*.sh",
@@ -51,11 +51,29 @@
           "**/*.tar.xz",
           "**/*.zip"
         ],
-        "reason": "The upstream repository contains no repository license or reviewed inventory for its binary payload families.",
+        "patterns": [
+          "**/COPYING*",
+          "**/LICENSE*",
+          "**/NOTICE*"
+        ],
+        "reason": "The upstream repository contains no repository license; GLEW is mapped to its locked archive license, while the remaining payload families still lack a complete reviewed inventory.",
+        "reviewedComponents": [
+          {
+            "id": "glew",
+            "spdx": "BSD-3-Clause AND MIT",
+            "evidence": [
+              {
+                "type": "zip-member",
+                "path": "glew/glew-2.1.0-win32.zip",
+                "locator": "glew-2.1.0/LICENSE.txt",
+                "sha256": "38a38de1748714672193f12c6412489a00ff65a61e1bd2da9f360db990d156cf"
+              }
+            ]
+          }
+        ],
         "unresolvedComponents": [
           "android",
           "cef",
-          "glew",
           "python",
           "qt",
           "sysroot"
@@ -112,19 +130,204 @@
           "**/LICENSE*",
           "**/OFL*"
         ],
-        "reason": "The repository has per-font license candidates but no reviewed asset-to-license inventory; the listed components have no in-tree license candidate.",
+        "reason": "Six font components are mapped to license grants embedded in every locked font payload; the listed components still lack sufficiently precise evidence.",
+        "reviewedComponents": [
+          {
+            "id": "fonts-telu-extra",
+            "spdx": "GPL-2.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "fonts-telu-extra/Pothana2000.ttf",
+                "locator": "name:13",
+                "sha256": "1e959e8575686fc13421d6d38fcd5f481a1d5b965016a4dbcda32c823b183f43"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-telu-extra/vemana2000.ttf",
+                "locator": "name:13",
+                "sha256": "7efba5a2899f1c3e811f0ba9bb8ea7d14326dd7e22bed5f0e9e7155b58c87123"
+              }
+            ]
+          },
+          {
+            "id": "freefont",
+            "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "freefont/FreeMono.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeMonoBold.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeMonoBoldOblique.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeMonoOblique.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSans.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSansBold.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSansBoldOblique.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSansOblique.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSerif.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSerifBold.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSerifBoldItalic.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              },
+              {
+                "type": "font-name",
+                "path": "freefont/FreeSerifItalic.ttf",
+                "locator": "name:13",
+                "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              }
+            ]
+          },
+          {
+            "id": "samyak",
+            "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "samyak/Samyak-Devanagari.ttf",
+                "locator": "name:0",
+                "sha256": "a69dfb084c5eb83c6d43883c0abd712b0e97a37bce3d9577a14e433a3d635074"
+              }
+            ]
+          },
+          {
+            "id": "samyak-fonts",
+            "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "samyak-fonts/Samyak-Gujarati.ttf",
+                "locator": "name:0",
+                "sha256": "75c130c63140b307e6dca97adc71cc61080d5385add10ba4729bcf7064856972"
+              },
+              {
+                "type": "font-name",
+                "path": "samyak-fonts/Samyak-Malayalam.ttf",
+                "locator": "name:0",
+                "sha256": "cf261014e2da3597464490df50d5235ac87c94c8535133462142d13444182b63"
+              },
+              {
+                "type": "font-name",
+                "path": "samyak-fonts/Samyak-Tamil.ttf",
+                "locator": "name:0",
+                "sha256": "94239c084e3139c347d4dc131f848426618eaf05defb2b92e46c1fc08532e854"
+              }
+            ]
+          },
+          {
+            "id": "tibetan-machine",
+            "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "tibetan-machine/TibetanMachineUni.ttf",
+                "locator": "name:13",
+                "sha256": "470059255e3add0ff8053cfcb5dcfaadc53ee474859e32c50e51bcf6bc0ca6e6"
+              }
+            ]
+          },
+          {
+            "id": "ttf-khmeros-core",
+            "spdx": "LGPL-2.1-or-later",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "ttf-khmeros-core/KhmerOS.ttf",
+                "locator": "name:0",
+                "sha256": "1951ca3a9e1b9d9ad4e1ec35ff9a16f8ff64657ddb12d0f63f0cc0bb38364be3"
+              },
+              {
+                "type": "font-name",
+                "path": "ttf-khmeros-core/KhmerOSsys.ttf",
+                "locator": "name:0",
+                "sha256": "1951ca3a9e1b9d9ad4e1ec35ff9a16f8ff64657ddb12d0f63f0cc0bb38364be3"
+              }
+            ]
+          }
+        ],
         "unresolvedComponents": [
           "ASC.ttf",
+          "abyssinica",
+          "ancient-scripts",
+          "arphic-ukai",
+          "asana",
+          "caladea",
+          "crosextra",
+          "dejavu",
+          "droid",
           "fonts-beng-extra",
-          "fonts-telu-extra",
-          "freefont",
+          "fonts-gujr-extra",
           "kacst",
           "kacst-one",
           "liberation",
-          "samyak",
-          "samyak-fonts",
-          "tibetan-machine",
-          "ttf-khmeros-core",
+          "lohit-assamese",
+          "lohit-bengali",
+          "lohit-devanagari",
+          "lohit-gujarati",
+          "lohit-kannada",
+          "lohit-malayalam",
+          "lohit-oriya",
+          "lohit-punjabi",
+          "lohit-tamil",
+          "lohit-tamil-classical",
+          "lohit-telugu",
+          "nanum",
+          "noto",
+          "openoffice",
+          "opensans",
+          "padauk",
+          "takao-gothic",
+          "ubuntu-font-family",
           "wqy-zenhei"
         ]
       }
@@ -163,8 +366,55 @@
         ],
         "reason": "The repository has per-dictionary license candidates but no reviewed asset-to-license inventory; the listed language packs have no in-tree license candidate.",
         "unresolvedComponents": [
+          "ar",
           "az_Latn_AZ",
-          "ru_RU"
+          "bg_BG",
+          "ca_ES",
+          "ca_ES_valencia",
+          "cs_CZ",
+          "da_DK",
+          "de_AT",
+          "de_CH",
+          "de_DE",
+          "el_GR",
+          "en_AU",
+          "en_CA",
+          "en_GB",
+          "en_US",
+          "en_ZA",
+          "es_ES",
+          "eu_ES",
+          "fr_FR",
+          "gl_ES",
+          "hr_HR",
+          "hu_HU",
+          "id_ID",
+          "it_IT",
+          "kk_KZ",
+          "ko_KR",
+          "lb_LU",
+          "lt_LT",
+          "lv_LV",
+          "mn_MN",
+          "nb_NO",
+          "nl_NL",
+          "nn_NO",
+          "oc_FR",
+          "pl_PL",
+          "pt_BR",
+          "pt_PT",
+          "ro_RO",
+          "ru_RU",
+          "sk_SK",
+          "sl_SI",
+          "sr_Cyrl_RS",
+          "sr_Latn_RS",
+          "sv_SE",
+          "tr_TR",
+          "uk_UA",
+          "uz_Cyrl_UZ",
+          "uz_Latn_UZ",
+          "vi_VN"
         ]
       }
     },

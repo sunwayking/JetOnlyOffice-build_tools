@@ -6,7 +6,8 @@ packaging, and release verification:
 - `source-lock.schema.json` pins every Git repository, gitlink, and locked-commit
   Git LFS object by SHA-256, size, and materialized path.
 - `source-license-audit.schema.json` records the incomplete component license
-  inventory derived from locked Git trees.
+  inventory derived from locked Git trees, including payload-complete mappings
+  verified from embedded font metadata or exact archive members.
 - `source-lfs-audit.schema.json` proves locked Git LFS objects are anonymously
   downloadable from public JetOnlyOffice mirrors.
 - `source-selection-audit.schema.json` proves every fixed commit is selected by

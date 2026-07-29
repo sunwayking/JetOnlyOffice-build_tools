@@ -4,10 +4,12 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+import zipfile
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -115,6 +117,20 @@ def create_repository(root, name="source"):
   bare = Path(root) / (name + ".git")
   run_git(root, "clone", "--bare", str(checkout), str(bare))
   return checkout, bare, commit
+
+
+def font_with_license_name(license_text):
+  encoded = license_text.encode("utf-16-be")
+  name_table = (
+    struct.pack(">HHH", 0, 1, 18)
+    + struct.pack(">HHHHHH", 3, 1, 0x0409, 13, len(encoded), 0)
+    + encoded
+  )
+  return (
+    struct.pack(">IHHHH", 0x00010000, 1, 0, 0, 0)
+    + struct.pack(">4sIII", b"name", 0, 28, len(name_table))
+    + name_table
+  )
 
 
 def add_lfs_object(root, checkout, name="asset.bin", content=b"locked lfs content\n"):
@@ -305,12 +321,61 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual("failed", report["status"])
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
-      ["az_Latn_AZ", "ru_RU"],
+      [
+        "ar", "az_Latn_AZ", "bg_BG", "ca_ES", "ca_ES_valencia", "cs_CZ",
+        "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU", "en_CA",
+        "en_GB", "en_US", "en_ZA", "es_ES", "eu_ES", "fr_FR", "gl_ES",
+        "hr_HR", "hu_HU", "id_ID", "it_IT", "kk_KZ", "ko_KR", "lb_LU",
+        "lt_LT", "lv_LV", "mn_MN", "nb_NO", "nl_NL", "nn_NO", "oc_FR",
+        "pl_PL", "pt_BR", "pt_PT", "ro_RO", "ru_RU", "sk_SK", "sl_SI",
+        "sr_Cyrl_RS", "sr_Latn_RS", "sv_SE", "tr_TR", "uk_UA", "uz_Cyrl_UZ",
+        "uz_Latn_UZ", "vi_VN",
+      ],
       next(
         finding["unresolvedComponents"]
         for finding in findings
         if finding["repository"] == "dictionaries"
       ),
+    )
+    self.assertEqual(
+      ["android", "cef", "python", "qt", "sysroot"],
+      next(
+        finding["unresolvedComponents"]
+        for finding in findings
+        if finding["repository"] == "build-tools-data"
+      ),
+    )
+    self.assertEqual(
+      [
+        "ASC.ttf", "abyssinica", "ancient-scripts", "arphic-ukai", "asana",
+        "caladea", "crosextra", "dejavu", "droid", "fonts-beng-extra",
+        "fonts-gujr-extra", "kacst", "kacst-one", "liberation", "lohit-assamese",
+        "lohit-bengali", "lohit-devanagari", "lohit-gujarati", "lohit-kannada",
+        "lohit-malayalam", "lohit-oriya", "lohit-punjabi", "lohit-tamil",
+        "lohit-tamil-classical", "lohit-telugu", "nanum", "noto", "openoffice",
+        "opensans", "padauk", "takao-gothic", "ubuntu-font-family", "wqy-zenhei",
+      ],
+      next(
+        finding["unresolvedComponents"]
+        for finding in findings
+        if finding["repository"] == "core-fonts"
+      ),
+    )
+    core_fonts = next(
+      repository
+      for repository in value["repositories"]
+      if repository["id"] == "core-fonts"
+    )
+    self.assertEqual(
+      [
+        "fonts-telu-extra",
+        "freefont",
+        "samyak",
+        "samyak-fonts",
+        "tibetan-machine",
+        "ttf-khmeros-core",
+      ],
+      [component["id"] for component in core_fonts["license"]["reviewedComponents"]],
     )
 
   def test_incomplete_license_inventory_requires_precise_sorted_components(self):
@@ -326,12 +391,56 @@ class SourceResolverTests(unittest.TestCase):
     finding = policy_findings(value)[0]
     self.assertEqual(["missing-font"], finding["unresolvedComponents"])
 
-    value["repositories"][1]["license"]["unresolvedComponents"] = []
-    with self.assertRaisesRegex(ResolutionError, "sorted unique non-empty strings"):
+    value["repositories"][1]["license"]["unresolvedComponents"] = [
+      "missing-font", "missing-font",
+    ]
+    with self.assertRaisesRegex(ResolutionError, "sorted unique strings"):
       validate_inputs(value)
 
+  def test_reviewed_component_evidence_is_strict_and_disjoint_from_unresolved(self):
+    value = source_inputs()
+    value["repositories"][1]["license"] = {
+      "status": "component-scoped",
+      "payloadPatterns": ["**/*.ttf"],
+      "patterns": ["**/LICENSE*"],
+      "reason": "Some component evidence is still missing.",
+      "reviewedComponents": [
+        {
+          "id": "licensed-font",
+          "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+          "evidence": [
+            {
+              "type": "font-name",
+              "path": "licensed-font/font.ttf",
+              "locator": "name:13",
+              "sha256": "a" * 64,
+            }
+          ],
+        }
+      ],
+      "unresolvedComponents": ["missing-font"],
+    }
+    validate_inputs(value)
+
+    value["repositories"][1]["license"]["unresolvedComponents"] = [
+      "licensed-font",
+      "missing-font",
+    ]
+    with self.assertRaisesRegex(ResolutionError, "both reviewed and unresolved"):
+      validate_inputs(value)
+
+    value["repositories"][1]["license"]["unresolvedComponents"] = ["missing-font"]
+    value["repositories"][1]["license"]["reviewedComponents"][0]["spdx"] = (
+      "NOASSERTION"
+    )
+    with self.assertRaisesRegex(ResolutionError, "reviewed source set"):
+      validate_inputs(value)
+
+    value["repositories"][1]["license"]["reviewedComponents"][0]["spdx"] = (
+      "GPL-3.0-or-later WITH Font-exception-2.0"
+    )
     value["repositories"][1]["license"]["unresolvedComponents"] = ["z", "a"]
-    with self.assertRaisesRegex(ResolutionError, "sorted unique non-empty strings"):
+    with self.assertRaisesRegex(ResolutionError, "sorted unique strings"):
       validate_inputs(value)
 
   def test_component_license_inventory_is_derived_from_locked_git_bytes(self):
@@ -357,7 +466,7 @@ class SourceResolverTests(unittest.TestCase):
         "payloadPatterns": ["**/*.ttf"],
         "patterns": ["**/LICENSE*"],
         "reason": "A component license mapping is incomplete.",
-        "unresolvedComponents": ["missing"],
+        "unresolvedComponents": ["licensed", "missing"],
       }
 
       inventory = repository_license_inventory(repository, bare, commit)
@@ -375,6 +484,80 @@ class SourceResolverTests(unittest.TestCase):
       )
       repository["license"]["unresolvedComponents"] = ["licensed"]
       with self.assertRaisesRegex(ResolutionError, "inventory is stale"):
+        repository_license_inventory(repository, bare, commit)
+
+  def test_reviewed_component_evidence_is_verified_from_locked_payload_bytes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      license_text = "GNU font license with exception"
+      font_bytes = font_with_license_name(license_text)
+      (checkout / "font-family").mkdir()
+      (checkout / "font-family" / "Font.ttf").write_bytes(font_bytes)
+      archive_license = b"GLEW license terms\n"
+      (checkout / "glew").mkdir()
+      with zipfile.ZipFile(checkout / "glew" / "glew.zip", "w") as archive:
+        archive.writestr("glew/LICENSE.txt", archive_license)
+      (checkout / "missing").mkdir()
+      (checkout / "missing" / "Font.ttf").write_bytes(b"not a font")
+      run_git(checkout, "add", "font-family", "glew", "missing")
+      run_git(checkout, "commit", "-m", "add component payloads")
+      commit = run_git(checkout, "rev-parse", "HEAD")
+      bare = Path(directory) / "inventory.git"
+      run_git(directory, "clone", "--bare", str(checkout), str(bare))
+      repository = repository_input("components", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf", "**/*.zip"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "One component has no reviewed evidence.",
+        "reviewedComponents": [
+          {
+            "id": "font-family",
+            "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "font-family/Font.ttf",
+                "locator": "name:13",
+                "sha256": hashlib.sha256(license_text.encode("utf-8")).hexdigest(),
+              }
+            ],
+          },
+          {
+            "id": "glew",
+            "spdx": "BSD-3-Clause AND MIT",
+            "evidence": [
+              {
+                "type": "zip-member",
+                "path": "glew/glew.zip",
+                "locator": "glew/LICENSE.txt",
+                "sha256": hashlib.sha256(archive_license).hexdigest(),
+              }
+            ],
+          },
+        ],
+        "unresolvedComponents": ["missing"],
+      }
+
+      inventory = repository_license_inventory(repository, bare, commit)
+
+      self.assertEqual(
+        ["font-family", "glew", "missing"],
+        [component["id"] for component in inventory["components"]],
+      )
+      for component in inventory["components"][:2]:
+        self.assertEqual("resolved", component["status"])
+        self.assertEqual([], component["candidateEvidence"])
+        self.assertEqual(
+          component["payloadPaths"],
+          [record["path"] for record in component["license"]["evidence"]],
+        )
+      self.assertEqual("unresolved", inventory["components"][2]["status"])
+
+      repository["license"]["reviewedComponents"][0]["evidence"][0]["sha256"] = (
+        "0" * 64
+      )
+      with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
         repository_license_inventory(repository, bare, commit)
 
   def test_license_audit_reads_the_standard_git_cache_layout(self):
@@ -404,6 +587,120 @@ class SourceResolverTests(unittest.TestCase):
       )
 
       self.assertEqual("source", report["repositories"][0]["repository"])
+
+  def test_license_audit_reports_every_component_without_reviewed_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, bare, _ = create_repository(directory)
+      (checkout / "candidate").mkdir()
+      (checkout / "candidate" / "Font.ttf").write_bytes(b"candidate font\n")
+      (checkout / "candidate" / "LICENSE.txt").write_text(
+        "candidate license\n",
+        encoding="utf-8",
+        newline="\n",
+      )
+      (checkout / "missing").mkdir()
+      (checkout / "missing" / "Font.ttf").write_bytes(b"missing font\n")
+      run_git(checkout, "add", "candidate", "missing")
+      run_git(checkout, "commit", "-m", "add incomplete license inventory")
+      commit = run_git(checkout, "rev-parse", "HEAD^{commit}")
+      run_git(bare, "fetch", str(checkout), f"{commit}:refs/heads/main")
+
+      inputs = source_inputs()
+      repository = inputs["repositories"][1]
+      repository["commit"] = commit
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "Two components still need review.",
+        "unresolvedComponents": ["candidate", "missing"],
+      }
+      inputs["baseline"]["commit"] = commit
+      run_git(bare, "remote", "set-url", "origin", repository["origin"])
+      cache_root = Path(directory) / "cache"
+      cache = cache_root / "git" / "documentserver.git"
+      cache.parent.mkdir(parents=True)
+      bare.rename(cache)
+      inputs_path = Path(directory) / "inputs.json"
+      report_path = Path(directory) / "source-license-audit.json"
+      inputs_path.write_text(json.dumps(inputs), encoding="utf-8")
+
+      with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+        exit_code = main([
+          "license-audit",
+          "--inputs", str(inputs_path),
+          "--cache-directory", str(cache_root),
+          "--report", str(report_path),
+          "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+        ])
+
+      report = json.loads(report_path.read_text(encoding="utf-8"))
+      self.assertEqual(3, exit_code)
+      self.assertEqual("failed", report["status"])
+      self.assertEqual("incomplete", report["repositories"][0]["status"])
+      self.assertIn("candidate, missing", stderr.getvalue())
+
+  def test_license_audit_passes_when_every_component_has_reviewed_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, bare, _ = create_repository(directory)
+      license_text = "GNU font license with exception"
+      (checkout / "licensed").mkdir()
+      (checkout / "licensed" / "Font.ttf").write_bytes(
+        font_with_license_name(license_text)
+      )
+      run_git(checkout, "add", "licensed")
+      run_git(checkout, "commit", "-m", "add reviewed license inventory")
+      commit = run_git(checkout, "rev-parse", "HEAD^{commit}")
+      run_git(bare, "fetch", str(checkout), f"{commit}:refs/heads/main")
+
+      inputs = source_inputs()
+      repository = inputs["repositories"][1]
+      repository["commit"] = commit
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "All component evidence has been reviewed.",
+        "reviewedComponents": [
+          {
+            "id": "licensed",
+            "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "licensed/Font.ttf",
+                "locator": "name:13",
+                "sha256": hashlib.sha256(license_text.encode("utf-8")).hexdigest(),
+              }
+            ],
+          }
+        ],
+        "unresolvedComponents": [],
+      }
+      inputs["baseline"]["commit"] = commit
+      run_git(bare, "remote", "set-url", "origin", repository["origin"])
+      cache_root = Path(directory) / "cache"
+      cache = cache_root / "git" / "documentserver.git"
+      cache.parent.mkdir(parents=True)
+      bare.rename(cache)
+      inputs_path = Path(directory) / "inputs.json"
+      report_path = Path(directory) / "source-license-audit.json"
+      inputs_path.write_text(json.dumps(inputs), encoding="utf-8")
+
+      with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+        exit_code = main([
+          "license-audit",
+          "--inputs", str(inputs_path),
+          "--cache-directory", str(cache_root),
+          "--report", str(report_path),
+          "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+        ])
+
+      self.assertEqual(0, exit_code)
+      self.assertEqual("", stderr.getvalue())
+      report = json.loads(report_path.read_text(encoding="utf-8"))
+      self.assertEqual("passed", report["status"])
+      self.assertEqual("complete", report["repositories"][0]["status"])
 
   def test_repository_metadata_uses_git_objects_and_license_bytes(self):
     with tempfile.TemporaryDirectory() as directory:

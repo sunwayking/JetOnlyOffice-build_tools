@@ -97,6 +97,12 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
+The locked GLEW archive and six font components now have payload-complete,
+machine-verified primary evidence. The remaining blockers are Android, CEF,
+Python, Qt, and sysroot payloads; six font components; and the Azerbaijani and
+Russian dictionary packs enumerated in `locks/README.md`. Partial evidence does
+not turn any of the three repositories into a repository-wide declaration.
+
 The image lock and offline materializer are concrete and locally reverified.
 The formal toolchain lock, its complete Python/apt/npm/pkg/Qt/native dependency
 cache, and a real package driver produced by the locked source build remain

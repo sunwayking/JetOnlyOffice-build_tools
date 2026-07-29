@@ -45,6 +45,10 @@ EXPECTED_ENVIRONMENT = {
 SOURCE_LICENSE_EXPRESSIONS = {
   "AGPL-3.0-only",
   "Apache-2.0",
+  "BSD-3-Clause AND MIT",
+  "GPL-2.0-or-later WITH Font-exception-2.0",
+  "GPL-3.0-or-later WITH Font-exception-2.0",
+  "LGPL-2.1-or-later",
   "MIT",
 }
 WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
@@ -953,8 +957,54 @@ def _validate_source_license_audit(value):
         raise ContractError(component_path + ": unresolved component cannot have candidate evidence")
       if component["status"] == "review-required" and not evidence:
         raise ContractError(component_path + ": review-required component needs candidate evidence")
+      license_record = component.get("license")
+      if component["status"] == "resolved":
+        if evidence:
+          raise ContractError(component_path + ": resolved component cannot need candidate evidence")
+        if license_record is None:
+          raise ContractError(component_path + ": resolved component needs a license record")
+        if license_record["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
+          raise ContractError(
+            component_path + ".license.spdx: expression is not in the reviewed source set"
+          )
+        verified_evidence = license_record["evidence"]
+        _validate_sorted_unique(
+          verified_evidence,
+          lambda item: (item["path"], item["type"], item["locator"]),
+          component_path + ".license.evidence",
+        )
+        evidence_paths = []
+        for evidence_index, evidence_record in enumerate(verified_evidence):
+          evidence_path = f"{component_path}.license.evidence[{evidence_index}]"
+          _validate_relative_path(evidence_record["path"], evidence_path + ".path")
+          if evidence_record["type"] == "font-name":
+            if evidence_record["locator"] not in {"name:0", "name:13"}:
+              raise ContractError(evidence_path + ".locator: unsupported font name locator")
+          else:
+            _validate_relative_path(evidence_record["locator"], evidence_path + ".locator")
+          evidence_paths.append(evidence_record["path"])
+        if evidence_paths != component["payloadPaths"]:
+          raise ContractError(
+            component_path + ".license.evidence: must exactly cover component payload paths"
+          )
+      elif license_record is not None:
+        raise ContractError(component_path + ": incomplete component cannot have a license record")
     if len(payload_paths) != len(set(payload_paths)):
       raise ContractError(repository_path + ".components: payload paths must be unique")
+    expected_repository_status = (
+      "complete"
+      if all(component["status"] == "resolved" for component in components)
+      else "incomplete"
+    )
+    if repository["status"] != expected_repository_status:
+      raise ContractError(repository_path + ".status: repository status does not match components")
+  expected_audit_status = (
+    "passed"
+    if all(repository["status"] == "complete" for repository in repositories)
+    else "failed"
+  )
+  if value["status"] != expected_audit_status:
+    raise ContractError("$.status: audit status does not match repositories")
 
 
 def _validate_source_lfs_audit(value):
