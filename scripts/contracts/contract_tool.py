@@ -50,6 +50,8 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "GPL-3.0-or-later WITH Font-exception-2.0",
   "LGPL-2.1-or-later",
   "MIT",
+  "OFL-1.1",
+  "UFL-1.0",
 }
 WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 

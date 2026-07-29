@@ -347,13 +347,9 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "ASC.ttf", "abyssinica", "ancient-scripts", "arphic-ukai", "asana",
-        "caladea", "crosextra", "dejavu", "droid", "fonts-beng-extra",
-        "fonts-gujr-extra", "kacst", "kacst-one", "liberation", "lohit-assamese",
-        "lohit-bengali", "lohit-devanagari", "lohit-gujarati", "lohit-kannada",
-        "lohit-malayalam", "lohit-oriya", "lohit-punjabi", "lohit-tamil",
-        "lohit-tamil-classical", "lohit-telugu", "nanum", "noto", "openoffice",
-        "opensans", "padauk", "takao-gothic", "ubuntu-font-family", "wqy-zenhei",
+        "ASC.ttf", "ancient-scripts", "arphic-ukai", "dejavu", "fonts-beng-extra",
+        "fonts-gujr-extra", "kacst", "kacst-one", "liberation", "nanum",
+        "openoffice", "takao-gothic", "wqy-zenhei",
       ],
       next(
         finding["unresolvedComponents"]
@@ -368,15 +364,64 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
+        "abyssinica",
+        "asana",
+        "caladea",
+        "crosextra",
+        "droid",
         "fonts-telu-extra",
         "freefont",
+        "lohit-assamese",
+        "lohit-bengali",
+        "lohit-devanagari",
+        "lohit-gujarati",
+        "lohit-kannada",
+        "lohit-malayalam",
+        "lohit-oriya",
+        "lohit-punjabi",
+        "lohit-tamil",
+        "lohit-tamil-classical",
+        "lohit-telugu",
+        "noto",
+        "opensans",
+        "padauk",
         "samyak",
         "samyak-fonts",
         "tibetan-machine",
         "ttf-khmeros-core",
+        "ubuntu-font-family",
       ],
       [component["id"] for component in core_fonts["license"]["reviewedComponents"]],
     )
+    reviewed_by_id = {
+      component["id"]: component
+      for component in core_fonts["license"]["reviewedComponents"]
+    }
+    expected_component_licenses = {
+      "abyssinica": ("OFL-1.1", 1),
+      "asana": ("OFL-1.1", 1),
+      "caladea": ("Apache-2.0", 4),
+      "crosextra": ("OFL-1.1", 4),
+      "droid": ("Apache-2.0", 1),
+      "lohit-assamese": ("OFL-1.1", 1),
+      "lohit-bengali": ("OFL-1.1", 1),
+      "lohit-devanagari": ("OFL-1.1", 1),
+      "lohit-gujarati": ("OFL-1.1", 1),
+      "lohit-kannada": ("OFL-1.1", 1),
+      "lohit-malayalam": ("OFL-1.1", 1),
+      "lohit-oriya": ("OFL-1.1", 1),
+      "lohit-punjabi": ("OFL-1.1", 1),
+      "lohit-tamil": ("OFL-1.1", 1),
+      "lohit-tamil-classical": ("OFL-1.1", 1),
+      "lohit-telugu": ("OFL-1.1", 1),
+      "noto": ("OFL-1.1", 45),
+      "opensans": ("Apache-2.0", 5),
+      "padauk": ("OFL-1.1", 4),
+      "ubuntu-font-family": ("UFL-1.0", 13),
+    }
+    for component_id, (spdx, evidence_count) in expected_component_licenses.items():
+      self.assertEqual(spdx, reviewed_by_id[component_id]["spdx"])
+      self.assertEqual(evidence_count, len(reviewed_by_id[component_id]["evidence"]))
 
   def test_incomplete_license_inventory_requires_precise_sorted_components(self):
     value = source_inputs()

@@ -130,8 +130,104 @@
           "**/LICENSE*",
           "**/OFL*"
         ],
-        "reason": "Six font components are mapped to license grants embedded in every locked font payload; the listed components still lack sufficiently precise evidence.",
+        "reason": "Twenty-six font components are mapped to license grants embedded in every locked font payload; the listed components still lack sufficiently precise evidence.",
         "reviewedComponents": [
+          {
+            "id": "abyssinica",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "abyssinica/AbyssinicaSIL-R.ttf",
+                "locator": "name:13",
+                "sha256": "de05701a666cf05be238626810132b2f353ec9b2a3a98df48f983d65e272565f"
+              }
+            ]
+          },
+          {
+            "id": "asana",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "asana/ASANA.ttc",
+                "locator": "name:13",
+                "sha256": "44c18cd2fae231eeb234be945375f319c0e54421f692198b27a94c576923c920"
+              }
+            ]
+          },
+          {
+            "id": "caladea",
+            "spdx": "Apache-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "caladea/caladea-bold.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "caladea/caladea-bolditalic.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "caladea/caladea-italic.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "caladea/caladea-regular.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              }
+            ]
+          },
+          {
+            "id": "crosextra",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "crosextra/Carlito-Bold.ttf",
+                "locator": "name:13",
+                "sha256": "4e084521f75dc88aa72939a955def0991bbbff9a26d805f385d1400b3c7e2fb5"
+              },
+              {
+                "type": "font-name",
+                "path": "crosextra/Carlito-BoldItalic.ttf",
+                "locator": "name:13",
+                "sha256": "4e084521f75dc88aa72939a955def0991bbbff9a26d805f385d1400b3c7e2fb5"
+              },
+              {
+                "type": "font-name",
+                "path": "crosextra/Carlito-Italic.ttf",
+                "locator": "name:13",
+                "sha256": "4e084521f75dc88aa72939a955def0991bbbff9a26d805f385d1400b3c7e2fb5"
+              },
+              {
+                "type": "font-name",
+                "path": "crosextra/Carlito-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "4e084521f75dc88aa72939a955def0991bbbff9a26d805f385d1400b3c7e2fb5"
+              }
+            ]
+          },
+          {
+            "id": "droid",
+            "spdx": "Apache-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "droid/DroidSansFallbackFull.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              }
+            ]
+          },
           {
             "id": "fonts-telu-extra",
             "spdx": "GPL-2.0-or-later WITH Font-exception-2.0",
@@ -229,6 +325,480 @@
             ]
           },
           {
+            "id": "lohit-assamese",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-assamese/Lohit-Assamese.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-bengali",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-bengali/Lohit-Bengali.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-devanagari",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-devanagari/Lohit-Devanagari.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-gujarati",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-gujarati/Lohit-Gujarati.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-kannada",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-kannada/Lohit-Kannada.ttf",
+                "locator": "name:0",
+                "sha256": "3edb2b2dd7fa2f7ce77805fc0ec2807bb53e0760fd4f1ca5a997445d87bbf4ac"
+              }
+            ]
+          },
+          {
+            "id": "lohit-malayalam",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-malayalam/Lohit-Malayalam.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-oriya",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-oriya/Lohit-Odia.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-punjabi",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-punjabi/Lohit-Gurmukhi.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-tamil",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-tamil/Lohit-Tamil.ttf",
+                "locator": "name:13",
+                "sha256": "0dde51b50f10f264792a03e2147a17de17fb41346889bc6f34ae4cdd1b15bd19"
+              }
+            ]
+          },
+          {
+            "id": "lohit-tamil-classical",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-tamil-classical/Lohit-Tamil-Classical.ttf",
+                "locator": "name:0",
+                "sha256": "622934d95ac9823bbe0def4f47416e7aa676fbdb41d5de4be1bc5539b8e78ee9"
+              }
+            ]
+          },
+          {
+            "id": "lohit-telugu",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "lohit-telugu/Lohit-Telugu.ttf",
+                "locator": "name:0",
+                "sha256": "7cffce3664bc762c852f003fbc2ff8dd1c9996dd7a1ee70d66c4e14e16474629"
+              }
+            ]
+          },
+          {
+            "id": "noto",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "noto/NotoEmoji-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoNaskhArabic-hinted/NotoNaskhArabic-Bold.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoNaskhArabic-hinted/NotoNaskhArabic-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoNaskhArabic-hinted/NotoNaskhArabicUI-Bold.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoNaskhArabic-hinted/NotoNaskhArabicUI-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansAdlamUnjoined-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansAnatolianHieroglyphs-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansAvestan-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansBamum-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansBrahmi-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansBuginese-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansCanadianAboriginal-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansChakma-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansCuneiform-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansCypriot-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansEgyptianHieroglyphs-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansGlagolitic-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansImperialAramaic-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansInscriptionalPahlavi-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansInscriptionalParthian-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansJavanese-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansKaithi-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansKayahLi-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansKharoshthi-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansLimbu-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansLydian-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansMongolian-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansNewTaiLue-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansOsage-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansOsmanya-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansPhoenician-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansRejang-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansTagalog-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansTagbanwa-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansTaiLe-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansTaiTham-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansTamil-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSansYi-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/NotoSerifSinhala-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/Noto_Sans_KR/NotoSansKR-Black.otf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/Noto_Sans_KR/NotoSansKR-Bold.otf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/Noto_Sans_KR/NotoSansKR-Light.otf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/Noto_Sans_KR/NotoSansKR-Medium.otf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/Noto_Sans_KR/NotoSansKR-Regular.otf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              },
+              {
+                "type": "font-name",
+                "path": "noto/Noto_Sans_KR/NotoSansKR-Thin.otf",
+                "locator": "name:13",
+                "sha256": "ed98143a85f4e54cc482a6a2631b5066d19ed79a48e6285edda5f169eced7ea5"
+              }
+            ]
+          },
+          {
+            "id": "opensans",
+            "spdx": "Apache-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "opensans/OpenSans-Bold.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "opensans/OpenSans-ExtraBold.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "opensans/OpenSans-Light.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "opensans/OpenSans-Regular.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              },
+              {
+                "type": "font-name",
+                "path": "opensans/OpenSans-Semibold.ttf",
+                "locator": "name:13",
+                "sha256": "cf3bc69737597ce0f8af8f5cd0740ef83f71a757a51ca84db3f61b6ee7d9ca81"
+              }
+            ]
+          },
+          {
+            "id": "padauk",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "padauk/Padauk-bold.ttf",
+                "locator": "name:13",
+                "sha256": "93f3775251a5846c11c979c4cf2a0d80bae8839ab4d307616370c1027e4f58b8"
+              },
+              {
+                "type": "font-name",
+                "path": "padauk/Padauk-book.ttf",
+                "locator": "name:13",
+                "sha256": "93f3775251a5846c11c979c4cf2a0d80bae8839ab4d307616370c1027e4f58b8"
+              },
+              {
+                "type": "font-name",
+                "path": "padauk/Padauk-bookbold.ttf",
+                "locator": "name:13",
+                "sha256": "93f3775251a5846c11c979c4cf2a0d80bae8839ab4d307616370c1027e4f58b8"
+              },
+              {
+                "type": "font-name",
+                "path": "padauk/Padauk.ttf",
+                "locator": "name:13",
+                "sha256": "93f3775251a5846c11c979c4cf2a0d80bae8839ab4d307616370c1027e4f58b8"
+              }
+            ]
+          },
+          {
             "id": "samyak",
             "spdx": "GPL-3.0-or-later WITH Font-exception-2.0",
             "evidence": [
@@ -293,41 +863,105 @@
                 "sha256": "1951ca3a9e1b9d9ad4e1ec35ff9a16f8ff64657ddb12d0f63f0cc0bb38364be3"
               }
             ]
+          },
+          {
+            "id": "ubuntu-font-family",
+            "spdx": "UFL-1.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-B.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-BI.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-C.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-L.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-LI.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-M.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-MI.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-R.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/Ubuntu-RI.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/UbuntuMono-B.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/UbuntuMono-BI.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/UbuntuMono-R.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              },
+              {
+                "type": "font-name",
+                "path": "ubuntu-font-family/UbuntuMono-RI.ttf",
+                "locator": "name:0",
+                "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
+              }
+            ]
           }
         ],
         "unresolvedComponents": [
           "ASC.ttf",
-          "abyssinica",
           "ancient-scripts",
           "arphic-ukai",
-          "asana",
-          "caladea",
-          "crosextra",
           "dejavu",
-          "droid",
           "fonts-beng-extra",
           "fonts-gujr-extra",
           "kacst",
           "kacst-one",
           "liberation",
-          "lohit-assamese",
-          "lohit-bengali",
-          "lohit-devanagari",
-          "lohit-gujarati",
-          "lohit-kannada",
-          "lohit-malayalam",
-          "lohit-oriya",
-          "lohit-punjabi",
-          "lohit-tamil",
-          "lohit-tamil-classical",
-          "lohit-telugu",
           "nanum",
-          "noto",
           "openoffice",
-          "opensans",
-          "padauk",
           "takao-gothic",
-          "ubuntu-font-family",
           "wqy-zenhei"
         ]
       }
