@@ -67,6 +67,8 @@
               "cyclonedx",
               "provenance",
               "checksums",
+              "licenses",
+              "notice",
               "diffoscope"
             ]
           },

@@ -480,6 +480,8 @@ def _validate_artifact_manifest(value):
     "cyclonedx",
     "provenance",
     "checksums",
+    "licenses",
+    "notice",
   }
   types = {item["type"] for item in artifacts}
   missing = sorted(required_types - types)

@@ -239,6 +239,8 @@ def artifact_manifest():
     ("checksums", "checksums", "checksums.sha256"),
     ("cyclonedx", "cyclonedx", "sbom/release.cdx.json"),
     ("deb", "deb", "packages/jetonlyoffice.deb"),
+    ("licenses", "licenses", "licenses/jetonlyoffice-licenses.tar.zst"),
+    ("notice", "notice", "licenses/NOTICE.txt"),
     ("oci", "oci", "images/jetonlyoffice.oci.tar"),
     ("provenance", "provenance", "provenance/intoto.jsonl"),
     ("rootfs", "rootfs", "packages/rootfs.tar.zst"),

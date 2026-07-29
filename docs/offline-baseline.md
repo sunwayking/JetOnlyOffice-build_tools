@@ -48,6 +48,15 @@ materialized at
 `sources/build_tools/tools/linux/python3/bin/python3`; the minimal Ubuntu image
 cannot silently supply a host or image Python fallback.
 
+The build entrypoint also emits a deterministic source snapshot and the
+executable `build-output/packaging/package.sh` driver. The driver and its JWT
+entrypoint are copied from the locked `build_tools` source tree and included in
+the build manifest. Package execution invokes that exact driver after
+materializing the package/runtime toolchain inputs. It receives the source,
+toolchain, image, and runtime-rootfs locks as read-only inputs and emits the
+DEB, normalized rootfs archive, OCI image layout, source archive, SPDX,
+CycloneDX, SLSA provenance, and checksums manifest.
+
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any
 previous manifest at that path is removed. The build manifest must bind one
@@ -97,12 +106,10 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-The image lock and offline materializer are concrete and locally reverified.
-The formal toolchain lock, its complete Python/apt/npm/pkg/Qt/native dependency
-cache, and a real package driver produced by the locked source build remain
-prerequisites. The current upstream build does not produce
-`build-output/packaging/package.sh`, so manifest generation must stop instead
-of inventing DEB/rootfs/OCI outputs. Until those inputs are reviewed and
+The image lock, offline materializer, deterministic package driver, and release
+artifact verifier are concrete and locally reverified. The formal toolchain
+lock and its complete Python/apt/npm/pkg/Qt/native dependency cache remain
+prerequisites. Until those inputs and the formal source lock are reviewed and
 published, the public entrypoints must stop before producing a release
 candidate. Placeholder locks, `NOASSERTION`, upstream fallbacks, and online
 build/package retries are not supported.

@@ -1,7 +1,8 @@
 import hashlib
 import io
 import json
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import tarfile
@@ -30,23 +31,49 @@ def docker_has_locked_image():
 
 @unittest.skipUnless(docker_has_locked_image(), "locked Ubuntu image is unavailable")
 class ContainerMaterializationTests(unittest.TestCase):
-  def run_materializer(self, cache, work, command):
-    return subprocess.run(
-      [
-        shutil.which("docker"),
-        "run",
-        "--rm",
-        "--pull",
-        "never",
-        "--network",
-        "none",
-        "--read-only",
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
-        "--tmpfs",
-        "/tmp:rw,nosuid,nodev",
+  @unittest.skipUnless(os.name == "posix", "POSIX mount permissions are unavailable")
+  def test_work_mount_is_writable_by_unprivileged_builder_user(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      cache = root / "cache"
+      cache.mkdir()
+      work = self.prepare_container_directory(root / "work")
+      result = self.run_materializer(
+        cache,
+        work,
+        "test \"$(id -u):$(id -g)\" = 65534:65534; "
+        "touch /work/unprivileged-write",
+        user="65534:65534",
+      )
+      self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+      self.assertTrue((work / "unprivileged-write").is_file())
+
+  def prepare_container_directory(self, path):
+    path.mkdir()
+    if os.name == "posix":
+      path.chmod(0o777)
+    return path
+
+  def run_materializer(self, cache, work, command, user=None):
+    arguments = [
+      shutil.which("docker"),
+      "run",
+      "--rm",
+      "--pull",
+      "never",
+      "--network",
+      "none",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--tmpfs",
+      "/tmp:rw,nosuid,nodev",
+    ]
+    if user:
+      arguments += ["--user", user]
+    arguments += [
         "--env",
         "JETONLYOFFICE_NETWORK_POLICY=none",
         "--mount",
@@ -61,7 +88,9 @@ class ContainerMaterializationTests(unittest.TestCase):
         "/bin/sh",
         "-c",
         command,
-      ],
+      ]
+    return subprocess.run(
+      arguments,
       capture_output=True,
       encoding="utf-8",
       errors="replace",
@@ -81,8 +110,7 @@ class ContainerMaterializationTests(unittest.TestCase):
         + "\ttoolchain\tusr/bin/compiler\t0\t0755\n"
       ).encode("ascii")
     )
-    work = root / "work"
-    work.mkdir()
+    work = self.prepare_container_directory(root / "work")
     return cache, work
 
   def test_materializer_places_locked_file_in_private_toolchain_root(self):
@@ -133,8 +161,7 @@ class ContainerMaterializationTests(unittest.TestCase):
           + "\ttoolchain\topt/payload\t0\t-\n"
         ).encode("ascii")
       )
-      work = root / "work"
-      work.mkdir()
+      work = self.prepare_container_directory(root / "work")
       result = self.run_materializer(
         cache,
         work,
@@ -177,10 +204,43 @@ class ContainerMaterializationTests(unittest.TestCase):
       sources.mkdir(parents=True)
       (sources / "configure.py").write_text("# locked fixture\n", encoding="ascii")
       (sources / "make.py").write_text("# locked fixture\n", encoding="ascii")
-      output = root / "output"
-      output.mkdir()
-      work = root / "work"
-      work.mkdir()
+      (sources / ".gitignore").write_text("out/\n", encoding="ascii")
+      git_directory = sources / ".git"
+      git_directory.mkdir()
+      (git_directory / "config").write_text("checkout-local metadata\n", encoding="ascii")
+      container_scripts = sources / "scripts" / "container"
+      container_scripts.mkdir(parents=True)
+      (container_scripts / "package-driver.py").write_text(
+        "#!/usr/bin/env python3\n", encoding="ascii"
+      )
+      (container_scripts / "jwt-entrypoint.sh").write_text(
+        "#!/bin/sh\nexit 78\n", encoding="ascii"
+      )
+      fake_zstd = cache / "toolchain" / "zstd" / ("b" * 64)
+      fake_zstd.parent.mkdir(parents=True)
+      fake_zstd.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        "output=\n"
+        "while test $# -gt 0; do\n"
+        "  if test \"$1\" = -o; then output=$2; shift 2; else shift; fi\n"
+        "done\n"
+        "test -n \"$output\"\n"
+        "cat > \"$output\"\n",
+        encoding="ascii",
+        newline="\n",
+      )
+      with (cache / "materialization-plan.tsv").open("a", encoding="ascii", newline="\n") as plan:
+        plan.write(
+          "file\ttoolchain/zstd/" + ("b" * 64)
+          + "\ttoolchain\tusr/bin/zstd\t0\t0755\n"
+        )
+      output = self.prepare_container_directory(root / "output")
+      work = self.prepare_container_directory(root / "work")
+      locks = root / "locks"
+      locks.mkdir()
+      for name in ("sources.lock.json", "toolchain.lock.json", "images.lock.json"):
+        (locks / name).write_text("{}\n", encoding="ascii")
       result = subprocess.run(
         [
           shutil.which("docker"),
@@ -200,9 +260,17 @@ class ContainerMaterializationTests(unittest.TestCase):
           "--env",
           "JETONLYOFFICE_NETWORK_POLICY=none",
           "--env",
+          "SOURCE_DATE_EPOCH=200",
+          "--env",
           "JETONLYOFFICE_BUILD_MANIFEST_PATH=/output/build-manifest.json",
           "--mount",
           "type=bind,src=" + (root / "sources").as_posix() + ",dst=/input/sources,readonly",
+          "--mount",
+          "type=bind,src=" + (locks / "sources.lock.json").as_posix() + ",dst=/input/sources.lock.json,readonly",
+          "--mount",
+          "type=bind,src=" + (locks / "toolchain.lock.json").as_posix() + ",dst=/input/toolchain.lock.json,readonly",
+          "--mount",
+          "type=bind,src=" + (locks / "images.lock.json").as_posix() + ",dst=/input/images.lock.json,readonly",
           "--mount",
           "type=bind,src=" + cache.as_posix() + ",dst=/input/cache,readonly",
           "--mount",
@@ -239,6 +307,15 @@ class ContainerMaterializationTests(unittest.TestCase):
         ],
         (work / "python-invocations").read_text(encoding="utf-8").splitlines(),
       )
+      with tarfile.open(output / "build-output" / "source-archive.tar.zst", "r:") as archive:
+        names = {
+          name.removeprefix("./")
+          for name in archive.getnames()
+          if name.removeprefix("./")
+        }
+      self.assertIn("sources/build_tools/.gitignore", names)
+      self.assertFalse(any(".git" in PurePosixPath(name).parts for name in names))
+      self.assertTrue({"sources.lock.json", "toolchain.lock.json", "images.lock.json"} <= names)
 
 
 if __name__ == "__main__":

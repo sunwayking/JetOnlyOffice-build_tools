@@ -3,6 +3,9 @@ set -eu
 
 test "${JETONLYOFFICE_NETWORK_POLICY:-}" = "none"
 test -f /input/cache/bootstrap-manifest.json
+test -f /input/sources.lock.json
+test -f /input/toolchain.lock.json
+test -f /input/images.lock.json
 mkdir -p /work/sources
 cp -a /input/sources/. /work/sources/
 . /jetonlyoffice/container/materialize-toolchain.sh /input/cache/materialization-plan.tsv
@@ -27,4 +30,37 @@ cd "$build_tools"
 test -d "$build_tools/out"
 mkdir -p /output/build-output
 cp -a "$build_tools/out/." /output/build-output/
+
+mkdir -p /output/build-output/packaging
+cp "$build_tools/scripts/container/package-driver.py" \
+  /output/build-output/packaging/package-driver.py
+cp "$build_tools/scripts/container/jwt-entrypoint.sh" \
+  /output/build-output/packaging/jwt-entrypoint.sh
+cat > /output/build-output/packaging/package.sh <<'EOF'
+#!/bin/sh
+set -eu
+exec python3 "$(dirname "$0")/package-driver.py" "$@"
+EOF
+chmod 0755 \
+  /output/build-output/packaging/package.sh \
+  /output/build-output/packaging/package-driver.py \
+  /output/build-output/packaging/jwt-entrypoint.sh
+
+source_tar=/work/jetonlyoffice-source.tar
+tar \
+  --sort=name \
+  --mtime="@$SOURCE_DATE_EPOCH" \
+  --owner=0 \
+  --group=0 \
+  --numeric-owner \
+  --format=posix \
+  --pax-option=delete=atime,delete=ctime \
+  --exclude=.git \
+  --exclude='*/.git' \
+  -cf "$source_tar" \
+  -C /input/sources . \
+  -C /input sources.lock.json toolchain.lock.json images.lock.json
+zstd --quiet --threads=1 -19 -o /output/build-output/source-archive.tar.zst \
+  < "$source_tar"
+rm -f "$source_tar"
 "$python" /jetonlyoffice/container/write-build-manifest.py
