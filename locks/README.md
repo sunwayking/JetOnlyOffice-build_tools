@@ -52,24 +52,21 @@ evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
 exit code 3 while legal mappings are incomplete, even when candidate files
 exist.
 
-At the current lock, this closes the GLEW archive and twenty-six font components
-(`abyssinica`, `asana`, `caladea`, `crosextra`, `droid`, `fonts-telu-extra`,
-`freefont`, all eleven `lohit-*` components, `noto`, `opensans`, `padauk`,
-`samyak`, `samyak-fonts`, `tibetan-machine`, `ttf-khmeros-core`, and
-`ubuntu-font-family`). The release gate remains blocked
-for `build-tools-data` Android, CEF, Python, Qt, and sysroot payloads; the
-`ASC.ttf`, `fonts-beng-extra`, `kacst`, `kacst-one`, `liberation`, and
-`wqy-zenhei` font components remain unresolved. The `ancient-scripts`,
-`arphic-ukai`, `dejavu`, `fonts-gujr-extra`, `nanum`, `openoffice`, and
-`takao-gothic` components still require review. Those entries stay incomplete
-because their locked bytes do not yet provide a complete, precise mapping; a
-product name, copyright line, package family, or nearby license is not
-accepted as a substitute.
+At the current lock, this closes the GLEW archive and thirty-three font
+components. In addition to the previously reviewed families, the lock now
+maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `nanum`, `openoffice`,
+`takao-gothic`, and `wqy-zenhei` to exact Git blobs or embedded font license
+records. The release gate remains blocked for `build-tools-data` Android, CEF,
+Python, Qt, and sysroot payloads. The `ASC.ttf`, `fonts-beng-extra`,
+`fonts-gujr-extra`, `kacst`, `kacst-one`, and `liberation` font components also
+remain unresolved because their locked bytes do not provide a complete,
+redistributable, version-specific grant. A product name, copyright line,
+package family, or unrelated nearby license is not accepted as a substitute.
 
-Thirteen dictionary language packs are now mapped payload by payload to exact
-license blobs in the locked tree: `ar`, `bg_BG`, `en_CA`, `en_ZA`, `es_ES`,
-`lv_LV`, `nb_NO`, `nn_NO`, `oc_FR`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`.
-The remaining thirty-six language packs stay incomplete; thirty-four have
+Twelve dictionary language packs are mapped payload by payload to exact
+license blobs in the locked tree: `ar`, `bg_BG`, `en_ZA`, `es_ES`, `lv_LV`,
+`nb_NO`, `nn_NO`, `oc_FR`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`. The
+remaining thirty-seven language packs stay incomplete; thirty-five have
 candidate text that still requires a precise mapping and `az_Latn_AZ` plus
 `ru_RU` have no in-tree license candidate.
 

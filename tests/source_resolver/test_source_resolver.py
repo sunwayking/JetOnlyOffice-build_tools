@@ -347,9 +347,8 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "ASC.ttf", "ancient-scripts", "arphic-ukai", "dejavu", "fonts-beng-extra",
-        "fonts-gujr-extra", "kacst", "kacst-one", "liberation", "nanum",
-        "openoffice", "takao-gothic", "wqy-zenhei",
+        "ASC.ttf", "fonts-beng-extra", "fonts-gujr-extra", "kacst",
+        "kacst-one", "liberation",
       ],
       next(
         finding["unresolvedComponents"]
@@ -365,9 +364,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       [
         "abyssinica",
+        "ancient-scripts",
+        "arphic-ukai",
         "asana",
         "caladea",
         "crosextra",
+        "dejavu",
         "droid",
         "fonts-telu-extra",
         "freefont",
@@ -382,14 +384,18 @@ class SourceResolverTests(unittest.TestCase):
         "lohit-tamil",
         "lohit-tamil-classical",
         "lohit-telugu",
+        "nanum",
         "noto",
+        "openoffice",
         "opensans",
         "padauk",
         "samyak",
         "samyak-fonts",
+        "takao-gothic",
         "tibetan-machine",
         "ttf-khmeros-core",
         "ubuntu-font-family",
+        "wqy-zenhei",
       ],
       [component["id"] for component in core_fonts["license"]["reviewedComponents"]],
     )
@@ -399,9 +405,14 @@ class SourceResolverTests(unittest.TestCase):
     }
     expected_component_licenses = {
       "abyssinica": ("OFL-1.1", 1),
+      "ancient-scripts": (
+        "LicenseRef-Unicode-Fonts-for-Ancient-Scripts", 1
+      ),
+      "arphic-ukai": ("Arphic-1999", 1),
       "asana": ("OFL-1.1", 1),
       "caladea": ("Apache-2.0", 4),
       "crosextra": ("OFL-1.1", 4),
+      "dejavu": ("Bitstream-Vera AND LicenseRef-AMSFonts", 22),
       "droid": ("Apache-2.0", 1),
       "lohit-assamese": ("OFL-1.1", 1),
       "lohit-bengali": ("OFL-1.1", 1),
@@ -414,14 +425,25 @@ class SourceResolverTests(unittest.TestCase):
       "lohit-tamil": ("OFL-1.1", 1),
       "lohit-tamil-classical": ("OFL-1.1", 1),
       "lohit-telugu": ("OFL-1.1", 1),
+      "nanum": ("OFL-1.1", 8),
       "noto": ("OFL-1.1", 45),
+      "openoffice": ("OFL-1.0", 1),
       "opensans": ("Apache-2.0", 5),
       "padauk": ("OFL-1.1", 4),
+      "takao-gothic": ("IPA", 3),
       "ubuntu-font-family": ("UFL-1.0", 13),
+      "wqy-zenhei": (
+        "GPL-2.0-only WITH Font-exception-2.0", 1
+      ),
     }
     for component_id, (spdx, evidence_count) in expected_component_licenses.items():
       self.assertEqual(spdx, reviewed_by_id[component_id]["spdx"])
       self.assertEqual(evidence_count, len(reviewed_by_id[component_id]["evidence"]))
+
+    self.assertTrue(all(
+      record["type"] == "font-name"
+      for record in reviewed_by_id["wqy-zenhei"]["evidence"]
+    ))
 
     dictionaries = next(
       repository

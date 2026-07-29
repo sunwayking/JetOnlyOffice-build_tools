@@ -130,7 +130,7 @@
           "**/LICENSE*",
           "**/OFL*"
         ],
-        "reason": "Twenty-six font components are mapped to license grants embedded in every locked font payload; the listed components still lack sufficiently precise evidence.",
+        "reason": "Thirty-three font components are mapped to exact license grants in the locked tree or embedded in every locked font payload; six components remain unresolved because their available evidence is incomplete or non-redistributable.",
         "reviewedComponents": [
           {
             "id": "abyssinica",
@@ -141,6 +141,30 @@
                 "path": "abyssinica/AbyssinicaSIL-R.ttf",
                 "locator": "name:13",
                 "sha256": "de05701a666cf05be238626810132b2f353ec9b2a3a98df48f983d65e272565f"
+              }
+            ]
+          },
+          {
+            "id": "ancient-scripts",
+            "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "ancient-scripts/Symbola_hint.ttf",
+                "locator": "ancient-scripts/LICENSE.txt",
+                "sha256": "b27e84427e910eb7aa2996ca12ed5ea04c4b986ccc83e1ef6b59e8f36129b782"
+              }
+            ]
+          },
+          {
+            "id": "arphic-ukai",
+            "spdx": "Arphic-1999",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "arphic-ukai/ukai.ttc",
+                "locator": "arphic-ukai/LICENSE.txt",
+                "sha256": "3a5e90c0957524a89e48203febcd4492ca4393678abaa7e5b4d70f3ff32b386d"
               }
             ]
           },
@@ -213,6 +237,144 @@
                 "path": "crosextra/Carlito-Regular.ttf",
                 "locator": "name:13",
                 "sha256": "4e084521f75dc88aa72939a955def0991bbbff9a26d805f385d1400b3c7e2fb5"
+              }
+            ]
+          },
+          {
+            "id": "dejavu",
+            "spdx": "Bitstream-Vera AND LicenseRef-AMSFonts",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuMathTeXGyre.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSans-Bold.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSans-BoldOblique.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSans-ExtraLight.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSans-Oblique.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSans.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansCondensed-Bold.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansCondensed-BoldOblique.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansCondensed-Oblique.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansCondensed.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansMono-Bold.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansMono-BoldOblique.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansMono-Oblique.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSansMono.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerif-Bold.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerif-BoldItalic.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerif-Italic.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerif.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerifCondensed-Bold.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerifCondensed-BoldItalic.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerifCondensed-Italic.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
+              },
+              {
+                "type": "git-blob",
+                "path": "dejavu/DejaVuSerifCondensed.ttf",
+                "locator": "dejavu/LICENSE.txt",
+                "sha256": "e84d0b1b9b76ade93fc62b604857210205a10c1036c69ead08474c7c82fc3eb0"
               }
             ]
           },
@@ -453,6 +615,60 @@
                 "path": "lohit-telugu/Lohit-Telugu.ttf",
                 "locator": "name:0",
                 "sha256": "7cffce3664bc762c852f003fbc2ff8dd1c9996dd7a1ee70d66c4e14e16474629"
+              }
+            ]
+          },
+          {
+            "id": "nanum",
+            "spdx": "OFL-1.1",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumBarunGothic.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumBarunGothicBold.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumGothic.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumGothicBold.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumMyeongjo.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumMyeongjoBold.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumSquareB.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
+              },
+              {
+                "type": "git-blob",
+                "path": "nanum/NanumSquareR.ttf",
+                "locator": "nanum/LICENSE.txt",
+                "sha256": "dd3f2d7ebf100a70cd00d81ee0c3a470ef931dc2ac070d302a49d94e9927b553"
               }
             ]
           },
@@ -733,6 +949,18 @@
             ]
           },
           {
+            "id": "openoffice",
+            "spdx": "OFL-1.0",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "openoffice/opens___.ttf",
+                "locator": "openoffice/LICENSE.txt",
+                "sha256": "44d1795e5893b234b516c9d35b7b3b4d545ae195fa08aebc6d4817a3b13dec86"
+              }
+            ]
+          },
+          {
             "id": "opensans",
             "spdx": "Apache-2.0",
             "evidence": [
@@ -831,6 +1059,30 @@
                 "path": "samyak-fonts/Samyak-Tamil.ttf",
                 "locator": "name:0",
                 "sha256": "94239c084e3139c347d4dc131f848426618eaf05defb2b92e46c1fc08532e854"
+              }
+            ]
+          },
+          {
+            "id": "takao-gothic",
+            "spdx": "IPA",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "takao-gothic/TakaoExGothic.ttf",
+                "locator": "takao-gothic/LICENSE.txt",
+                "sha256": "13ac75bd4e2872272982da0617a62eaa9af8c6a12ba88619997a20c36b103e53"
+              },
+              {
+                "type": "git-blob",
+                "path": "takao-gothic/TakaoGothic.ttf",
+                "locator": "takao-gothic/LICENSE.txt",
+                "sha256": "13ac75bd4e2872272982da0617a62eaa9af8c6a12ba88619997a20c36b103e53"
+              },
+              {
+                "type": "git-blob",
+                "path": "takao-gothic/TakaoPGothic.ttf",
+                "locator": "takao-gothic/LICENSE.txt",
+                "sha256": "13ac75bd4e2872272982da0617a62eaa9af8c6a12ba88619997a20c36b103e53"
               }
             ]
           },
@@ -947,22 +1199,27 @@
                 "sha256": "702acfd44800eaf85b89812c9bbaab22ca169bf1c0969c422a2c909499c3e938"
               }
             ]
+          },
+          {
+            "id": "wqy-zenhei",
+            "spdx": "GPL-2.0-only WITH Font-exception-2.0",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "wqy-zenhei/wqy-zenhei.ttc",
+                "locator": "name:13",
+                "sha256": "17b7849cd1f8d8ec80125a0812cbdea8862528627da94454ecd64ff2111d1938"
+              }
+            ]
           }
         ],
         "unresolvedComponents": [
           "ASC.ttf",
-          "ancient-scripts",
-          "arphic-ukai",
-          "dejavu",
           "fonts-beng-extra",
           "fonts-gujr-extra",
           "kacst",
           "kacst-one",
-          "liberation",
-          "nanum",
-          "openoffice",
-          "takao-gothic",
-          "wqy-zenhei"
+          "liberation"
         ]
       }
     },
