@@ -513,6 +513,28 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "exactly cover"):
       validate_contract(value, "source-license-audit", self.schema_dir)
 
+  def test_source_license_audit_rejects_derived_status_drift(self):
+    value = source_license_audit()
+    value["status"] = "passed"
+    with self.assertRaisesRegex(ContractError, "audit status"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["status"] = "complete"
+    with self.assertRaisesRegex(ContractError, "repository status"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"] = [
+      value["repositories"][0]["components"][1]
+    ]
+    with self.assertRaisesRegex(ContractError, "repository status"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value["repositories"][0]["status"] = "complete"
+    value["status"] = "passed"
+    validate_contract(value, "source-license-audit", self.schema_dir)
+
   def test_source_lfs_audit_rejects_counts_bytes_and_path_drift(self):
     value = source_lfs_audit()
     value["repositories"][0]["objectCount"] = 2

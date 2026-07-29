@@ -991,6 +991,20 @@ def _validate_source_license_audit(value):
         raise ContractError(component_path + ": incomplete component cannot have a license record")
     if len(payload_paths) != len(set(payload_paths)):
       raise ContractError(repository_path + ".components: payload paths must be unique")
+    expected_repository_status = (
+      "complete"
+      if all(component["status"] == "resolved" for component in components)
+      else "incomplete"
+    )
+    if repository["status"] != expected_repository_status:
+      raise ContractError(repository_path + ".status: repository status does not match components")
+  expected_audit_status = (
+    "passed"
+    if all(repository["status"] == "complete" for repository in repositories)
+    else "failed"
+  )
+  if value["status"] != expected_audit_status:
+    raise ContractError("$.status: audit status does not match repositories")
 
 
 def _validate_source_lfs_audit(value):

@@ -368,12 +368,11 @@ def _validate_license_input(value, path):
 def _validate_unresolved_components(value, path):
   if (
     not isinstance(value, list)
-    or not value
     or not all(isinstance(item, str) and item for item in value)
     or value != sorted(set(value))
   ):
     raise ResolutionError(
-      f"{path}.unresolvedComponents: expected sorted unique non-empty strings",
+      f"{path}.unresolvedComponents: expected sorted unique strings",
       2,
     )
 
@@ -729,7 +728,7 @@ def repository_license_inventory(repository, cache, commit):
   for component_id in sorted(payloads_by_component):
     component_evidence = evidence_by_component.get(component_id, [])
     reviewed_component = reviewed_components.get(component_id)
-    if reviewed_component is None and not component_evidence:
+    if reviewed_component is None:
       actual_unresolved.append(component_id)
     component_record = {
       "id": component_id,
@@ -767,7 +766,11 @@ def repository_license_inventory(repository, cache, commit):
     "repository": repository["id"],
     "commit": commit,
     "tree": _run_git(["rev-parse", commit + "^{tree}"], cwd=cache, exit_code=3),
-    "status": "incomplete",
+    "status": (
+      "complete"
+      if all(component["status"] == "resolved" for component in components)
+      else "incomplete"
+    ),
     "components": components,
   }
 
@@ -801,7 +804,11 @@ def license_inventory_report(inputs, cache_directory):
     "schemaVersion": 1,
     "auditType": "source-license-inventory",
     "productVersion": inputs["productVersion"],
-    "status": "failed",
+    "status": (
+      "passed"
+      if all(record["status"] == "complete" for record in records)
+      else "failed"
+    ),
     "repositories": records,
   }
 
@@ -1817,17 +1824,20 @@ def main(argv=None):
       validate_contract(report, "source-license-audit", args.schema_dir)
       write_canonical_json(args.report, report)
       for repository in report["repositories"]:
+        if repository["status"] == "complete":
+          continue
         unresolved = [
           component["id"]
           for component in repository["components"]
-          if component["status"] == "unresolved"
+          if component["status"] != "resolved"
         ]
         print(
           "LICENSE_INCOMPLETE: "
           f"{repository['repository']}: {', '.join(unresolved)}",
           file=sys.stderr,
         )
-      return 3
+      if report["status"] == "failed":
+        return 3
     elif args.command == "lfs-audit":
       inputs = load_json(args.inputs)
       validate_inputs(inputs)
