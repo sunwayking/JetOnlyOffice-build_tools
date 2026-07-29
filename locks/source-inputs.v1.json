@@ -1,0 +1,540 @@
+{
+  "schemaVersion": 1,
+  "productVersion": "9.4.0",
+  "releaseCutoff": 1778872303,
+  "baseline": {
+    "repository": "documentserver",
+    "commit": "fb73d33c85f59d1a5d2e5a5ed05388ebc2418337"
+  },
+  "repositories": [
+    {
+      "id": "build-tools",
+      "role": "product-fork",
+      "checkoutPath": "sources/build_tools",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-build_tools.git",
+      "upstream": "https://github.com/ONLYOFFICE/build_tools.git",
+      "commitSource": "self",
+      "refHint": "JetOnlyOffice build scripts commit",
+      "projectFork": true,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "build-tools-data",
+      "role": "toolchain-source",
+      "checkoutPath": "sources/build_tools_data",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-build_tools_data.git",
+      "upstream": "https://github.com/ONLYOFFICE-data/build_tools_data.git",
+      "commit": "743e8e55f0431523248d16b7521e01aa11744ffc",
+      "refHint": "last commit before v9.4.0.129 cutoff",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "missing",
+        "payloadPatterns": [
+          "**/*.7z",
+          "**/*.sh",
+          "**/*.tar.gz",
+          "**/*.tar.xz",
+          "**/*.zip"
+        ],
+        "reason": "The upstream repository contains no repository license or reviewed inventory for its binary payload families.",
+        "unresolvedComponents": [
+          "android",
+          "cef",
+          "glew",
+          "python",
+          "qt",
+          "sysroot"
+        ]
+      }
+    },
+    {
+      "id": "core",
+      "role": "gitlink",
+      "checkoutPath": "sources/core",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-core.git",
+      "upstream": "https://github.com/ONLYOFFICE/core.git",
+      "commit": "3250a848ee4ef20c2fb8c38dc86350ec579124b8",
+      "refHint": "DocumentServer v9.4.0 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "core-fonts",
+      "role": "gitlink",
+      "checkoutPath": "sources/core-fonts",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-core-fonts.git",
+      "upstream": "https://github.com/ONLYOFFICE/core-fonts.git",
+      "commit": "7030c6681fb5bbed560675cb42422f91df15d5c9",
+      "refHint": "DocumentServer v9.4.0 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "component-scoped",
+        "payloadPatterns": [
+          "**/*.otf",
+          "**/*.ttc",
+          "**/*.ttf"
+        ],
+        "patterns": [
+          "**/COPYING*",
+          "**/LICENSE*",
+          "**/OFL*"
+        ],
+        "reason": "The repository has per-font license candidates but no reviewed asset-to-license inventory; the listed components have no in-tree license candidate.",
+        "unresolvedComponents": [
+          "ASC.ttf",
+          "fonts-beng-extra",
+          "fonts-telu-extra",
+          "freefont",
+          "kacst",
+          "kacst-one",
+          "liberation",
+          "samyak",
+          "samyak-fonts",
+          "tibetan-machine",
+          "ttf-khmeros-core",
+          "wqy-zenhei"
+        ]
+      }
+    },
+    {
+      "id": "dictionaries",
+      "role": "gitlink",
+      "checkoutPath": "sources/dictionaries",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-dictionaries.git",
+      "upstream": "https://github.com/ONLYOFFICE/dictionaries.git",
+      "commit": "d3223bbb777883db66ac3cd249f71c6ebdc992c7",
+      "refHint": "DocumentServer v9.4.0 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "component-scoped",
+        "payloadPatterns": [
+          "**/*.aff",
+          "**/*.dat",
+          "**/*.dic",
+          "**/*.idx"
+        ],
+        "patterns": [
+          "**/*.TXT",
+          "**/*.md",
+          "**/*.txt",
+          "**/COPYING*",
+          "**/LICENSE*",
+          "**/license*"
+        ],
+        "reason": "The repository has per-dictionary license candidates but no reviewed asset-to-license inventory; the listed language packs have no in-tree license candidate.",
+        "unresolvedComponents": [
+          "az_Latn_AZ",
+          "ru_RU"
+        ]
+      }
+    },
+    {
+      "id": "docker-documentserver",
+      "role": "package-input",
+      "checkoutPath": "sources/docker-documentserver",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-Docker-DocumentServer.git",
+      "upstream": "https://github.com/ONLYOFFICE/Docker-DocumentServer.git",
+      "commit": "8da03c96b1eaa13be94bdbe46c530b3109aea99e",
+      "refHint": "v9.4.0.129",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "document-formats",
+      "role": "build-input",
+      "checkoutPath": "sources/document-formats",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-document-formats.git",
+      "upstream": "https://github.com/ONLYOFFICE/document-formats.git",
+      "commit": "7d7576a3fe2337c30f4c9b40fae70a69dc68ba08",
+      "refHint": "v9.4.0.129",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
+      }
+    },
+    {
+      "id": "document-server-integration",
+      "role": "build-input",
+      "checkoutPath": "sources/document-server-integration",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-document-server-integration.git",
+      "upstream": "https://github.com/ONLYOFFICE/document-server-integration.git",
+      "commit": "9e9653c49522e40a0388eb2eaff056082bd10ef9",
+      "refHint": "v9.4.0.129",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
+      }
+    },
+    {
+      "id": "document-server-package",
+      "role": "package-input",
+      "checkoutPath": "sources/document-server-package",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-document-server-package.git",
+      "upstream": "https://github.com/ONLYOFFICE/document-server-package.git",
+      "commit": "0e73a4ff3c565da6b74b675959aad3ebbd48c793",
+      "refHint": "v9.4.0.129",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "document-templates",
+      "role": "build-input",
+      "checkoutPath": "sources/document-templates",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-document-templates.git",
+      "upstream": "https://github.com/ONLYOFFICE/document-templates.git",
+      "commit": "71430c9f183489e8912f54f9dc859e369cf0dfb4",
+      "refHint": "v9.4.0.129",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
+      }
+    },
+    {
+      "id": "document-templates-integration",
+      "role": "build-input",
+      "checkoutPath": "sources/document-templates-integration",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-document-templates.git",
+      "upstream": "https://github.com/ONLYOFFICE/document-templates.git",
+      "commit": "d600e9b0728213e775d122fcbf30f4491b8cdfe5",
+      "refHint": "document-server-integration v9.4.0.129 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
+      }
+    },
+    {
+      "id": "documentserver",
+      "role": "superproject",
+      "checkoutPath": "sources/DocumentServer",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-DocumentServer.git",
+      "upstream": "https://github.com/ONLYOFFICE/DocumentServer.git",
+      "commit": "fb73d33c85f59d1a5d2e5a5ed05388ebc2418337",
+      "refHint": "v9.4.0",
+      "projectFork": true,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "inno-dependency-installer",
+      "role": "package-input",
+      "checkoutPath": "sources/InnoDependencyInstaller",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-InnoDependencyInstaller.git",
+      "upstream": "https://github.com/DomGries/InnoDependencyInstaller.git",
+      "commit": "1bad4b4da07256c8a77c30787b59bc4a81f252a4",
+      "refHint": "document-server-package v9.4.0.129 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE.md",
+        "spdx": "MIT"
+      }
+    },
+    {
+      "id": "plugin-aiautofill",
+      "role": "build-input",
+      "checkoutPath": "sources/plugin-aiautofill",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-plugin-aiautofill.git",
+      "upstream": "https://github.com/ONLYOFFICE/plugin-aiautofill.git",
+      "commit": "ea67d52df5d8c51cb7a9546fe215364118a226d0",
+      "refHint": "document-server-integration v9.4.0.129 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "Apache-2.0"
+      }
+    },
+    {
+      "id": "plugin-catalog",
+      "role": "build-input",
+      "checkoutPath": "sources/onlyoffice.github.io",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-onlyoffice.github.io.git",
+      "upstream": "https://github.com/ONLYOFFICE/onlyoffice.github.io.git",
+      "commit": "d8b27be33d69c54bc2657fa94fe1b194b08c3495",
+      "refHint": "last commit before v9.4.0.129 cutoff",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE.txt",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "sdkjs",
+      "role": "gitlink",
+      "checkoutPath": "sources/sdkjs",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-sdkjs.git",
+      "upstream": "https://github.com/ONLYOFFICE/sdkjs.git",
+      "commit": "72b0421c0bbf9d01eed9cf14834ae47eb2df1b50",
+      "refHint": "DocumentServer v9.4.0 gitlink",
+      "projectFork": true,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "sdkjs-forms",
+      "role": "build-input",
+      "checkoutPath": "sources/sdkjs-forms",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-sdkjs-forms.git",
+      "upstream": "https://github.com/ONLYOFFICE/sdkjs-forms.git",
+      "commit": "1a883281c41fa9aa5e98c64cce13b14782f92f56",
+      "refHint": "v9.4.0.129",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "server",
+      "role": "gitlink",
+      "checkoutPath": "sources/server",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-server.git",
+      "upstream": "https://github.com/ONLYOFFICE/server.git",
+      "commit": "d6df308acb9877a9365c741b30741de96202816e",
+      "refHint": "DocumentServer v9.4.0 gitlink",
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE.txt",
+        "spdx": "AGPL-3.0-only"
+      }
+    },
+    {
+      "id": "web-apps",
+      "role": "gitlink",
+      "checkoutPath": "sources/web-apps",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-web-apps.git",
+      "upstream": "https://github.com/ONLYOFFICE/web-apps.git",
+      "commit": "9c0ca538c3b211052347df09d2a4d6781f023403",
+      "refHint": "DocumentServer v9.4.0 gitlink",
+      "projectFork": true,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "declared",
+        "path": "LICENSE",
+        "spdx": "AGPL-3.0-only"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/csharp-mvc/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/csharp-mvc/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/csharp/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/csharp/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/go/static/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/go/static/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/java-spring/src/main/resources/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/java/src/main/resources/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/java/src/main/resources/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/nodejs/public/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "plugin-aiautofill",
+      "path": "web/documentserver-example/nodejs/public/assets/plugin-aiautofill",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/php-laravel/public/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/php/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/php/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/python/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/python/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-formats",
+      "path": "web/documentserver-example/ruby/assets/document-formats",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-integration",
+      "child": "document-templates-integration",
+      "path": "web/documentserver-example/ruby/assets/document-templates",
+      "mode": "160000"
+    },
+    {
+      "parent": "document-server-package",
+      "child": "inno-dependency-installer",
+      "path": "exe/InnoDependencyInstaller",
+      "mode": "160000"
+    },
+    {
+      "parent": "documentserver",
+      "child": "core",
+      "path": "core",
+      "mode": "160000"
+    },
+    {
+      "parent": "documentserver",
+      "child": "core-fonts",
+      "path": "core-fonts",
+      "mode": "160000"
+    },
+    {
+      "parent": "documentserver",
+      "child": "dictionaries",
+      "path": "dictionaries",
+      "mode": "160000"
+    },
+    {
+      "parent": "documentserver",
+      "child": "sdkjs",
+      "path": "sdkjs",
+      "mode": "160000"
+    },
+    {
+      "parent": "documentserver",
+      "child": "server",
+      "path": "server",
+      "mode": "160000"
+    },
+    {
+      "parent": "documentserver",
+      "child": "web-apps",
+      "path": "web-apps",
+      "mode": "160000"
+    }
+  ]
+}

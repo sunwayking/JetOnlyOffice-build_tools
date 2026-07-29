@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/source-license-audit.schema.json",
+  "title": "JetOnlyOffice source license inventory audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "auditType", "productVersion", "status", "repositories"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "auditType": {"const": "source-license-inventory"},
+    "productVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "status": {"const": "failed"},
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository", "commit", "tree", "status", "components"],
+        "properties": {
+          "repository": {"$ref": "common.schema.json#/$defs/repositoryId"},
+          "commit": {"$ref": "common.schema.json#/$defs/sha1"},
+          "tree": {"$ref": "common.schema.json#/$defs/sha1"},
+          "status": {"const": "incomplete"},
+          "components": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "status", "payloadPaths", "candidateEvidence"],
+              "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "status": {"enum": ["review-required", "unresolved"]},
+                "payloadPaths": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {"$ref": "common.schema.json#/$defs/relativePath"}
+                },
+                "candidateEvidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path", "blob", "sha256"],
+                    "properties": {
+                      "path": {"$ref": "common.schema.json#/$defs/relativePath"},
+                      "blob": {"$ref": "common.schema.json#/$defs/sha1"},
+                      "sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

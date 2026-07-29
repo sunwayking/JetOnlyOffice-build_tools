@@ -28,3 +28,6 @@ The release pipeline exposes only these maintainer entrypoints:
 These entrypoints remain fail-closed until their source, license, toolchain,
 image, package, and QA evidence is complete. A successful build is not a
 release unless every blocking gate passes.
+
+Other scripts are internal authoring or verification tools. They are not
+stable release-pipeline entrypoints and carry no compatibility guarantee.

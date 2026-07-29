@@ -3,7 +3,12 @@
 These schemas are the versioned boundary between source resolution, build,
 packaging, and release verification:
 
-- `source-lock.schema.json` pins every Git repository and gitlink.
+- `source-lock.schema.json` pins every Git repository, gitlink, and locked-commit
+  Git LFS object by SHA-256, size, and materialized path.
+- `source-license-audit.schema.json` records the incomplete component license
+  inventory derived from locked Git trees.
+- `source-lfs-audit.schema.json` proves locked Git LFS objects are anonymously
+  downloadable from public JetOnlyOffice mirrors.
 - `toolchain-lock.schema.json` pins every non-container tool input.
 - `image-lock.schema.json` pins builder, runtime, BuildKit, and frontend images.
 - `build-manifest.schema.json` inventories the offline build output.
