@@ -24,7 +24,9 @@ The QA layer is fail-closed. It validates command coverage and corpus bytes, run
 `evaluate-performance` accepts one immutable sample file for one of the three
 Xiaomi performance gates. It validates the complete four-format measurement
 shape, verifies the exact Android-target, device-fact and raw-trace bytes,
-recomputes the threshold result, and emits a canonical `gate-result`. The
+recomputes open time from lifecycle events, command latency from input/effect
+timestamps, and gesture FPS/freezes from frame timestamps, then emits a
+canonical `gate-result`. The
 output is created exclusively at
 `evidence/results/<run-id>/<gate-id>/result.json`; another path or a second
 evaluation is rejected before recomputation. A write-once

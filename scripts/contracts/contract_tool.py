@@ -12,6 +12,9 @@ from urllib.parse import urlparse
 
 CONTRACT_SCHEMAS = {
   "source-lock": "source-lock.schema.json",
+  "source-license-audit": "source-license-audit.schema.json",
+  "source-lfs-audit": "source-lfs-audit.schema.json",
+  "source-selection-audit": "source-selection-audit.schema.json",
   "toolchain-lock": "toolchain-lock.schema.json",
   "image-lock": "image-lock.schema.json",
   "bootstrap-manifest": "bootstrap-manifest.schema.json",
@@ -21,6 +24,8 @@ CONTRACT_SCHEMAS = {
   "corpus-manifest": "corpus-manifest.schema.json",
   "performance-attempt": "performance-attempt.schema.json",
   "performance-browser-trace": "performance-browser-trace.schema.json",
+  "performance-command-trace": "performance-command-trace.schema.json",
+  "performance-gesture-trace": "performance-gesture-trace.schema.json",
   "performance-open-trace": "performance-open-trace.schema.json",
   "performance-samples": "performance-samples.schema.json",
   "gate-result": "gate-result.schema.json",
@@ -37,6 +42,12 @@ EXPECTED_ENVIRONMENT = {
   "buildPath": "/work",
   "concurrency": 4,
 }
+SOURCE_LICENSE_EXPRESSIONS = {
+  "AGPL-3.0-only",
+  "Apache-2.0",
+  "MIT",
+}
+WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 
 MAX_SAFE_INTEGER = 9007199254740991
 
@@ -248,12 +259,17 @@ def _validate_schema(value, schema, store, current_name, path="$"):
 
 def _validate_relative_path(value, path):
   candidate = PurePosixPath(value)
+  parts = value.split("/")
   if (
     candidate.is_absolute()
     or value in ("", ".")
     or "\\" in value
     or "//" in value
-    or any(part in ("", ".", "..") for part in value.split("/"))
+    or re.match(r"^[A-Za-z]:", value)
+    or any(part in ("", ".", "..") for part in parts)
+    or any(part.rstrip(" .") != part for part in parts)
+    or any(WINDOWS_DEVICE_PATTERN.match(part) for part in parts)
+    or any(any(ord(character) < 32 or character in '<>:"|?*' for character in part) for part in parts)
   ):
     raise ContractError(f"{path}: path must be normalized and relative")
 
@@ -331,6 +347,22 @@ def _validate_source_lock(value):
     _validate_relative_path(repository["license"]["path"], prefix + ".license.path")
     _validate_https(repository["origin"], prefix + ".origin")
     _validate_https(repository["upstream"], prefix + ".upstream")
+    if repository["license"]["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
+      raise ContractError(prefix + ".license.spdx: expression is not in the reviewed source set")
+    _validate_sorted_unique(
+      repository["lfsObjects"],
+      lambda item: item["oid"],
+      prefix + ".lfsObjects",
+    )
+    lfs_paths = []
+    for object_index, lfs_object in enumerate(repository["lfsObjects"]):
+      object_prefix = f"{prefix}.lfsObjects[{object_index}]"
+      _validate_sorted_unique(lfs_object["paths"], lambda path: path, object_prefix + ".paths")
+      for lfs_path in lfs_object["paths"]:
+        _validate_relative_path(lfs_path, object_prefix + ".paths")
+      lfs_paths.extend(lfs_object["paths"])
+    if len(lfs_paths) != len(set(lfs_paths)):
+      raise ContractError(prefix + ".lfsObjects: paths must be unique across objects")
   maximum_commit_time = max(item["commitTime"] for item in repositories)
   if value["sourceDateEpoch"] != maximum_commit_time:
     raise ContractError("$.sourceDateEpoch: must equal the maximum repository commitTime")
@@ -673,13 +705,13 @@ def _validate_performance_samples(value):
   _validate_sorted_unique(records, lambda item: item["path"], "$.attestation evidence")
   for index, item in enumerate(records):
     _validate_relative_path(item["path"], f"$.attestation evidence[{index}].path")
+  if len(attestation["traces"]) != 1:
+    raise ContractError(
+      "$.attestation.traces: exactly one raw performance trace is required"
+    )
 
   required_formats = set(MOBILE_PERFORMANCE_FORMATS)
   if expected_field == "openTime":
-    if len(attestation["traces"]) != 1:
-      raise ContractError(
-        "$.attestation.traces: open-time requires exactly one raw sequence trace"
-      )
     _validate_sorted_unique(
       value[expected_field],
       lambda item: item["format"],
@@ -776,6 +808,52 @@ def _validate_performance_browser_trace(value):
     raise ContractError("$.events: raw browser events must use monotonic order")
 
 
+def _validate_performance_command_trace(value):
+  events = value["events"]
+  identifiers = [item["id"] for item in events]
+  if len(identifiers) != len(set(identifiers)):
+    raise ContractError("$.events: raw command event IDs must be unique")
+  identities = [(item["commandId"], item["iteration"]) for item in events]
+  if identities != sorted(identities):
+    raise ContractError("$.events: raw command events must be command/iteration ordered")
+  by_command = {}
+  previous_effect = None
+  for index, event in enumerate(events):
+    started = event["inputTimestampMilliseconds"]
+    finished = event["effectTimestampMilliseconds"]
+    if finished < started:
+      raise ContractError(f"$.events[{index}]: command effect precedes input")
+    if previous_effect is not None and started <= previous_effect:
+      raise ContractError(f"$.events[{index}]: raw command events overlap")
+    previous_effect = finished
+    by_command.setdefault(event["commandId"], []).append(event["iteration"])
+  for command_id, iterations in by_command.items():
+    if iterations != list(range(1, len(iterations) + 1)):
+      raise ContractError(
+        f"$.events: command iterations must be consecutive for {command_id}"
+      )
+
+
+def _validate_performance_gesture_trace(value):
+  rounds = value["rounds"]
+  identities = [(item["format"], item["round"]) for item in rounds]
+  expected = [
+    (file_format, round_number)
+    for file_format in MOBILE_PERFORMANCE_FORMATS
+    for round_number in (1, 2, 3)
+  ]
+  if identities != expected:
+    raise ContractError(
+      "$.rounds: docx, pdf, pptx and xlsx rounds 1, 2 and 3 are required"
+    )
+  for index, round_result in enumerate(rounds):
+    timestamps = round_result["frameTimestampsMicroseconds"]
+    if any(current <= previous for previous, current in zip(timestamps, timestamps[1:])):
+      raise ContractError(
+        f"$.rounds[{index}].frameTimestampsMicroseconds: timestamps must increase"
+      )
+
+
 def _validate_performance_attempt(_value):
   return
 
@@ -847,8 +925,89 @@ def _validate_gate_catalog(value):
   _validate_blocking_matrix(gates, "$.gates")
 
 
+def _validate_source_license_audit(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories,
+    lambda item: item["repository"],
+    "$.repositories",
+  )
+  for repository_index, repository in enumerate(repositories):
+    repository_path = f"$.repositories[{repository_index}]"
+    components = repository["components"]
+    _validate_sorted_unique(components, lambda item: item["id"], repository_path + ".components")
+    payload_paths = []
+    for component_index, component in enumerate(components):
+      component_path = f"{repository_path}.components[{component_index}]"
+      _validate_sorted_unique(
+        component["payloadPaths"],
+        lambda path: path,
+        component_path + ".payloadPaths",
+      )
+      for payload_path in component["payloadPaths"]:
+        _validate_relative_path(payload_path, component_path + ".payloadPaths")
+      payload_paths.extend(component["payloadPaths"])
+      evidence = component["candidateEvidence"]
+      _validate_sorted_unique(evidence, lambda item: item["path"], component_path + ".candidateEvidence")
+      for evidence_record in evidence:
+        _validate_relative_path(evidence_record["path"], component_path + ".candidateEvidence.path")
+      if component["status"] == "unresolved" and evidence:
+        raise ContractError(component_path + ": unresolved component cannot have candidate evidence")
+      if component["status"] == "review-required" and not evidence:
+        raise ContractError(component_path + ": review-required component needs candidate evidence")
+    if len(payload_paths) != len(set(payload_paths)):
+      raise ContractError(repository_path + ".components: payload paths must be unique")
+
+
+def _validate_source_lfs_audit(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories,
+    lambda item: item["repository"],
+    "$.repositories",
+  )
+  for repository_index, repository in enumerate(repositories):
+    repository_path = f"$.repositories[{repository_index}]"
+    _validate_https(repository["origin"], repository_path + ".origin")
+    objects = repository["objects"]
+    _validate_sorted_unique(objects, lambda item: item["oid"], repository_path + ".objects")
+    if repository["objectCount"] != len(objects):
+      raise ContractError(repository_path + ".objectCount: does not match objects length")
+    if repository["totalBytes"] != sum(item["size"] for item in objects):
+      raise ContractError(repository_path + ".totalBytes: does not match object sizes")
+    object_paths = []
+    for object_index, lfs_object in enumerate(objects):
+      object_path = f"{repository_path}.objects[{object_index}]"
+      _validate_sorted_unique(lfs_object["paths"], lambda path: path, object_path + ".paths")
+      for path in lfs_object["paths"]:
+        _validate_relative_path(path, object_path + ".paths")
+      object_paths.extend(lfs_object["paths"])
+    if len(object_paths) != len(set(object_paths)):
+      raise ContractError(repository_path + ".objects: paths must be unique across objects")
+
+
+def _validate_source_selection_audit(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories,
+    lambda item: item["repository"],
+    "$.repositories",
+  )
+  for index, repository in enumerate(repositories):
+    path = f"$.repositories[{index}]"
+    if repository["type"] != "cutoff":
+      continue
+    if repository["releaseCutoff"] != value["releaseCutoff"]:
+      raise ContractError(path + ".releaseCutoff: does not match audit cutoff")
+    if repository["commitTime"] > value["releaseCutoff"]:
+      raise ContractError(path + ".commitTime: exceeds release cutoff")
+
+
 SEMANTIC_VALIDATORS = {
   "source-lock": _validate_source_lock,
+  "source-license-audit": _validate_source_license_audit,
+  "source-lfs-audit": _validate_source_lfs_audit,
+  "source-selection-audit": _validate_source_selection_audit,
   "toolchain-lock": _validate_toolchain_lock,
   "image-lock": _validate_image_lock,
   "bootstrap-manifest": _validate_bootstrap_manifest,
@@ -858,6 +1017,8 @@ SEMANTIC_VALIDATORS = {
   "corpus-manifest": _validate_corpus_manifest,
   "performance-attempt": _validate_performance_attempt,
   "performance-browser-trace": _validate_performance_browser_trace,
+  "performance-command-trace": _validate_performance_command_trace,
+  "performance-gesture-trace": _validate_performance_gesture_trace,
   "performance-open-trace": _validate_performance_open_trace,
   "performance-samples": _validate_performance_samples,
   "gate-result": _validate_gate_result,

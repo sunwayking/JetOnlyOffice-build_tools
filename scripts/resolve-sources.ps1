@@ -1,12 +1,16 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("Audit", "Resolve")]
+    [ValidateSet("Audit", "LicenseAudit", "LfsAudit", "SelectionAudit", "Resolve")]
     [string]$Command = "Audit",
 
     [string]$InputsPath = (Join-Path $PSScriptRoot "..\locks\source-inputs.v1.json"),
     [string]$LockPath = (Join-Path $PSScriptRoot "..\locks\sources.lock.json"),
     [string]$CacheDirectory = (Join-Path $PSScriptRoot "..\cache"),
     [string]$AuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-input-audit.json"),
+    [string]$LicenseAuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-license-audit.json"),
+    [string]$LfsAuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-lfs-public-audit.json"),
+    [string]$SelectionAuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-selection-audit.json"),
+    [string[]]$LfsRepository = @("build-tools-data"),
     [string]$SelfRoot = (Join-Path $PSScriptRoot "..")
 )
 
@@ -35,6 +39,37 @@ $arguments = @($tool)
 switch ($Command) {
     "Audit" {
         $arguments += @("audit", "--inputs", $InputsPath, "--report", $AuditReport)
+    }
+    "LicenseAudit" {
+        $arguments += @(
+            "license-audit",
+            "--inputs", $InputsPath,
+            "--cache-directory", $CacheDirectory,
+            "--report", $LicenseAuditReport,
+            "--schema-dir", $schemaDirectory
+        )
+    }
+    "LfsAudit" {
+        $arguments += @(
+            "lfs-audit",
+            "--inputs", $InputsPath,
+            "--cache-directory", $CacheDirectory,
+            "--report", $LfsAuditReport,
+            "--schema-dir", $schemaDirectory
+        )
+        foreach ($repository in ($LfsRepository | Sort-Object -Unique)) {
+            $arguments += @("--repository", $repository)
+        }
+    }
+    "SelectionAudit" {
+        $arguments += @(
+            "selection-audit",
+            "--inputs", $InputsPath,
+            "--cache-directory", $CacheDirectory,
+            "--self-root", $SelfRoot,
+            "--report", $SelectionAuditReport,
+            "--schema-dir", $schemaDirectory
+        )
     }
     "Resolve" {
         $arguments += @(

@@ -130,9 +130,9 @@ def bind_release_policy(
 
 def _verify_evidence_payload(record, payload):
   if len(payload) != record["size"]:
-    raise ContractError(f"performance evidence size mismatch: {record['path']}")
+    raise ContractError(f"release evidence size mismatch: {record['path']}")
   if hashlib.sha256(payload).hexdigest() != record["sha256"]:
-    raise ContractError(f"performance evidence SHA-256 mismatch: {record['path']}")
+    raise ContractError(f"release evidence SHA-256 mismatch: {record['path']}")
 
 
 def _verify_evidence_file(record, repository_root):
@@ -145,7 +145,7 @@ def _verify_evidence_file(record, repository_root):
   try:
     payload = path.read_bytes()
   except OSError as error:
-    raise ContractError(f"cannot read performance evidence: {path}") from error
+    raise ContractError(f"cannot read release evidence: {path}") from error
   _verify_evidence_payload(record, payload)
   return path, payload
 
@@ -322,6 +322,73 @@ def _validate_open_sequence_trace(samples, schema_dir, repository_root):
   return [dict(raw_trace_record), dict(collector_record)]
 
 
+def _load_interaction_trace(samples, schema_dir, repository_root, contract):
+  trace_record = samples["attestation"]["traces"][0]
+  trace_path, trace_payload = _verify_evidence_file(trace_record, repository_root)
+  trace = load_json_bytes(trace_payload, str(trace_path))
+  validate_contract(trace, contract, schema_dir)
+  for field in ("releaseId", "runId", "gateId", "sourceLockSha256"):
+    if trace[field] != samples[field]:
+      raise ContractError(f"raw interaction trace {field} does not match samples")
+  if trace["runtime"] != samples["attestation"]["runtime"]:
+    raise ContractError("raw interaction trace runtime does not match samples")
+  collector_record = trace["collector"]["executable"]
+  _verify_evidence_file(collector_record, repository_root)
+  return trace, dict(collector_record)
+
+
+def _validate_command_trace(samples, schema_dir, repository_root):
+  trace, collector_record = _load_interaction_trace(
+    samples,
+    schema_dir,
+    repository_root,
+    "performance-command-trace",
+  )
+  traced = {}
+  for event in trace["events"]:
+    traced.setdefault(event["commandId"], []).append(
+      event["effectTimestampMilliseconds"] - event["inputTimestampMilliseconds"]
+    )
+  traced_commands = [
+    {"id": command_id, "milliseconds": milliseconds}
+    for command_id, milliseconds in sorted(traced.items())
+  ]
+  if traced_commands != samples["commands"]:
+    raise ContractError("command measurements do not match raw command trace")
+  return [collector_record]
+
+
+def _validate_gesture_trace(samples, schema_dir, repository_root):
+  trace, collector_record = _load_interaction_trace(
+    samples,
+    schema_dir,
+    repository_root,
+    "performance-gesture-trace",
+  )
+  traced = {}
+  for round_trace in trace["rounds"]:
+    timestamps = round_trace["frameTimestampsMicroseconds"]
+    intervals = [
+      current - previous
+      for previous, current in zip(timestamps, timestamps[1:])
+    ]
+    frame_rates = sorted(1000000000 // interval for interval in intervals)
+    median_milli_fps = frame_rates[(len(frame_rates) - 1) // 2]
+    max_freeze_milliseconds = (max(intervals) + 999) // 1000
+    traced.setdefault(round_trace["format"], []).append({
+      "round": round_trace["round"],
+      "medianMilliFps": median_milli_fps,
+      "maxFreezeMilliseconds": max_freeze_milliseconds,
+    })
+  traced_gestures = [
+    {"format": file_format, "rounds": rounds}
+    for file_format, rounds in sorted(traced.items())
+  ]
+  if traced_gestures != samples["gestures"]:
+    raise ContractError("gesture measurements do not match raw gesture trace")
+  return [collector_record]
+
+
 def _evaluate_open_time(samples, policy):
   measurements = [
     value
@@ -441,11 +508,15 @@ def _evaluate_performance_payload(
       result["status"] = "INFRA_INCOMPLETE"
       result["errorCode"] = infrastructure_error
     else:
-      if policy["field"] == "openTime":
-        result["evidence"].extend(
-          _validate_open_sequence_trace(samples, schema_dir, repository_root)
-        )
-        result["evidence"].sort(key=lambda item: item["path"])
+      trace_validators = {
+        "commands": _validate_command_trace,
+        "gestures": _validate_gesture_trace,
+        "openTime": _validate_open_sequence_trace,
+      }
+      result["evidence"].extend(
+        trace_validators[policy["field"]](samples, schema_dir, repository_root)
+      )
+      result["evidence"].sort(key=lambda item: item["path"])
       metrics, error_code = PERFORMANCE_EVALUATORS[policy["field"]](samples, policy)
       result["metrics"] = metrics
       if error_code:
@@ -480,9 +551,9 @@ def aggregate_release_evidence(
   policy_by_id = {item["id"]: item for item in policy["gates"]}
   for result in gate_results:
     validate_contract(result, "gate-result", schema_dir)
+    for record in result["evidence"]:
+      _verify_evidence_file(record, repository_root)
     if result["category"] == "performance":
-      for record in result["evidence"]:
-        _verify_evidence_file(record, repository_root)
       expected_sample_path = _performance_evidence_paths(
         repository_root,
         result["runId"],

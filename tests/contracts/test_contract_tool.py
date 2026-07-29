@@ -76,6 +76,7 @@ def source_lock():
         "projectFork": True,
         "buildInput": True,
         "active": True,
+        "lfsObjects": [],
         "license": license_record(),
       },
       {
@@ -90,6 +91,7 @@ def source_lock():
         "projectFork": True,
         "buildInput": True,
         "active": True,
+        "lfsObjects": [],
         "license": license_record(),
       },
     ],
@@ -272,12 +274,118 @@ def artifact_manifest():
   }
 
 
+def source_license_audit():
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-license-inventory",
+    "productVersion": "9.4.0",
+    "status": "failed",
+    "repositories": [
+      {
+        "repository": "core-fonts",
+        "commit": SHA1_A,
+        "tree": SHA1_B,
+        "status": "incomplete",
+        "components": [
+          {
+            "id": "font-family",
+            "status": "review-required",
+            "payloadPaths": ["font-family/font.ttf"],
+            "candidateEvidence": [
+              {
+                "path": "font-family/LICENSE.txt",
+                "blob": SHA1_A,
+                "sha256": SHA256_A,
+              }
+            ],
+          },
+          {
+            "id": "missing-family",
+            "status": "unresolved",
+            "payloadPaths": ["missing-family/font.ttf"],
+            "candidateEvidence": [],
+          },
+        ],
+      }
+    ],
+  }
+
+
+def source_lfs_audit():
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-lfs-public",
+    "productVersion": "9.4.0",
+    "status": "passed",
+    "repositories": [
+      {
+        "repository": "build-tools-data",
+        "origin": "https://github.com/sunwayking/JetOnlyOffice-build_tools_data.git",
+        "commit": SHA1_A,
+        "tree": SHA1_B,
+        "repositoryAuthentication": "none",
+        "objectCount": 1,
+        "totalBytes": 10,
+        "objects": [
+          {
+            "oid": SHA256_A,
+            "size": 10,
+            "paths": ["package/archive.tar.xz"],
+          }
+        ],
+      }
+    ],
+  }
+
+
+def source_selection_audit():
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-selection",
+    "productVersion": "9.4.0",
+    "releaseCutoff": 100,
+    "status": "passed",
+    "repositories": [
+      {
+        "repository": "build-tools",
+        "type": "self",
+        "commit": SHA1_A,
+      },
+      {
+        "repository": "core",
+        "type": "gitlink",
+        "commit": SHA1_A,
+        "parent": "documentserver",
+        "path": "core",
+      },
+      {
+        "repository": "plugin-catalog",
+        "type": "cutoff",
+        "commit": SHA1_A,
+        "commitTime": 99,
+        "refPrefix": "refs/heads/upstream/",
+        "releaseCutoff": 100,
+        "resolvedRef": "refs/heads/upstream/master",
+      },
+      {
+        "repository": "sdkjs-forms",
+        "type": "tag",
+        "commit": SHA1_A,
+        "ref": "refs/tags/v9.4.0.129",
+      },
+    ],
+  }
+
+
 VALID_CONTRACTS = {
   "source-lock": source_lock,
   "toolchain-lock": toolchain_lock,
   "image-lock": image_lock,
   "build-manifest": build_manifest,
   "artifact-manifest": artifact_manifest,
+  "source-license-audit": source_license_audit,
+  "source-lfs-audit": source_lfs_audit,
+  "source-selection-audit": source_selection_audit,
 }
 
 
@@ -337,6 +445,71 @@ class ContractToolTests(unittest.TestCase):
     value["relationships"][0]["child"] = "missing"
     with self.assertRaisesRegex(ContractError, "repository is not locked"):
       validate_contract(value, "source-lock", self.schema_dir)
+
+  def test_source_lock_rejects_incomplete_license_and_ambiguous_lfs_paths(self):
+    for invalid_expression in ("NOASSERTION", "TBD", "MIT OR", " "):
+      value = source_lock()
+      value["repositories"][0]["license"]["spdx"] = invalid_expression
+      with self.assertRaisesRegex(ContractError, "reviewed source set"):
+        validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["lfsObjects"] = [
+      {"oid": SHA256_A, "size": 1, "paths": ["asset.bin"]},
+      {"oid": SHA256_B, "size": 1, "paths": ["asset.bin"]},
+    ]
+    with self.assertRaisesRegex(ContractError, "paths must be unique across objects"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["lfsObjects"] = [
+      {"oid": SHA256_A, "size": 1, "paths": ["C:/outside.bin"]},
+    ]
+    with self.assertRaisesRegex(ContractError, "normalized and relative"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+  def test_source_license_audit_rejects_status_and_inventory_drift(self):
+    value = source_license_audit()
+    value["repositories"][0]["components"].reverse()
+    with self.assertRaisesRegex(ContractError, "items must be sorted"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"][0]["status"] = "unresolved"
+    with self.assertRaisesRegex(ContractError, "candidate evidence"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"][1]["payloadPaths"] = ["../font.ttf"]
+    with self.assertRaisesRegex(ContractError, "normalized and relative"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+  def test_source_lfs_audit_rejects_counts_bytes_and_path_drift(self):
+    value = source_lfs_audit()
+    value["repositories"][0]["objectCount"] = 2
+    with self.assertRaisesRegex(ContractError, "objectCount"):
+      validate_contract(value, "source-lfs-audit", self.schema_dir)
+
+    value = source_lfs_audit()
+    value["repositories"][0]["totalBytes"] = 11
+    with self.assertRaisesRegex(ContractError, "totalBytes"):
+      validate_contract(value, "source-lfs-audit", self.schema_dir)
+
+    value = source_lfs_audit()
+    value["repositories"][0]["objects"][0]["paths"] = ["../archive.tar.xz"]
+    with self.assertRaisesRegex(ContractError, "normalized and relative"):
+      validate_contract(value, "source-lfs-audit", self.schema_dir)
+
+  def test_source_selection_audit_rejects_cutoff_and_order_drift(self):
+    value = source_selection_audit()
+    value["repositories"][2]["commitTime"] = 101
+    with self.assertRaisesRegex(ContractError, "exceeds release cutoff"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
+
+    value = source_selection_audit()
+    value["repositories"] = list(reversed(value["repositories"]))
+    with self.assertRaisesRegex(ContractError, "must be sorted"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
 
   def test_contracts_reject_path_traversal(self):
     value = build_manifest()

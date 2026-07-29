@@ -4,7 +4,7 @@ param(
     [ValidateSet("Validate", "ValidateEntrypoints", "Canonicalize", "Digest")]
     [string]$Command,
 
-    [ValidateSet("source-lock", "toolchain-lock", "image-lock", "bootstrap-manifest", "build-manifest", "artifact-manifest", "command-catalog", "corpus-manifest", "gate-result", "release-policy", "release-evidence", "gate-catalog")]
+    [ValidateSet("source-lock", "source-license-audit", "source-lfs-audit", "toolchain-lock", "image-lock", "bootstrap-manifest", "build-manifest", "artifact-manifest", "command-catalog", "corpus-manifest", "gate-result", "release-policy", "release-evidence", "gate-catalog")]
     [string]$Contract,
 
     [Parameter(Mandatory = $true)]

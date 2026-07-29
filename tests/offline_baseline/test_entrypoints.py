@@ -43,6 +43,7 @@ def source_lock():
         "projectFork": True,
         "buildInput": True,
         "active": True,
+        "lfsObjects": [],
         "license": {
           "path": "LICENSE",
           "blob": SHA1_A,
@@ -99,6 +100,7 @@ def materialized_source_lock(root):
   blob = run_git(checkout, "rev-parse", commit + ":LICENSE")
   origin = "https://github.com/sunwayking/JetOnlyOffice-DocumentServer.git"
   run_git(checkout, "remote", "add", "origin", origin)
+  run_git(checkout, "config", "lfs.url", origin + "/info/lfs")
   run_git(checkout, "checkout", "--detach", commit)
   return {
     "schemaVersion": 1,
@@ -118,6 +120,7 @@ def materialized_source_lock(root):
       "projectFork": True,
       "buildInput": True,
       "active": True,
+      "lfsObjects": [],
       "license": {
         "path": "LICENSE",
         "blob": blob,
