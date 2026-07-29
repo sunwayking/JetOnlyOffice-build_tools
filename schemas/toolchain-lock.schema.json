@@ -46,7 +46,8 @@
           "size",
           "mediaType",
           "consumers",
-          "license"
+          "license",
+          "materialization"
         ],
         "properties": {
           "id": {
@@ -104,6 +105,44 @@
           "license": {
             "type": "string",
             "minLength": 1
+          },
+          "materialization": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "root",
+              "type",
+              "destination"
+            ],
+            "properties": {
+              "root": {
+                "enum": [
+                  "toolchain",
+                  "sources",
+                  "offline-cache"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "file",
+                  "deb",
+                  "tar",
+                  "tar-gzip",
+                  "tar-xz"
+                ]
+              },
+              "destination": {
+                "$ref": "common.schema.json#/$defs/relativePath"
+              },
+              "stripComponents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "mode": {
+                "type": "string",
+                "pattern": "^[0-7]{4}$"
+              }
+            }
           }
         }
       }

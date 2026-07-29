@@ -191,6 +191,8 @@ def fake_docker(root, build_manifest):
     "      return pathlib.Path(fields['src'])\n"
     "  raise RuntimeError('mount is missing: ' + destination)\n"
     "output_root = mount_source('/output')\n"
+    "cache_root = mount_source('/input/cache')\n"
+    "if not (cache_root / 'materialization-plan.tsv').is_file(): raise RuntimeError('materialization plan is missing')\n"
     "manifest_path = next(value.split('=', 1)[1] for value in environments if value.startswith('JETONLYOFFICE_BUILD_MANIFEST_PATH='))\n"
     "manifest = output_root / pathlib.PurePosixPath(manifest_path).relative_to('/output')\n"
     "artifact = output_root / 'build-output' / 'documentserver.bin'\n"
@@ -240,6 +242,8 @@ def fake_package_docker(root, manifest):
     "    if fields.get('dst') == destination:\n"
     "      return pathlib.Path(fields['src'])\n"
     "  raise RuntimeError('mount is missing: ' + destination)\n"
+    "cache_root = mount_source('/input/cache')\n"
+    "if not (cache_root / 'materialization-plan.tsv').is_file(): raise RuntimeError('materialization plan is missing')\n"
     f"source = pathlib.Path({str(staged_root / 'artifacts')!r})\n"
     "destination = mount_source('/artifacts')\n"
     "manifest_path = next(value.split('=', 1)[1] for value in environments if value.startswith('JETONLYOFFICE_ARTIFACT_MANIFEST_PATH='))\n"
@@ -804,6 +808,15 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       arguments = json.loads(log.read_text(encoding="utf-8"))
       self.assertEqual("none", arguments[arguments.index("--network") + 1])
       self.assertEqual("never", arguments[arguments.index("--pull") + 1])
+      environments = [
+        arguments[index + 1]
+        for index, item in enumerate(arguments)
+        if item == "--env"
+      ]
+      self.assertIn("NPM_CONFIG_OFFLINE=true", environments)
+      self.assertIn("PIP_NO_INDEX=1", environments)
+      self.assertIn("CARGO_NET_OFFLINE=true", environments)
+      self.assertIn("GIT_TERMINAL_PROMPT=0", environments)
       cache_mount = next(item for item in arguments if "dst=/input/cache,readonly" in item)
       self.assertNotIn((root / "cache").as_posix(), cache_mount)
       readonly_mounts = [

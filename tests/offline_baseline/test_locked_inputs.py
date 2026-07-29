@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -56,6 +57,12 @@ def tool(identifier, payload, consumers):
     "mediaType": "application/octet-stream",
     "consumers": consumers,
     "license": "MIT",
+    "materialization": {
+      "root": "toolchain",
+      "type": "file",
+      "destination": "usr/share/jetonlyoffice/" + identifier,
+      "mode": "0644",
+    },
   }
 
 
@@ -122,6 +129,21 @@ class LockedInputTests(unittest.TestCase):
         self.assertEqual(build_payload, selected.read_bytes())
         self.assertFalse((view / "toolchain" / "package-tool").exists())
         self.assertFalse((view / "toolchain" / "runtime-tool").exists())
+        plan = json.loads((view / "materialization-plan.json").read_text(encoding="utf-8"))
+        self.assertEqual(["build"], plan["consumers"])
+        self.assertEqual([{
+          "destination": "usr/share/jetonlyoffice/build-tool",
+          "id": "build-tool",
+          "mode": "0644",
+          "root": "toolchain",
+          "source": "toolchain/build-tool/" + tools[0]["sha256"],
+          "type": "file",
+        }], plan["entries"])
+        self.assertEqual(
+          "file\ttoolchain/build-tool/" + tools[0]["sha256"]
+          + "\ttoolchain\tusr/share/jetonlyoffice/build-tool\t0\t0644\n",
+          (view / "materialization-plan.tsv").read_text(encoding="utf-8"),
+        )
         (root / "toolchain" / "build-tool" / tools[0]["sha256"]).write_bytes(b"changed\n")
         self.assertEqual(build_payload, selected.read_bytes())
 

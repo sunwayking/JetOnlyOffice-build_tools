@@ -30,13 +30,23 @@ cache/toolchain/<tool-id>/<sha256>
 lock digests, the locked toolchain bytes, and their complete upstream
 manifests before invoking Docker. Only a copied temporary cache view containing
 the current bootstrap manifest, canonical toolchain lock, consumer-specific
-inventory, and bytes declared for that entrypoint is mounted. Build receives
-only `build` inputs; package receives only `package` and `runtime` inputs. Other
-shared-cache files are not visible, and hard links cannot expose the private
-view to later cache mutation.
+inventory, deterministic materialization plan, and bytes declared for that
+entrypoint is mounted. Build receives only `build` inputs; package receives
+only `package` and `runtime` inputs. Other shared-cache files are not visible,
+and hard links cannot expose the private view to later cache mutation.
 Their containers use the digest-pinned builder image with `--pull never`,
 `--network none`, `--platform linux/amd64`, a read-only root filesystem, and
 read-only source, cache, and driver mounts.
+
+Every toolchain lock record declares how its exact bytes are materialized as a
+regular file, DEB payload, or tar archive. The target is restricted to the
+private toolchain root, copied source workspace, or offline package cache under
+`/work`; normalized paths and parent symbolic links are rejected. Build and
+package set npm, pip, Cargo, Yarn, and Git to fail-closed offline modes before
+running upstream code. The build entrypoint invokes only the locked Python
+materialized at
+`sources/build_tools/tools/linux/python3/bin/python3`; the minimal Ubuntu image
+cannot silently supply a host or image Python fallback.
 
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any
@@ -66,8 +76,9 @@ The committed image lock records these public `linux/amd64` inputs:
 
 The full values are authoritative only in `locks/images.lock.json`. The Ubuntu
 builder record is a locked minimal base; it does not contain Python or the
-DocumentServer compiler stack. A complete toolchain lock and an offline method
-of materializing that toolchain into the builder remain required before the
+DocumentServer compiler stack. The cache-to-workspace materialization method is
+implemented and exercised in the locked Ubuntu image, but a reviewed complete
+toolchain lock and all corresponding cached bytes remain required before the
 baseline can run.
 
 `verify.ps1` checks every packaged file, compares DEB, rootfs, and OCI
@@ -86,9 +97,10 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-The image lock is now concrete and locally reverified. The formal toolchain
-lock, its complete cache, and a real package driver produced by the locked
-source build remain prerequisites. The current upstream build does not produce
+The image lock and offline materializer are concrete and locally reverified.
+The formal toolchain lock, its complete Python/apt/npm/pkg/Qt/native dependency
+cache, and a real package driver produced by the locked source build remain
+prerequisites. The current upstream build does not produce
 `build-output/packaging/package.sh`, so manifest generation must stop instead
 of inventing DEB/rootfs/OCI outputs. Until those inputs are reviewed and
 published, the public entrypoints must stop before producing a release

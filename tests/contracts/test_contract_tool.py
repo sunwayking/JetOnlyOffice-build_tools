@@ -124,6 +124,12 @@ def toolchain_lock():
         "mediaType": "application/x-xz",
         "consumers": ["build", "package", "runtime"],
         "license": "MIT",
+        "materialization": {
+          "root": "toolchain",
+          "type": "tar-xz",
+          "destination": "usr",
+          "stripComponents": 1,
+        },
       }
     ],
   }
@@ -364,6 +370,32 @@ class ContractToolTests(unittest.TestCase):
     value = toolchain_lock()
     value["tools"][0]["consumers"] = ["build"]
     with self.assertRaisesRegex(ContractError, "missing consumers: package, runtime"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
+
+  def test_toolchain_lock_requires_safe_deterministic_materialization(self):
+    value = toolchain_lock()
+    value["tools"][0]["materialization"]["destination"] = "../outside"
+    with self.assertRaisesRegex(ContractError, "path must be normalized and relative"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
+
+    value = toolchain_lock()
+    value["tools"][0]["materialization"] = {
+      "root": "toolchain",
+      "type": "file",
+      "destination": "usr/bin/node",
+      "stripComponents": 1,
+      "mode": "0755",
+    }
+    with self.assertRaisesRegex(ContractError, "stripComponents: allowed only for archives"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
+
+    value = toolchain_lock()
+    value["tools"][0]["materialization"] = {
+      "root": "toolchain",
+      "type": "file",
+      "destination": "usr/bin/node",
+    }
+    with self.assertRaisesRegex(ContractError, "mode: required for files"):
       validate_contract(value, "toolchain-lock", self.schema_dir)
 
   def test_image_and_artifact_manifests_require_complete_roles(self):

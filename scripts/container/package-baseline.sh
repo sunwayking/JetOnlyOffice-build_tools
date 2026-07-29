@@ -5,6 +5,7 @@ test "${JETONLYOFFICE_NETWORK_POLICY:-}" = "none"
 test -n "${JETONLYOFFICE_ARTIFACT_MANIFEST_PATH:-}"
 test -n "${JETONLYOFFICE_PACKAGE_DRIVER_PATH:-}"
 test -n "${JETONLYOFFICE_PACKAGE_DRIVER_MODE:-}"
+. /jetonlyoffice/container/materialize-toolchain.sh /input/cache/materialization-plan.tsv
 driver=$JETONLYOFFICE_PACKAGE_DRIVER_PATH
 case "$driver" in
   /artifacts/build-output/*) ;;

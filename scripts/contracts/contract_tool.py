@@ -360,11 +360,42 @@ def _validate_toolchain_lock(value):
   tools = value["tools"]
   _validate_sorted_unique(tools, lambda item: item["id"], "$.tools")
   for index, tool in enumerate(tools):
-    _validate_https(tool["sourceUrl"], f"$.tools[{index}].sourceUrl")
+    prefix = f"$.tools[{index}]"
+    _validate_https(tool["sourceUrl"], prefix + ".sourceUrl")
     if tool["consumers"] != sorted(set(tool["consumers"])):
       raise ContractError(
         f"$.tools[{index}].consumers: values must be sorted and unique"
       )
+    materialization = tool["materialization"]
+    _validate_relative_path(
+      materialization["destination"], prefix + ".materialization.destination"
+    )
+    if not re.fullmatch(r"[A-Za-z0-9._+@/-]+", materialization["destination"]):
+      raise ContractError(
+        prefix + ".materialization.destination: path contains unsafe characters"
+      )
+    materialization_type = materialization["type"]
+    strip_components = materialization.get("stripComponents")
+    mode = materialization.get("mode")
+    archive_types = {"tar", "tar-gzip", "tar-xz"}
+    if materialization_type == "file":
+      if mode is None:
+        raise ContractError(prefix + ".materialization.mode: required for files")
+      if strip_components is not None:
+        raise ContractError(
+          prefix + ".materialization.stripComponents: allowed only for archives"
+        )
+    else:
+      if mode is not None:
+        raise ContractError(prefix + ".materialization.mode: allowed only for files")
+      if materialization_type in archive_types and strip_components is None:
+        raise ContractError(
+          prefix + ".materialization.stripComponents: required for archives"
+        )
+      if materialization_type not in archive_types and strip_components is not None:
+        raise ContractError(
+          prefix + ".materialization.stripComponents: allowed only for archives"
+        )
   consumers = {
     consumer
     for tool in tools

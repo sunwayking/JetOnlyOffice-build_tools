@@ -23,7 +23,9 @@ manifest. The Ubuntu image is the minimal builder/runtime base, not evidence
 that the compiler toolchain has been closed.
 
 The formal `toolchain.lock.json` remains intentionally absent. Every eventual
-tool record must declare its exact bytes, media type, license, and sorted
-`build`, `package`, or `runtime` consumers. The contract requires all three
-consumer classes to be covered, so a one-file placeholder cannot satisfy the
-release toolchain gate.
+tool record must declare its exact bytes, media type, license, sorted `build`,
+`package`, or `runtime` consumers, and deterministic materialization. The
+materialization target is one of the private toolchain root, copied source
+workspace, or offline package cache; supported inputs are regular files, DEBs,
+and tar archives. The contract requires all three consumer classes to be
+covered, so a one-file placeholder cannot satisfy the release toolchain gate.

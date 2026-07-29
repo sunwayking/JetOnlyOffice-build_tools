@@ -400,6 +400,41 @@ def locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest, consu
       shutil.copyfile(source, destination)
       if destination.stat().st_size != tool["size"] or sha256_file(destination) != tool["sha256"]:
         raise BaselineError(f"locked toolchain cache view mismatch for {tool['id']}", 3)
+    materialization_entries = []
+    materialization_lines = []
+    for tool in selected_tools:
+      materialization = tool["materialization"]
+      source = (Path("toolchain") / tool["id"] / tool["sha256"]).as_posix()
+      entry = {
+        "id": tool["id"],
+        "source": source,
+        "root": materialization["root"],
+        "type": materialization["type"],
+        "destination": materialization["destination"],
+      }
+      if "stripComponents" in materialization:
+        entry["stripComponents"] = materialization["stripComponents"]
+      if "mode" in materialization:
+        entry["mode"] = materialization["mode"]
+      materialization_entries.append(entry)
+      materialization_lines.append("\t".join((
+        materialization["type"],
+        source,
+        materialization["root"],
+        materialization["destination"],
+        str(materialization.get("stripComponents", 0)),
+        materialization.get("mode", "-"),
+      )))
+    materialization_plan = {
+      "schemaVersion": 1,
+      "planType": "toolchain-materialization",
+      "consumers": sorted(consumers),
+      "toolchainLockSha256": canonical_sha256(toolchain_lock),
+      "entries": materialization_entries,
+    }
+    materialization_tsv = ("\n".join(materialization_lines) + "\n").encode("utf-8")
+    write_canonical(root / "materialization-plan.json", materialization_plan)
+    (root / "materialization-plan.tsv").write_bytes(materialization_tsv)
     write_canonical(root / "bootstrap-manifest.json", bootstrap_manifest)
     write_canonical(root / "toolchain.lock.json", toolchain_lock)
     write_canonical(root / "cache-view.json", {
@@ -407,6 +442,8 @@ def locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest, consu
       "viewType": "toolchain-cache",
       "consumers": sorted(consumers),
       "toolchainLockSha256": canonical_sha256(toolchain_lock),
+      "materializationPlanSha256": canonical_sha256(materialization_plan),
+      "materializationPlanTsvSha256": hashlib.sha256(materialization_tsv).hexdigest(),
       "toolchainFiles": [
         {
           "id": tool["id"],
@@ -555,6 +592,20 @@ def build(args):
       "PYTHONHASHSEED=0",
       "--env",
       "JETONLYOFFICE_NETWORK_POLICY=none",
+      "--env",
+      "NPM_CONFIG_OFFLINE=true",
+      "--env",
+      "NPM_CONFIG_AUDIT=false",
+      "--env",
+      "NPM_CONFIG_FUND=false",
+      "--env",
+      "PIP_NO_INDEX=1",
+      "--env",
+      "CARGO_NET_OFFLINE=true",
+      "--env",
+      "YARN_ENABLE_NETWORK=0",
+      "--env",
+      "GIT_TERMINAL_PROMPT=0",
       "--env",
       "JETONLYOFFICE_BUILD_ID=jetonlyoffice-9.4.0-linux-amd64",
       "--env",
@@ -770,6 +821,20 @@ def package(args):
       "PYTHONHASHSEED=0",
       "--env",
       "JETONLYOFFICE_NETWORK_POLICY=none",
+      "--env",
+      "NPM_CONFIG_OFFLINE=true",
+      "--env",
+      "NPM_CONFIG_AUDIT=false",
+      "--env",
+      "NPM_CONFIG_FUND=false",
+      "--env",
+      "PIP_NO_INDEX=1",
+      "--env",
+      "CARGO_NET_OFFLINE=true",
+      "--env",
+      "YARN_ENABLE_NETWORK=0",
+      "--env",
+      "GIT_TERMINAL_PROMPT=0",
       "--env",
       "JETONLYOFFICE_ARTIFACT_MANIFEST_PATH=/artifacts/" + output_relative,
       "--env",
