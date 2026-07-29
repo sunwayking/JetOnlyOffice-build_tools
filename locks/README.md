@@ -37,10 +37,28 @@ hide which evidence is still missing. Candidate license files do not become a
 declaration until their asset mapping and SPDX expression have been reviewed.
 `payloadPatterns` defines the build payloads covered by this structural audit;
 `patterns` defines candidate evidence only and does not declare a license.
+`reviewedComponents` is narrower: every payload in such a component must be
+covered by one immutable evidence record and an explicitly reviewed SPDX
+expression. The resolver currently accepts only two primary evidence forms:
+an exact license member inside a locked ZIP, or copyright/license text in a
+locked OpenType `name` table. It hashes the extracted bytes or decoded text,
+binds every result to the containing Git blob and payload SHA-256, and rejects
+missing, extra, or changed payloads.
 `resolve-sources.ps1 -Command LicenseAudit` reads the locked Git objects from
-the local cache, records every matched payload and candidate evidence blob with
-its SHA-256, and rejects stale `unresolvedComponents`. It returns exit code 3
-while legal mappings are incomplete, even when candidate files exist.
+the local cache, records every matched payload plus candidate or verified
+evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
+exit code 3 while legal mappings are incomplete, even when candidate files
+exist.
+
+At the current lock, this closes the GLEW archive and six font components
+(`fonts-telu-extra`, `freefont`, `samyak`, `samyak-fonts`,
+`tibetan-machine`, and `ttf-khmeros-core`). The release gate remains blocked
+for `build-tools-data` Android, CEF, Python, Qt, and sysroot payloads; the
+`ASC.ttf`, `fonts-beng-extra`, `kacst`, `kacst-one`, `liberation`, and
+`wqy-zenhei` font components; and the `az_Latn_AZ` and `ru_RU` dictionaries.
+Those entries stay unresolved because their locked bytes do not yet provide a
+complete, precise mapping; a product name, copyright line, package family, or
+nearby license is not accepted as a substitute.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
@@ -53,10 +71,10 @@ The four audit commands keep independent canonical reports at
 `artifacts/source-selection-audit.json` report; running one gate cannot
 overwrite the evidence from another gate.
 
-The current resolver accepts only the reviewed source expressions used by this
-closure (`AGPL-3.0-only`, `Apache-2.0`, and `MIT`). Adding another expression
-requires an explicit resolver and contract update backed by real license
-evidence; arbitrary or syntactically incomplete SPDX-like text fails closed.
+The resolver accepts only the source and component expressions explicitly
+listed in its reviewed set. Adding another expression requires a resolver and
+contract update backed by real license evidence; arbitrary or syntactically
+incomplete SPDX-like text fails closed.
 
 Each generated repository record includes the complete Git LFS object list
 reachable from its locked commit: immutable SHA-256 object id, byte size, and

@@ -3,11 +3,13 @@
 import argparse
 import fnmatch
 import hashlib
+import io
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -15,6 +17,7 @@ import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
+import zipfile
 
 from contracts.contract_tool import (
   ContractError,
@@ -321,7 +324,7 @@ def _validate_license_input(value, path):
         "reason",
         "unresolvedComponents",
       },
-      set(),
+      {"reviewedComponents"},
       path,
     )
     if (
@@ -334,6 +337,17 @@ def _validate_license_input(value, path):
       raise ResolutionError(f"{path}.patterns: values must be sorted and unique", 2)
     _validate_patterns(value["payloadPatterns"], path + ".payloadPatterns")
     _validate_unresolved_components(value["unresolvedComponents"], path)
+    _validate_reviewed_components(value.get("reviewedComponents", []), path)
+    reviewed_ids = {
+      component["id"] for component in value.get("reviewedComponents", [])
+    }
+    overlap = reviewed_ids.intersection(value["unresolvedComponents"])
+    if overlap:
+      raise ResolutionError(
+        f"{path}: components cannot be both reviewed and unresolved: "
+        + ", ".join(sorted(overlap)),
+        2,
+      )
     if not isinstance(value["reason"], str) or not value["reason"]:
       raise ResolutionError(f"{path}.reason: expected non-empty string", 2)
   elif status == "missing":
@@ -362,6 +376,60 @@ def _validate_unresolved_components(value, path):
       f"{path}.unresolvedComponents: expected sorted unique non-empty strings",
       2,
     )
+
+
+def _validate_reviewed_components(value, path):
+  if not isinstance(value, list):
+    raise ResolutionError(f"{path}.reviewedComponents: expected array", 2)
+  component_ids = []
+  for component_index, component in enumerate(value):
+    component_path = f"{path}.reviewedComponents[{component_index}]"
+    _require_exact_keys(component, {"id", "spdx", "evidence"}, set(), component_path)
+    component_id = component["id"]
+    if not isinstance(component_id, str) or not component_id:
+      raise ResolutionError(f"{component_path}.id: expected non-empty string", 2)
+    component_ids.append(component_id)
+    if component["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
+      raise ResolutionError(
+        f"{component_path}.spdx: license expression is not in the reviewed source set",
+        2,
+      )
+    evidence = component["evidence"]
+    if not isinstance(evidence, list) or not evidence:
+      raise ResolutionError(f"{component_path}.evidence: expected non-empty array", 2)
+    evidence_keys = []
+    for evidence_index, record in enumerate(evidence):
+      evidence_path = f"{component_path}.evidence[{evidence_index}]"
+      _require_exact_keys(
+        record,
+        {"type", "path", "locator", "sha256"},
+        set(),
+        evidence_path,
+      )
+      evidence_type = record["type"]
+      if evidence_type not in {"font-name", "zip-member"}:
+        raise ResolutionError(f"{evidence_path}.type: unsupported evidence type", 2)
+      _validate_relative_path(record["path"], evidence_path + ".path")
+      if evidence_type == "font-name":
+        if record["locator"] not in {"name:0", "name:13"}:
+          raise ResolutionError(
+            f"{evidence_path}.locator: unsupported font license name record",
+            2,
+          )
+      else:
+        _validate_relative_path(record["locator"], evidence_path + ".locator")
+      if not isinstance(record["sha256"], str) or not SHA256_PATTERN.fullmatch(
+        record["sha256"]
+      ):
+        raise ResolutionError(f"{evidence_path}.sha256: expected SHA-256", 2)
+      evidence_keys.append((record["path"], evidence_type, record["locator"]))
+    if evidence_keys != sorted(set(evidence_keys)):
+      raise ResolutionError(
+        f"{component_path}.evidence: entries must be sorted and unique",
+        2,
+      )
+  if component_ids != sorted(set(component_ids)):
+    raise ResolutionError(f"{path}.reviewedComponents: ids must be sorted and unique", 2)
 
 
 def _validate_patterns(value, path):
@@ -493,6 +561,127 @@ def _license_evidence(cache, commit, path):
   }
 
 
+def _read_uint16(content, offset, context):
+  if offset < 0 or offset + 2 > len(content):
+    raise ResolutionError(f"{context}: truncated font metadata", 3)
+  return struct.unpack_from(">H", content, offset)[0]
+
+
+def _read_uint32(content, offset, context):
+  if offset < 0 or offset + 4 > len(content):
+    raise ResolutionError(f"{context}: truncated font metadata", 3)
+  return struct.unpack_from(">I", content, offset)[0]
+
+
+def _font_name_texts(content, name_id, context):
+  if content[:4] == b"ttcf":
+    font_count = _read_uint32(content, 8, context)
+    if font_count < 1 or font_count > 1024:
+      raise ResolutionError(f"{context}: invalid TrueType collection", 3)
+    offset_end = 12 + (font_count * 4)
+    if offset_end > len(content):
+      raise ResolutionError(f"{context}: truncated TrueType collection", 3)
+    font_offsets = [
+      _read_uint32(content, 12 + (index * 4), context)
+      for index in range(font_count)
+    ]
+  elif content[:4] in {b"\x00\x01\x00\x00", b"OTTO", b"true", b"typ1"}:
+    font_offsets = [0]
+  else:
+    raise ResolutionError(f"{context}: unsupported font payload", 3)
+
+  texts = set()
+  for font_offset in font_offsets:
+    table_count = _read_uint16(content, font_offset + 4, context)
+    directory_end = font_offset + 12 + (table_count * 16)
+    if table_count < 1 or table_count > 4096 or directory_end > len(content):
+      raise ResolutionError(f"{context}: invalid font table directory", 3)
+    name_offset = None
+    name_length = None
+    for table_index in range(table_count):
+      record_offset = font_offset + 12 + (table_index * 16)
+      if content[record_offset:record_offset + 4] != b"name":
+        continue
+      # Table offsets are relative to the beginning of the font file, including TTC files.
+      name_offset = _read_uint32(content, record_offset + 8, context)
+      name_length = _read_uint32(content, record_offset + 12, context)
+      break
+    if name_offset is None or name_offset + name_length > len(content):
+      raise ResolutionError(f"{context}: font has no valid name table", 3)
+    record_count = _read_uint16(content, name_offset + 2, context)
+    string_offset = _read_uint16(content, name_offset + 4, context)
+    records_end = name_offset + 6 + (record_count * 12)
+    storage_offset = name_offset + string_offset
+    if records_end > len(content) or storage_offset > name_offset + name_length:
+      raise ResolutionError(f"{context}: invalid font name table", 3)
+    for record_index in range(record_count):
+      record_offset = name_offset + 6 + (record_index * 12)
+      fields = struct.unpack_from(">6H", content, record_offset)
+      platform_id, _, _, record_name_id, length, offset = fields
+      if record_name_id != name_id or platform_id not in {0, 1, 3}:
+        continue
+      text_start = storage_offset + offset
+      text_end = text_start + length
+      if text_end > name_offset + name_length or text_end > len(content):
+        raise ResolutionError(f"{context}: invalid font name string", 3)
+      encoding = "utf-16-be" if platform_id in {0, 3} else "mac_roman"
+      try:
+        text = content[text_start:text_end].decode(encoding)
+      except UnicodeDecodeError as error:
+        raise ResolutionError(f"{context}: invalid font name encoding", 3) from error
+      if text:
+        texts.add(text)
+  if not texts:
+    raise ResolutionError(f"{context}: font license name record is missing", 3)
+  return sorted(texts)
+
+
+def _zip_member_bytes(content, member_path, context):
+  try:
+    with zipfile.ZipFile(io.BytesIO(content), "r") as archive:
+      matching = [info for info in archive.infolist() if info.filename == member_path]
+      if len(matching) != 1 or matching[0].is_dir():
+        raise ResolutionError(f"{context}: archive license member is not unique", 3)
+      info = matching[0]
+      if info.flag_bits & 1:
+        raise ResolutionError(f"{context}: encrypted license evidence is unsupported", 3)
+      if info.file_size > 4 * 1024 * 1024:
+        raise ResolutionError(f"{context}: archive license evidence is too large", 3)
+      return archive.read(info)
+  except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError) as error:
+    raise ResolutionError(f"{context}: invalid ZIP license evidence", 3) from error
+
+
+def _verified_component_evidence(cache, commit, component):
+  records = []
+  for evidence_input in component["evidence"]:
+    path = evidence_input["path"]
+    context = f"{path}:{evidence_input['locator']}"
+    blob = _run_git(["rev-parse", f"{commit}:{path}"], cwd=cache, exit_code=3)
+    content = _run_git_bytes(["show", f"{commit}:{path}"], cwd=cache)
+    if evidence_input["type"] == "font-name":
+      name_id = int(evidence_input["locator"].split(":", 1)[1])
+      evidence_digests = {
+        hashlib.sha256(text.encode("utf-8")).hexdigest()
+        for text in _font_name_texts(content, name_id, context)
+      }
+      if evidence_input["sha256"] not in evidence_digests:
+        raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+    else:
+      evidence_content = _zip_member_bytes(content, evidence_input["locator"], context)
+      if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
+        raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+    records.append({
+      "type": evidence_input["type"],
+      "path": path,
+      "blob": blob,
+      "sha256": hashlib.sha256(content).hexdigest(),
+      "locator": evidence_input["locator"],
+      "evidenceSha256": evidence_input["sha256"],
+    })
+  return records
+
+
 def repository_license_inventory(repository, cache, commit):
   license_input = repository["license"]
   if license_input["status"] == "declared":
@@ -523,20 +712,51 @@ def repository_license_inventory(repository, cache, commit):
   for path in payloads:
     payloads_by_component.setdefault(_component_id(path), []).append(path)
 
+  reviewed_components = {
+    component["id"]: component
+    for component in license_input.get("reviewedComponents", [])
+  }
+  unknown_reviewed = sorted(set(reviewed_components) - set(payloads_by_component))
+  if unknown_reviewed:
+    raise ResolutionError(
+      f"{repository['id']}: reviewed component inventory is stale; "
+      f"unknown {unknown_reviewed}",
+      3,
+    )
+
   components = []
   actual_unresolved = []
   for component_id in sorted(payloads_by_component):
     component_evidence = evidence_by_component.get(component_id, [])
-    if not component_evidence:
+    reviewed_component = reviewed_components.get(component_id)
+    if reviewed_component is None and not component_evidence:
       actual_unresolved.append(component_id)
-    components.append({
+    component_record = {
       "id": component_id,
-      "status": "review-required" if component_evidence else "unresolved",
+      "status": (
+        "resolved"
+        if reviewed_component is not None
+        else "review-required"
+        if component_evidence
+        else "unresolved"
+      ),
       "payloadPaths": payloads_by_component[component_id],
       "candidateEvidence": [
         _license_evidence(cache, commit, path) for path in component_evidence
-      ],
-    })
+      ] if reviewed_component is None else [],
+    }
+    if reviewed_component is not None:
+      evidence_paths = [record["path"] for record in reviewed_component["evidence"]]
+      if evidence_paths != payloads_by_component[component_id]:
+        raise ResolutionError(
+          f"{repository['id']}:{component_id}: reviewed evidence must exactly cover payloads",
+          3,
+        )
+      component_record["license"] = {
+        "spdx": reviewed_component["spdx"],
+        "evidence": _verified_component_evidence(cache, commit, reviewed_component),
+      }
+    components.append(component_record)
   if actual_unresolved != license_input["unresolvedComponents"]:
     raise ResolutionError(
       f"{repository['id']}: unresolved component inventory is stale; "
