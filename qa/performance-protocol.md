@@ -40,6 +40,13 @@ Its event references resolve into a separate content-addressed raw browser
 trace captured by a versioned, content-addressed collector executable. Every
 duration is derived from those raw connection, first-interactive-frame and
 collaboration-initialized events and must exactly match `samples.json`.
+Command traces retain the input and first visible-effect timestamp for every
+iteration; their differences must exactly match each command's latency array.
+Gesture traces retain monotonic microsecond timestamps for every rendered
+frame. The evaluator computes each interval as `floor(1,000,000,000 / delta)`
+milli-FPS, selects the nearest-rank P50, and computes the maximum freeze as
+`ceil(maximum interval / 1000)` milliseconds. These recomputed values must
+exactly match every round in `samples.json`.
 Evaluation writes a first-attempt receipt before the canonical result; release
 aggregation verifies the receipt and machine-recomputes the result from the raw
 evidence. Missing collector prerequisites may instead be recorded as an

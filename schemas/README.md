@@ -16,6 +16,10 @@ packaging, and release verification:
   sample digest, recomputed result digest and blocking status.
 - `performance-browser-trace.schema.json` binds raw browser events to the
   versioned collector executable that captured their monotonic timestamps.
+- `performance-command-trace.schema.json` binds every command sample to raw
+  input and visible-effect timestamps from the versioned collector.
+- `performance-gesture-trace.schema.json` binds every gesture round to raw
+  frame timestamps used to recompute median FPS and maximum freezes.
 - `performance-open-trace.schema.json` proves four retained warmups followed by
   ten ordered measured opens per format and binds their real ready timestamps.
 - `gate-catalog.schema.json` freezes the source-independent release gate matrix.

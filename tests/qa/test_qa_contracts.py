@@ -241,6 +241,16 @@ def _write_bytes_record(root, relative_path, payload, media_type, mode="0644"):
   }
 
 
+def persist_gate_evidence(result, root, payload=b"gate evidence\n"):
+  record = result["evidence"][0]
+  path = root / record["path"]
+  path.parent.mkdir(parents=True, exist_ok=True)
+  path.write_bytes(payload)
+  record["sha256"] = hashlib.sha256(payload).hexdigest()
+  record["size"] = len(payload)
+  return result
+
+
 def persist_performance_samples(samples, root):
   return _write_evidence_record(
     root,
@@ -313,6 +323,13 @@ def attested_performance_samples(gate_id):
       f"{evidence_prefix}/device-facts.json",
       facts,
     )
+    collector_record = _write_bytes_record(
+      root,
+      f"{evidence_prefix}/collector.py",
+      b"# locked JetOnlyOffice performance collector fixture\n",
+      "text/x-python",
+      "0755",
+    )
     if gate_id == "performance.xiaomi.open-time":
       cursor = 1000
       sequence = 1
@@ -360,13 +377,6 @@ def attested_performance_samples(gate_id):
         for iteration, duration in enumerate(format_samples["milliseconds"], 1):
           append_open("measured", format_samples["format"], iteration, duration)
 
-      collector_record = _write_bytes_record(
-        root,
-        f"{evidence_prefix}/collector.py",
-        b"# locked JetOnlyOffice performance collector fixture\n",
-        "text/x-python",
-        "0755",
-      )
       raw_trace_record = _write_evidence_record(
         root,
         f"{evidence_prefix}/browser-trace.json",
@@ -397,8 +407,68 @@ def attested_performance_samples(gate_id):
         "rawTrace": raw_trace_record,
         "events": trace_events,
       }
+    elif gate_id == "performance.xiaomi.command-p95":
+      cursor = 1000
+      command_events = []
+      for command in samples["commands"]:
+        for iteration, duration in enumerate(command["milliseconds"], 1):
+          command_events.append({
+            "id": f"{command['id']}-{iteration:03d}",
+            "commandId": command["id"],
+            "iteration": iteration,
+            "inputTimestampMilliseconds": cursor,
+            "effectTimestampMilliseconds": cursor + duration,
+          })
+          cursor += duration + 1
+      trace_payload = {
+        "schemaVersion": 1,
+        "traceType": "mobile-command-events",
+        "releaseId": samples["releaseId"],
+        "runId": samples["runId"],
+        "gateId": gate_id,
+        "sourceLockSha256": samples["sourceLockSha256"],
+        "runtime": "chrome",
+        "clock": "monotonic-milliseconds",
+        "collector": {
+          "name": "jetonlyoffice-mobile-performance-collector",
+          "version": "1.0.0",
+          "executable": collector_record,
+        },
+        "events": command_events,
+      }
     else:
-      trace_payload = {"traceEvents": []}
+      cursor = 1000000
+      gesture_rounds = []
+      for format_samples in samples["gestures"]:
+        for round_result in format_samples["rounds"]:
+          timestamps = [
+            cursor,
+            cursor + 22222,
+            cursor + 44444,
+            cursor + 1044444,
+          ]
+          gesture_rounds.append({
+            "format": format_samples["format"],
+            "round": round_result["round"],
+            "frameTimestampsMicroseconds": timestamps,
+          })
+          cursor = timestamps[-1] + 1
+      trace_payload = {
+        "schemaVersion": 1,
+        "traceType": "mobile-gesture-frames",
+        "releaseId": samples["releaseId"],
+        "runId": samples["runId"],
+        "gateId": gate_id,
+        "sourceLockSha256": samples["sourceLockSha256"],
+        "runtime": "chrome",
+        "clock": "monotonic-microseconds",
+        "collector": {
+          "name": "jetonlyoffice-mobile-performance-collector",
+          "version": "1.0.0",
+          "executable": collector_record,
+        },
+        "rounds": gesture_rounds,
+      }
     trace_record = _write_evidence_record(
       root,
       f"{evidence_prefix}/trace.json",
@@ -454,6 +524,18 @@ def rewrite_open_trace(samples, root, mutate):
   )
 
 
+def rewrite_performance_trace(samples, root, mutate):
+  trace_record = samples["attestation"]["traces"][0]
+  trace_path = root / trace_record["path"]
+  trace = json.loads(trace_path.read_bytes())
+  mutate(trace)
+  samples["attestation"]["traces"][0] = _write_evidence_record(
+    root,
+    trace_record["path"],
+    trace,
+  )
+
+
 def set_last_open_duration(trace, raw_trace, milliseconds):
   event = trace["events"][-1]
   raw_by_id = {item["id"]: item for item in raw_trace["events"]}
@@ -461,6 +543,31 @@ def set_last_open_duration(trace, raw_trace, milliseconds):
   raw_by_id[event["collaborationEventId"]]["timestampMilliseconds"] = (
     started + milliseconds
   )
+
+
+def set_command_durations(trace, command_id, durations):
+  events = [item for item in trace["events"] if item["commandId"] == command_id]
+  for event, duration in zip(events, durations, strict=True):
+    event["effectTimestampMilliseconds"] = event["inputTimestampMilliseconds"] + duration
+  cursor = trace["events"][0]["inputTimestampMilliseconds"]
+  for event in trace["events"]:
+    duration = (
+      event["effectTimestampMilliseconds"] - event["inputTimestampMilliseconds"]
+    )
+    event["inputTimestampMilliseconds"] = cursor
+    event["effectTimestampMilliseconds"] = cursor + duration
+    cursor = event["effectTimestampMilliseconds"] + 1
+
+
+def set_gesture_intervals(trace, file_format, round_number, intervals):
+  target = next(
+    item for item in trace["rounds"]
+    if item["format"] == file_format and item["round"] == round_number
+  )
+  timestamps = [target["frameTimestampsMicroseconds"][0]]
+  for interval in intervals:
+    timestamps.append(timestamps[-1] + interval)
+  target["frameTimestampsMicroseconds"] = timestamps
 
 
 class QaContractTests(unittest.TestCase):
@@ -534,8 +641,11 @@ class QaContractTests(unittest.TestCase):
       validate_contract(mutable_path, "gate-result", self.schema_dir)
 
   def test_release_evidence_blocks_failures_and_incomplete_infrastructure(self):
+    directory = tempfile.TemporaryDirectory()
+    self.addCleanup(directory.cleanup)
+    root = Path(directory.name)
     policy = release_policy()
-    browser = gate_result()
+    browser = persist_gate_evidence(gate_result(), root)
     ios = gate_result("FAIL", blocking=False)
     ios["gateId"] = "ios.safari"
     ios["category"] = "ios"
@@ -548,6 +658,7 @@ class QaContractTests(unittest.TestCase):
     ios["evidence"][0]["path"] = (
       "evidence/raw/release-run-001/ios.safari/results.json"
     )
+    persist_gate_evidence(ios, root)
 
     evidence = aggregate_release_evidence(
       policy,
@@ -555,7 +666,7 @@ class QaContractTests(unittest.TestCase):
       "release-run-001",
       "c" * 64,
       self.schema_dir,
-      REPOSITORY_ROOT,
+      root,
     )
     self.assertEqual("PASS", evidence["outcome"])
     self.assertEqual([], evidence["blockers"])
@@ -574,7 +685,7 @@ class QaContractTests(unittest.TestCase):
       "release-run-001",
       "c" * 64,
       self.schema_dir,
-      REPOSITORY_ROOT,
+      root,
     )
     self.assertEqual("BLOCKED", blocked["outcome"])
     self.assertEqual(
@@ -594,12 +705,24 @@ class QaContractTests(unittest.TestCase):
       "release-run-001",
       "c" * 64,
       self.schema_dir,
-      REPOSITORY_ROOT,
+      root,
     )
     self.assertEqual(
       [{"gateId": "browser.desktop.chromium", "reason": "MISSING"}],
       missing["blockers"],
     )
+
+  def test_release_aggregation_rejects_missing_non_performance_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      with self.assertRaisesRegex(ContractError, "cannot read release evidence"):
+        aggregate_release_evidence(
+          release_policy(),
+          [gate_result()],
+          "release-run-001",
+          "c" * 64,
+          self.schema_dir,
+          Path(directory),
+        )
 
   def test_corpus_verification_reads_exact_declared_bytes(self):
     with tempfile.TemporaryDirectory() as directory:
@@ -685,7 +808,10 @@ class QaContractTests(unittest.TestCase):
       result_path = root / "browser.json"
       output_path = root / "release-evidence.json"
       policy_path.write_text(json.dumps(release_policy()), encoding="utf-8")
-      result_path.write_text(json.dumps(gate_result()), encoding="utf-8")
+      result_path.write_text(
+        json.dumps(persist_gate_evidence(gate_result(), root)),
+        encoding="utf-8",
+      )
 
       exit_code = main([
         "aggregate",
@@ -699,6 +825,8 @@ class QaContractTests(unittest.TestCase):
         "c" * 64,
         "--schema-dir",
         str(self.schema_dir),
+        "--repository-root",
+        str(root),
         "--output",
         str(output_path),
       ])
@@ -826,6 +954,15 @@ class QaContractTests(unittest.TestCase):
     with attested_performance_samples("performance.xiaomi.command-p95") as fixture:
       samples, evidence, root = fixture
       samples["commands"][1]["milliseconds"] = [1] * 28 + [251, 1000]
+      rewrite_performance_trace(
+        samples,
+        root,
+        lambda trace: set_command_durations(
+          trace,
+          "word.text.bold",
+          samples["commands"][1]["milliseconds"],
+        ),
+      )
       evidence = persist_performance_samples(samples, root)
       result = evaluate_performance_samples(
         samples,
@@ -852,8 +989,16 @@ class QaContractTests(unittest.TestCase):
       )
       self.assertEqual("PASS", result["status"])
 
-      samples["gestures"][0]["rounds"][0]["medianMilliFps"] = 44999
+      samples["gestures"][0]["rounds"][0]["medianMilliFps"] = 44998
       samples["gestures"][1]["rounds"][1]["maxFreezeMilliseconds"] = 1001
+      rewrite_performance_trace(
+        samples,
+        root,
+        lambda trace: (
+          set_gesture_intervals(trace, "docx", 1, [22223, 22223, 1000000]),
+          set_gesture_intervals(trace, "pdf", 2, [22222, 22222, 1001000]),
+        ),
+      )
       evidence = persist_performance_samples(samples, root)
       failed = evaluate_performance_samples(
         samples,
@@ -863,6 +1008,34 @@ class QaContractTests(unittest.TestCase):
       )
       self.assertEqual("FAIL", failed["status"])
       self.assertEqual("PERFORMANCE_GESTURE_BUDGET_EXCEEDED", failed["errorCode"])
+
+  def test_performance_command_values_must_match_raw_trace(self):
+    with attested_performance_samples("performance.xiaomi.command-p95") as fixture:
+      samples, _, root = fixture
+      samples["commands"][0]["milliseconds"][0] -= 1
+      evidence = persist_performance_samples(samples, root)
+
+      with self.assertRaisesRegex(ContractError, "do not match raw command trace"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
+
+  def test_performance_gesture_values_must_match_raw_trace(self):
+    with attested_performance_samples("performance.xiaomi.gesture-fps") as fixture:
+      samples, _, root = fixture
+      samples["gestures"][0]["rounds"][0]["medianMilliFps"] -= 1
+      evidence = persist_performance_samples(samples, root)
+
+      with self.assertRaisesRegex(ContractError, "do not match raw gesture trace"):
+        evaluate_performance_samples(
+          samples,
+          evidence,
+          self.schema_dir,
+          root,
+        )
 
   def test_performance_collection_can_fail_closed_as_infrastructure_incomplete(self):
     with attested_performance_samples("performance.xiaomi.open-time") as fixture:

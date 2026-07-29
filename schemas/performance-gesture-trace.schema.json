@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/performance-gesture-trace.schema.json",
+  "title": "JetOnlyOffice Mobile gesture performance trace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "traceType",
+    "releaseId",
+    "runId",
+    "gateId",
+    "sourceLockSha256",
+    "runtime",
+    "clock",
+    "collector",
+    "rounds"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "traceType": {
+      "const": "mobile-gesture-frames"
+    },
+    "releaseId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "runId": {
+      "$ref": "common.schema.json#/$defs/repositoryId"
+    },
+    "gateId": {
+      "const": "performance.xiaomi.gesture-fps"
+    },
+    "sourceLockSha256": {
+      "$ref": "common.schema.json#/$defs/sha256"
+    },
+    "runtime": {
+      "enum": [
+        "chrome",
+        "system-webview"
+      ]
+    },
+    "clock": {
+      "const": "monotonic-microseconds"
+    },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "executable"
+      ],
+      "properties": {
+        "name": {
+          "const": "jetonlyoffice-mobile-performance-collector"
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/repositoryId"
+        },
+        "executable": {
+          "$ref": "common.schema.json#/$defs/fileRecord"
+        }
+      }
+    },
+    "rounds": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "round",
+          "frameTimestampsMicroseconds"
+        ],
+        "properties": {
+          "format": {
+            "enum": [
+              "docx",
+              "pdf",
+              "pptx",
+              "xlsx"
+            ]
+          },
+          "round": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "frameTimestampsMicroseconds": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -19,6 +19,8 @@ CONTRACT_SCHEMAS = {
   "corpus-manifest": "corpus-manifest.schema.json",
   "performance-attempt": "performance-attempt.schema.json",
   "performance-browser-trace": "performance-browser-trace.schema.json",
+  "performance-command-trace": "performance-command-trace.schema.json",
+  "performance-gesture-trace": "performance-gesture-trace.schema.json",
   "performance-open-trace": "performance-open-trace.schema.json",
   "performance-samples": "performance-samples.schema.json",
   "gate-result": "gate-result.schema.json",
@@ -547,13 +549,13 @@ def _validate_performance_samples(value):
   _validate_sorted_unique(records, lambda item: item["path"], "$.attestation evidence")
   for index, item in enumerate(records):
     _validate_relative_path(item["path"], f"$.attestation evidence[{index}].path")
+  if len(attestation["traces"]) != 1:
+    raise ContractError(
+      "$.attestation.traces: exactly one raw performance trace is required"
+    )
 
   required_formats = set(MOBILE_PERFORMANCE_FORMATS)
   if expected_field == "openTime":
-    if len(attestation["traces"]) != 1:
-      raise ContractError(
-        "$.attestation.traces: open-time requires exactly one raw sequence trace"
-      )
     _validate_sorted_unique(
       value[expected_field],
       lambda item: item["format"],
@@ -650,6 +652,52 @@ def _validate_performance_browser_trace(value):
     raise ContractError("$.events: raw browser events must use monotonic order")
 
 
+def _validate_performance_command_trace(value):
+  events = value["events"]
+  identifiers = [item["id"] for item in events]
+  if len(identifiers) != len(set(identifiers)):
+    raise ContractError("$.events: raw command event IDs must be unique")
+  identities = [(item["commandId"], item["iteration"]) for item in events]
+  if identities != sorted(identities):
+    raise ContractError("$.events: raw command events must be command/iteration ordered")
+  by_command = {}
+  previous_effect = None
+  for index, event in enumerate(events):
+    started = event["inputTimestampMilliseconds"]
+    finished = event["effectTimestampMilliseconds"]
+    if finished < started:
+      raise ContractError(f"$.events[{index}]: command effect precedes input")
+    if previous_effect is not None and started <= previous_effect:
+      raise ContractError(f"$.events[{index}]: raw command events overlap")
+    previous_effect = finished
+    by_command.setdefault(event["commandId"], []).append(event["iteration"])
+  for command_id, iterations in by_command.items():
+    if iterations != list(range(1, len(iterations) + 1)):
+      raise ContractError(
+        f"$.events: command iterations must be consecutive for {command_id}"
+      )
+
+
+def _validate_performance_gesture_trace(value):
+  rounds = value["rounds"]
+  identities = [(item["format"], item["round"]) for item in rounds]
+  expected = [
+    (file_format, round_number)
+    for file_format in MOBILE_PERFORMANCE_FORMATS
+    for round_number in (1, 2, 3)
+  ]
+  if identities != expected:
+    raise ContractError(
+      "$.rounds: docx, pdf, pptx and xlsx rounds 1, 2 and 3 are required"
+    )
+  for index, round_result in enumerate(rounds):
+    timestamps = round_result["frameTimestampsMicroseconds"]
+    if any(current <= previous for previous, current in zip(timestamps, timestamps[1:])):
+      raise ContractError(
+        f"$.rounds[{index}].frameTimestampsMicroseconds: timestamps must increase"
+      )
+
+
 def _validate_performance_attempt(_value):
   return
 
@@ -731,6 +779,8 @@ SEMANTIC_VALIDATORS = {
   "corpus-manifest": _validate_corpus_manifest,
   "performance-attempt": _validate_performance_attempt,
   "performance-browser-trace": _validate_performance_browser_trace,
+  "performance-command-trace": _validate_performance_command_trace,
+  "performance-gesture-trace": _validate_performance_gesture_trace,
   "performance-open-trace": _validate_performance_open_trace,
   "performance-samples": _validate_performance_samples,
   "gate-result": _validate_gate_result,
