@@ -322,14 +322,14 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "ar", "az_Latn_AZ", "bg_BG", "ca_ES", "ca_ES_valencia", "cs_CZ",
-        "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU", "en_CA",
-        "en_GB", "en_US", "en_ZA", "es_ES", "eu_ES", "fr_FR", "gl_ES",
+        "az_Latn_AZ", "ca_ES", "ca_ES_valencia", "cs_CZ",
+        "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
+        "en_GB", "en_US", "eu_ES", "fr_FR", "gl_ES",
         "hr_HR", "hu_HU", "id_ID", "it_IT", "kk_KZ", "ko_KR", "lb_LU",
-        "lt_LT", "lv_LV", "mn_MN", "nb_NO", "nl_NL", "nn_NO", "oc_FR",
-        "pl_PL", "pt_BR", "pt_PT", "ro_RO", "ru_RU", "sk_SK", "sl_SI",
-        "sr_Cyrl_RS", "sr_Latn_RS", "sv_SE", "tr_TR", "uk_UA", "uz_Cyrl_UZ",
-        "uz_Latn_UZ", "vi_VN",
+        "lt_LT", "mn_MN", "nl_NL", "pl_PL", "pt_BR", "pt_PT",
+        "ro_RO", "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
+        "uk_UA", "uz_Cyrl_UZ",
+        "uz_Latn_UZ",
       ],
       next(
         finding["unresolvedComponents"]
@@ -422,6 +422,37 @@ class SourceResolverTests(unittest.TestCase):
     for component_id, (spdx, evidence_count) in expected_component_licenses.items():
       self.assertEqual(spdx, reviewed_by_id[component_id]["spdx"])
       self.assertEqual(evidence_count, len(reviewed_by_id[component_id]["evidence"]))
+
+    dictionaries = next(
+      repository
+      for repository in value["repositories"]
+      if repository["id"] == "dictionaries"
+    )
+    reviewed_dictionaries = {
+      component["id"]: component
+      for component in dictionaries["license"]["reviewedComponents"]
+    }
+    self.assertEqual(
+      {
+        "ar": ("GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1", 3),
+        "bg_BG": ("GPL-2.0-only", 3),
+        "en_CA": ("GPL-2.0-only", 2),
+        "en_ZA": ("GPL-2.0-only", 2),
+        "es_ES": ("GPL-3.0-or-later OR LGPL-3.0-or-later OR MPL-1.1", 3),
+        "lv_LV": ("LGPL-2.1-only", 3),
+        "nb_NO": ("GPL-2.0-only", 3),
+        "nn_NO": ("GPL-2.0-only", 3),
+        "oc_FR": ("GPL-2.0-or-later", 2),
+        "sk_SK": ("GPL-2.0-only", 3),
+        "sv_SE": ("LGPL-3.0-only", 3),
+        "tr_TR": ("MPL-2.0", 2),
+        "vi_VN": ("GPL-2.0-only", 2),
+      },
+      {
+        component_id: (component["spdx"], len(component["evidence"]))
+        for component_id, component in reviewed_dictionaries.items()
+      },
+    )
 
   def test_incomplete_license_inventory_requires_precise_sorted_components(self):
     value = source_inputs()
