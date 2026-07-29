@@ -39,11 +39,13 @@ declaration until their asset mapping and SPDX expression have been reviewed.
 `patterns` defines candidate evidence only and does not declare a license.
 `reviewedComponents` is narrower: every payload in such a component must be
 covered by one immutable evidence record and an explicitly reviewed SPDX
-expression. The resolver currently accepts only two primary evidence forms:
-an exact license member inside a locked ZIP, or copyright/license text in a
-locked OpenType `name` table. It hashes the extracted bytes or decoded text,
-binds every result to the containing Git blob and payload SHA-256, and rejects
-missing, extra, or changed payloads.
+expression. The resolver accepts three primary evidence forms: an exact
+license member inside a locked ZIP, copyright/license text in a locked OpenType
+`name` table, or an exact license file stored as a locked Git blob. For
+Git-blob evidence, each payload `path` names the covered payload and `locator`
+names its reviewed license file in the same locked tree. The resolver hashes
+the extracted bytes or decoded text, binds every result to the containing Git
+blob and payload SHA-256, and rejects missing, extra, or changed payloads.
 `resolve-sources.ps1 -Command LicenseAudit` reads the locked Git objects from
 the local cache, records every matched payload plus candidate or verified
 evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns

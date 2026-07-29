@@ -605,6 +605,70 @@ class SourceResolverTests(unittest.TestCase):
       with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
         repository_license_inventory(repository, bare, commit)
 
+  def test_reviewed_component_evidence_maps_locked_git_blob_to_payloads(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      license_bytes = b"Permission is hereby granted, free of charge.\n"
+      (checkout / "dictionary").mkdir()
+      (checkout / "dictionary" / "dictionary.aff").write_bytes(b"SET UTF-8\n")
+      (checkout / "dictionary" / "dictionary.dic").write_bytes(b"1\nword\n")
+      (checkout / "dictionary" / "LICENSE.txt").write_bytes(license_bytes)
+      run_git(checkout, "add", "dictionary")
+      run_git(checkout, "commit", "-m", "add dictionary payloads")
+      commit = run_git(checkout, "rev-parse", "HEAD")
+      bare = Path(directory) / "inventory.git"
+      run_git(directory, "clone", "--bare", str(checkout), str(bare))
+      repository = repository_input("dictionaries", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.aff", "**/*.dic"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "The dictionary license mapping was reviewed.",
+        "reviewedComponents": [
+          {
+            "id": "dictionary",
+            "spdx": "MIT",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": payload_path,
+                "locator": "dictionary/LICENSE.txt",
+                "sha256": hashlib.sha256(license_bytes).hexdigest(),
+              }
+              for payload_path in [
+                "dictionary/dictionary.aff",
+                "dictionary/dictionary.dic",
+              ]
+            ],
+          }
+        ],
+        "unresolvedComponents": [],
+      }
+
+      inputs = source_inputs()
+      inputs["repositories"][1]["commit"] = commit
+      inputs["repositories"][1]["license"] = repository["license"]
+      inputs["baseline"]["commit"] = commit
+      validate_inputs(inputs)
+      inventory = repository_license_inventory(repository, bare, commit)
+
+      component = inventory["components"][0]
+      self.assertEqual("resolved", component["status"])
+      self.assertEqual(
+        ["dictionary/dictionary.aff", "dictionary/dictionary.dic"],
+        [record["path"] for record in component["license"]["evidence"]],
+      )
+      self.assertTrue(all(
+        record["locator"] == "dictionary/LICENSE.txt"
+        for record in component["license"]["evidence"]
+      ))
+
+      repository["license"]["reviewedComponents"][0]["evidence"][0][
+        "sha256"
+      ] = "0" * 64
+      with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
+        repository_license_inventory(repository, bare, commit)
+
   def test_license_audit_reads_the_standard_git_cache_layout(self):
     with tempfile.TemporaryDirectory() as directory:
       checkout, bare, _ = create_repository(directory)

@@ -74,7 +74,7 @@
                           "evidenceSha256"
                         ],
                         "properties": {
-                          "type": {"enum": ["font-name", "zip-member"]},
+                          "type": {"enum": ["font-name", "git-blob", "zip-member"]},
                           "path": {"$ref": "common.schema.json#/$defs/relativePath"},
                           "blob": {"$ref": "common.schema.json#/$defs/sha1"},
                           "sha256": {"$ref": "common.schema.json#/$defs/sha256"},

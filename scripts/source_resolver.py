@@ -406,7 +406,7 @@ def _validate_reviewed_components(value, path):
         evidence_path,
       )
       evidence_type = record["type"]
-      if evidence_type not in {"font-name", "zip-member"}:
+      if evidence_type not in {"font-name", "git-blob", "zip-member"}:
         raise ResolutionError(f"{evidence_path}.type: unsupported evidence type", 2)
       _validate_relative_path(record["path"], evidence_path + ".path")
       if evidence_type == "font-name":
@@ -666,8 +666,15 @@ def _verified_component_evidence(cache, commit, component):
       }
       if evidence_input["sha256"] not in evidence_digests:
         raise ResolutionError(f"{context}: license evidence digest does not match", 3)
-    else:
+    elif evidence_input["type"] == "zip-member":
       evidence_content = _zip_member_bytes(content, evidence_input["locator"], context)
+      if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
+        raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+    else:
+      evidence_content = _run_git_bytes(
+        ["show", f"{commit}:{evidence_input['locator']}"],
+        cwd=cache,
+      )
       if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
         raise ResolutionError(f"{context}: license evidence digest does not match", 3)
     records.append({
