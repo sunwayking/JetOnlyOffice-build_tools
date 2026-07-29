@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("Audit", "LicenseAudit", "LfsAudit", "Resolve")]
+    [ValidateSet("Audit", "LicenseAudit", "LfsAudit", "SelectionAudit", "Resolve")]
     [string]$Command = "Audit",
 
     [string]$InputsPath = (Join-Path $PSScriptRoot "..\locks\source-inputs.v1.json"),
@@ -9,6 +9,7 @@ param(
     [string]$AuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-input-audit.json"),
     [string]$LicenseAuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-license-audit.json"),
     [string]$LfsAuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-lfs-public-audit.json"),
+    [string]$SelectionAuditReport = (Join-Path $PSScriptRoot "..\artifacts\source-selection-audit.json"),
     [string[]]$LfsRepository = @("build-tools-data"),
     [string]$SelfRoot = (Join-Path $PSScriptRoot "..")
 )
@@ -59,6 +60,16 @@ switch ($Command) {
         foreach ($repository in ($LfsRepository | Sort-Object -Unique)) {
             $arguments += @("--repository", $repository)
         }
+    }
+    "SelectionAudit" {
+        $arguments += @(
+            "selection-audit",
+            "--inputs", $InputsPath,
+            "--cache-directory", $CacheDirectory,
+            "--self-root", $SelfRoot,
+            "--report", $SelectionAuditReport,
+            "--schema-dir", $schemaDirectory
+        )
     }
     "Resolve" {
         $arguments += @(

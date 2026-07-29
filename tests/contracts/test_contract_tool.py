@@ -336,6 +336,45 @@ def source_lfs_audit():
   }
 
 
+def source_selection_audit():
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-selection",
+    "productVersion": "9.4.0",
+    "releaseCutoff": 100,
+    "status": "passed",
+    "repositories": [
+      {
+        "repository": "build-tools",
+        "type": "self",
+        "commit": SHA1_A,
+      },
+      {
+        "repository": "core",
+        "type": "gitlink",
+        "commit": SHA1_A,
+        "parent": "documentserver",
+        "path": "core",
+      },
+      {
+        "repository": "plugin-catalog",
+        "type": "cutoff",
+        "commit": SHA1_A,
+        "commitTime": 99,
+        "refPrefix": "refs/heads/upstream/",
+        "releaseCutoff": 100,
+        "resolvedRef": "refs/heads/upstream/master",
+      },
+      {
+        "repository": "sdkjs-forms",
+        "type": "tag",
+        "commit": SHA1_A,
+        "ref": "refs/tags/v9.4.0.129",
+      },
+    ],
+  }
+
+
 VALID_CONTRACTS = {
   "source-lock": source_lock,
   "toolchain-lock": toolchain_lock,
@@ -344,6 +383,7 @@ VALID_CONTRACTS = {
   "artifact-manifest": artifact_manifest,
   "source-license-audit": source_license_audit,
   "source-lfs-audit": source_lfs_audit,
+  "source-selection-audit": source_selection_audit,
 }
 
 
@@ -457,6 +497,17 @@ class ContractToolTests(unittest.TestCase):
     value["repositories"][0]["objects"][0]["paths"] = ["../archive.tar.xz"]
     with self.assertRaisesRegex(ContractError, "normalized and relative"):
       validate_contract(value, "source-lfs-audit", self.schema_dir)
+
+  def test_source_selection_audit_rejects_cutoff_and_order_drift(self):
+    value = source_selection_audit()
+    value["repositories"][2]["commitTime"] = 101
+    with self.assertRaisesRegex(ContractError, "exceeds release cutoff"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
+
+    value = source_selection_audit()
+    value["repositories"] = list(reversed(value["repositories"]))
+    with self.assertRaisesRegex(ContractError, "must be sorted"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
 
   def test_contracts_reject_path_traversal(self):
     value = build_manifest()

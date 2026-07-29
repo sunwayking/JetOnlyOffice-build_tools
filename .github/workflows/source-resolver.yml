@@ -1,0 +1,65 @@
+name: Source resolver contracts
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/source-resolver.yml'
+      - 'locks/source-inputs.v1.json'
+      - 'locks/README.md'
+      - 'schemas/common.schema.json'
+      - 'schemas/source-*.schema.json'
+      - 'schemas/README.md'
+      - 'scripts/contracts/**'
+      - 'scripts/resolve-sources.ps1'
+      - 'scripts/source_resolver.py'
+      - 'tests/contracts/**'
+      - 'tests/source_resolver/**'
+  push:
+    branches:
+      - develop
+    paths:
+      - '.github/workflows/source-resolver.yml'
+      - 'locks/source-inputs.v1.json'
+      - 'locks/README.md'
+      - 'schemas/common.schema.json'
+      - 'schemas/source-*.schema.json'
+      - 'schemas/README.md'
+      - 'scripts/contracts/**'
+      - 'scripts/resolve-sources.ps1'
+      - 'scripts/source_resolver.py'
+      - 'tests/contracts/**'
+      - 'tests/source_resolver/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run source and contract tests
+        run: |
+          python -m unittest discover -s tests/contracts -v
+          python -m unittest discover -s tests/source_resolver -v
+      - name: Prove incomplete licenses remain release-blocking
+        shell: bash
+        run: |
+          set +e
+          python scripts/source_resolver.py audit \
+            --inputs locks/source-inputs.v1.json \
+            --report artifacts/source-input-audit.json
+          status=$?
+          set -e
+          test "$status" -eq 3
+          python - <<'PY'
+          import json
+          report = json.load(open('artifacts/source-input-audit.json', encoding='utf-8'))
+          assert report['status'] == 'failed'
+          assert {item['repository'] for item in report['findings']} == {
+              'build-tools-data', 'core-fonts', 'dictionaries'
+          }
+          PY

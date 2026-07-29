@@ -9,6 +9,8 @@ packaging, and release verification:
   inventory derived from locked Git trees.
 - `source-lfs-audit.schema.json` proves locked Git LFS objects are anonymously
   downloadable from public JetOnlyOffice mirrors.
+- `source-selection-audit.schema.json` proves every fixed commit is selected by
+  the declared tag, gitlink, official-head cutoff, or clean self checkout.
 - `toolchain-lock.schema.json` pins every non-container tool input, its
   build/package/runtime consumers, and its deterministic offline
   materialization target.

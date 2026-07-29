@@ -14,6 +14,7 @@ CONTRACT_SCHEMAS = {
   "source-lock": "source-lock.schema.json",
   "source-license-audit": "source-license-audit.schema.json",
   "source-lfs-audit": "source-lfs-audit.schema.json",
+  "source-selection-audit": "source-selection-audit.schema.json",
   "toolchain-lock": "toolchain-lock.schema.json",
   "image-lock": "image-lock.schema.json",
   "bootstrap-manifest": "bootstrap-manifest.schema.json",
@@ -983,10 +984,28 @@ def _validate_source_lfs_audit(value):
       raise ContractError(repository_path + ".objects: paths must be unique across objects")
 
 
+def _validate_source_selection_audit(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories,
+    lambda item: item["repository"],
+    "$.repositories",
+  )
+  for index, repository in enumerate(repositories):
+    path = f"$.repositories[{index}]"
+    if repository["type"] != "cutoff":
+      continue
+    if repository["releaseCutoff"] != value["releaseCutoff"]:
+      raise ContractError(path + ".releaseCutoff: does not match audit cutoff")
+    if repository["commitTime"] > value["releaseCutoff"]:
+      raise ContractError(path + ".commitTime: exceeds release cutoff")
+
+
 SEMANTIC_VALIDATORS = {
   "source-lock": _validate_source_lock,
   "source-license-audit": _validate_source_license_audit,
   "source-lfs-audit": _validate_source_lfs_audit,
+  "source-selection-audit": _validate_source_selection_audit,
   "toolchain-lock": _validate_toolchain_lock,
   "image-lock": _validate_image_lock,
   "bootstrap-manifest": _validate_bootstrap_manifest,

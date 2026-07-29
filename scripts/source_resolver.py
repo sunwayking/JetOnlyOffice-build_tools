@@ -49,6 +49,7 @@ REPOSITORY_KEYS = {
   "commit",
   "commitSource",
   "refHint",
+  "selection",
   "projectFork",
   "buildInput",
   "active",
@@ -193,6 +194,12 @@ def validate_inputs(value):
       raise ResolutionError(f"{path}.commitSource: self is reserved for build-tools", 2)
     if not isinstance(repository["refHint"], str) or not repository["refHint"]:
       raise ResolutionError(f"{path}.refHint: expected non-empty string", 2)
+    _validate_selection_input(repository["selection"], path + ".selection")
+    if has_self != (repository["selection"]["type"] == "self"):
+      raise ResolutionError(
+        f"{path}.selection: self selection must match commitSource=self",
+        2,
+      )
     for flag in ("projectFork", "buildInput", "active"):
       if not isinstance(repository[flag], bool):
         raise ResolutionError(f"{path}.{flag}: expected boolean", 2)
@@ -240,6 +247,54 @@ def validate_inputs(value):
     keys.append((relationship["parent"], relationship["path"], relationship["child"]))
   if keys != sorted(keys) or len(keys) != len(set(keys)):
     raise ResolutionError("$.relationships: entries must be sorted and unique", 2)
+  relationships_by_child = {
+    (relationship["child"], relationship["parent"], relationship["path"])
+    for relationship in relationships
+  }
+  for index, repository in enumerate(repositories):
+    selection = repository["selection"]
+    if selection["type"] != "gitlink":
+      continue
+    key = (repository["id"], selection["parent"], selection["path"])
+    if key not in relationships_by_child:
+      raise ResolutionError(
+        f"$.repositories[{index}].selection: does not match a declared relationship",
+        2,
+      )
+
+
+def _validate_selection_input(value, path):
+  if not isinstance(value, dict):
+    raise ResolutionError(f"{path}: expected object", 2)
+  selection_type = value.get("type")
+  if selection_type == "self":
+    _require_exact_keys(value, {"type"}, set(), path)
+  elif selection_type == "tag":
+    _require_exact_keys(value, {"type", "ref"}, set(), path)
+    ref = value["ref"]
+    if (
+      not isinstance(ref, str)
+      or not re.fullmatch(r"refs/tags/[0-9A-Za-z][0-9A-Za-z._/-]*", ref)
+      or ".." in ref
+      or "@{" in ref
+      or "//" in ref
+      or ref.endswith(("/", "."))
+    ):
+      raise ResolutionError(f"{path}.ref: expected full immutable tag ref", 2)
+  elif selection_type == "gitlink":
+    _require_exact_keys(value, {"type", "parent", "path"}, set(), path)
+    if not isinstance(value["parent"], str) or not ID_PATTERN.fullmatch(value["parent"]):
+      raise ResolutionError(f"{path}.parent: invalid repository id", 2)
+    _validate_relative_path(value["path"], path + ".path")
+  elif selection_type == "cutoff":
+    _require_exact_keys(value, {"type", "refPrefix"}, set(), path)
+    if value["refPrefix"] != "refs/heads/upstream/":
+      raise ResolutionError(
+        f"{path}.refPrefix: expected official upstream head prefix",
+        2,
+      )
+  else:
+    raise ResolutionError(f"{path}.type: unsupported selection type", 2)
 
 
 def _validate_license_input(value, path):
@@ -647,9 +702,9 @@ def sync_cache(repository, cache_directory, commit=None):
     _run_anonymous_git([
       "fetch",
       "--prune",
-      "--tags",
       "origin",
       "+refs/heads/*:refs/heads/*",
+      "+refs/tags/*:refs/tags/*",
     ], cwd=cache)
   else:
     _run_anonymous_git(["clone", "--mirror", repository["origin"], str(cache)])
@@ -1066,6 +1121,170 @@ def resolve_self_commit(self_root, expected_origin):
   return commit
 
 
+def verify_selections(inputs, caches, commits):
+  records = []
+  relationships = {
+    (relationship["child"], relationship["parent"], relationship["path"]): relationship
+    for relationship in inputs["relationships"]
+  }
+  for repository in inputs["repositories"]:
+    repository_id = repository["id"]
+    if repository_id not in commits:
+      raise ResolutionError(f"{repository_id}: selection commit is unavailable", 3)
+    selection = repository["selection"]
+    selection_type = selection["type"]
+    commit = commits[repository_id]
+    record = {
+      "repository": repository_id,
+      "type": selection_type,
+      "commit": commit,
+    }
+
+    if selection_type == "self":
+      records.append(record)
+      continue
+
+    if repository_id not in caches:
+      raise ResolutionError(f"{repository_id}: selection cache is unavailable", 3)
+    cache = caches[repository_id]
+    if selection_type == "tag":
+      try:
+        resolved = _run_git(
+          ["rev-parse", selection["ref"] + "^{commit}"],
+          cwd=cache,
+          exit_code=3,
+        )
+      except ResolutionError as error:
+        raise ResolutionError(
+          f"{repository_id}: locked tag is unavailable: {selection['ref']}",
+          3,
+        ) from error
+      if resolved != commit:
+        raise ResolutionError(
+          f"{repository_id}: tag does not resolve to the locked commit",
+          3,
+        )
+      record["ref"] = selection["ref"]
+    elif selection_type == "gitlink":
+      key = (repository_id, selection["parent"], selection["path"])
+      if key not in relationships:
+        raise ResolutionError(
+          f"{repository_id}: selection does not match a declared gitlink",
+          3,
+        )
+      parent = selection["parent"]
+      if parent not in caches or parent not in commits:
+        raise ResolutionError(
+          f"{repository_id}: gitlink parent is unavailable",
+          3,
+        )
+      output = _run_git(
+        ["ls-tree", commits[parent], "--", selection["path"]],
+        cwd=caches[parent],
+        exit_code=3,
+      )
+      fields = output.split(None, 3)
+      if (
+        len(fields) != 4
+        or fields[0] != "160000"
+        or fields[1] != "commit"
+        or fields[2] != commit
+        or fields[3] != selection["path"]
+      ):
+        raise ResolutionError(
+          f"{repository_id}: gitlink does not resolve to the locked commit",
+          3,
+        )
+      record["parent"] = parent
+      record["path"] = selection["path"]
+    elif selection_type == "cutoff":
+      prefix = selection["refPrefix"]
+      refs = _run_git(
+        ["for-each-ref", "--format=%(refname)", prefix],
+        cwd=cache,
+        exit_code=3,
+      ).splitlines()
+      refs = sorted(ref for ref in refs if ref.startswith(prefix))
+      if not refs:
+        raise ResolutionError(
+          f"{repository_id}: official upstream heads are unavailable",
+          3,
+        )
+      output = _run_git(
+        [
+          "rev-list",
+          "--timestamp",
+          f"--before=@{inputs['releaseCutoff']}",
+          *refs,
+        ],
+        cwd=cache,
+        exit_code=3,
+      )
+      candidates = []
+      for line in output.splitlines():
+        timestamp, separator, candidate = line.partition(" ")
+        if not separator or not timestamp.isdigit() or not SHA1_PATTERN.fullmatch(candidate):
+          raise ResolutionError(
+            f"{repository_id}: cutoff selection returned malformed history",
+            3,
+          )
+        candidates.append((int(timestamp), candidate))
+      if not candidates:
+        raise ResolutionError(
+          f"{repository_id}: no upstream commit exists before the release cutoff",
+          3,
+        )
+      selected_time, selected_commit = max(candidates)
+      if selected_commit != commit:
+        raise ResolutionError(
+          f"{repository_id}: cutoff does not resolve to the locked commit",
+          3,
+        )
+      containing_refs = _run_git(
+        ["for-each-ref", "--contains", commit, "--format=%(refname)", prefix],
+        cwd=cache,
+        exit_code=3,
+      ).splitlines()
+      containing_refs = sorted(ref for ref in containing_refs if ref.startswith(prefix))
+      if not containing_refs:
+        raise ResolutionError(
+          f"{repository_id}: cutoff commit is not reachable from an upstream head",
+          3,
+        )
+      record["refPrefix"] = prefix
+      record["releaseCutoff"] = inputs["releaseCutoff"]
+      record["resolvedRef"] = containing_refs[0]
+      record["commitTime"] = selected_time
+    records.append(record)
+  return records
+
+
+def selection_audit_report(inputs, cache_directory, self_root):
+  self_repository = next(
+    repository
+    for repository in inputs["repositories"]
+    if repository.get("commitSource") == "self"
+  )
+  self_commit = resolve_self_commit(self_root, self_repository["origin"])
+  caches = {}
+  commits = {}
+  for repository in inputs["repositories"]:
+    commit = self_commit if repository.get("commitSource") == "self" else repository["commit"]
+    commits[repository["id"]] = commit
+    if repository.get("commitSource") != "self":
+      caches[repository["id"]] = sync_cache(repository, cache_directory, commit)
+  records = verify_selections(inputs, caches, commits)
+  verify_relationships(inputs, caches, commits)
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-selection",
+    "productVersion": inputs["productVersion"],
+    "releaseCutoff": inputs["releaseCutoff"],
+    "status": "passed",
+    "repositories": records,
+  }
+
+
 def repository_metadata(repository, cache, commit):
   _run_git(["cat-file", "-e", commit + "^{commit}"], cwd=cache, exit_code=3)
   tree = _run_git(["rev-parse", commit + "^{tree}"], cwd=cache, exit_code=3)
@@ -1177,6 +1396,7 @@ def build_source_lock(inputs, cache_directory, self_root):
     caches[repository["id"]] = cache
     commits[repository["id"]] = commit
     records.append(repository_metadata(repository, cache, commit))
+  verify_selections(inputs, caches, commits)
   verify_relationships(inputs, caches, commits)
   baseline = inputs["baseline"]
   return {
@@ -1330,6 +1550,13 @@ def main(argv=None):
   lfs_audit_parser.add_argument("--report", required=True)
   lfs_audit_parser.add_argument("--schema-dir", required=True)
 
+  selection_audit_parser = subparsers.add_parser("selection-audit")
+  selection_audit_parser.add_argument("--inputs", required=True)
+  selection_audit_parser.add_argument("--cache-directory", required=True)
+  selection_audit_parser.add_argument("--self-root", required=True)
+  selection_audit_parser.add_argument("--report", required=True)
+  selection_audit_parser.add_argument("--schema-dir", required=True)
+
   resolve_parser = subparsers.add_parser("resolve")
   resolve_parser.add_argument("--inputs", required=True)
   resolve_parser.add_argument("--cache-directory", required=True)
@@ -1390,6 +1617,16 @@ def main(argv=None):
         args.repository,
       )
       validate_contract(report, "source-lfs-audit", args.schema_dir)
+      write_canonical_json(args.report, report)
+    elif args.command == "selection-audit":
+      inputs = load_json(args.inputs)
+      validate_inputs(inputs)
+      report = selection_audit_report(
+        inputs,
+        args.cache_directory,
+        args.self_root,
+      )
+      validate_contract(report, "source-selection-audit", args.schema_dir)
       write_canonical_json(args.report, report)
     elif args.command == "resolve":
       inputs = load_json(args.inputs)

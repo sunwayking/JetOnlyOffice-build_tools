@@ -28,10 +28,12 @@ from source_resolver import (  # noqa: E402
   policy_findings,
   repository_license_inventory,
   repository_metadata,
+  sync_cache,
   validate_inputs,
   verify_materialized,
   verify_public_mirror,
   verify_relationships,
+  verify_selections,
 )
 
 
@@ -62,6 +64,10 @@ def repository_input(identifier, commit=SHA1_A):
     "upstream": f"https://github.com/ONLYOFFICE/{identifier}.git",
     "commit": commit,
     "refHint": "fixed test commit",
+    "selection": {
+      "type": "tag",
+      "ref": "refs/tags/v1.0.0",
+    },
     "projectFork": False,
     "buildInput": True,
     "active": True,
@@ -77,6 +83,7 @@ def source_inputs():
   build_tools = repository_input("build-tools")
   del build_tools["commit"]
   build_tools["commitSource"] = "self"
+  build_tools["selection"] = {"type": "self"}
   build_tools["role"] = "product-fork"
   build_tools["projectFork"] = True
   documentserver = repository_input("documentserver", SHA1_B)
@@ -136,6 +143,131 @@ def add_lfs_object(root, checkout, name="asset.bin", content=b"locked lfs conten
 
 
 class SourceResolverTests(unittest.TestCase):
+  def test_repository_selection_policy_is_explicit_and_fail_closed(self):
+    value = source_inputs()
+    validate_inputs(value)
+
+    del value["repositories"][1]["selection"]
+    with self.assertRaisesRegex(ResolutionError, "missing properties: selection"):
+      validate_inputs(value)
+
+    value = source_inputs()
+    value["repositories"][1]["selection"] = {
+      "type": "cutoff",
+      "refPrefix": "refs/heads/main",
+    }
+    with self.assertRaisesRegex(ResolutionError, "official upstream head prefix"):
+      validate_inputs(value)
+
+    value = source_inputs()
+    value["repositories"][1]["selection"] = {
+      "type": "gitlink",
+      "parent": "build-tools",
+      "path": "missing",
+    }
+    with self.assertRaisesRegex(ResolutionError, "does not match a declared relationship"):
+      validate_inputs(value)
+
+  def test_selection_verification_resolves_tag_gitlink_cutoff_and_self(self):
+    with tempfile.TemporaryDirectory() as directory:
+      parent_checkout, _, _ = create_repository(directory, "parent")
+      child_checkout, child_bare, child_commit = create_repository(directory, "child")
+      run_git(
+        parent_checkout,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{child_commit},child",
+      )
+      run_git(parent_checkout, "commit", "-m", "lock child")
+      parent_commit = run_git(parent_checkout, "rev-parse", "HEAD^{commit}")
+      run_git(parent_checkout, "tag", "v1.0.0")
+      parent_bare = Path(directory) / "parent-final.git"
+      run_git(directory, "clone", "--bare", str(parent_checkout), str(parent_bare))
+
+      tag_checkout, tag_bare, tag_commit = create_repository(directory, "tagged")
+      run_git(tag_checkout, "tag", "v1.0.0")
+      run_git(tag_bare, "fetch", str(tag_checkout), "refs/tags/v1.0.0:refs/tags/v1.0.0")
+
+      cutoff_checkout, cutoff_bare, cutoff_commit = create_repository(directory, "cutoff")
+      run_git(
+        cutoff_bare,
+        "update-ref",
+        "refs/heads/upstream/main",
+        cutoff_commit,
+      )
+
+      inputs = {
+        "releaseCutoff": int(run_git(cutoff_bare, "show", "-s", "--format=%ct", cutoff_commit)) + 1,
+        "relationships": [{
+          "parent": "parent",
+          "child": "child",
+          "path": "child",
+          "mode": "160000",
+        }],
+        "repositories": [
+          {"id": "build-tools", "selection": {"type": "self"}},
+          {
+            "id": "child",
+            "selection": {"type": "gitlink", "parent": "parent", "path": "child"},
+          },
+          {
+            "id": "cutoff",
+            "selection": {"type": "cutoff", "refPrefix": "refs/heads/upstream/"},
+          },
+          {"id": "parent", "selection": {"type": "tag", "ref": "refs/tags/v1.0.0"}},
+          {"id": "tagged", "selection": {"type": "tag", "ref": "refs/tags/v1.0.0"}},
+        ],
+      }
+      caches = {
+        "child": child_bare,
+        "cutoff": cutoff_bare,
+        "parent": parent_bare,
+        "tagged": tag_bare,
+      }
+      commits = {
+        "build-tools": SHA1_A,
+        "child": child_commit,
+        "cutoff": cutoff_commit,
+        "parent": parent_commit,
+        "tagged": tag_commit,
+      }
+
+      records = verify_selections(inputs, caches, commits)
+
+      self.assertEqual(
+        ["build-tools", "child", "cutoff", "parent", "tagged"],
+        [record["repository"] for record in records],
+      )
+      self.assertEqual("refs/heads/upstream/main", records[2]["resolvedRef"])
+
+      commits["tagged"] = SHA1_B
+      with self.assertRaisesRegex(ResolutionError, "tag does not resolve"):
+        verify_selections(inputs, caches, commits)
+
+  def test_cache_sync_prunes_tags_removed_from_the_public_mirror(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, remote, commit = create_repository(directory, "tag-prune")
+      run_git(checkout, "tag", "obsolete")
+      run_git(remote, "fetch", str(checkout), "refs/tags/obsolete:refs/tags/obsolete")
+      repository = repository_input("tag-prune", commit)
+      repository["origin"] = str(remote)
+      cache_root = Path(directory) / "cache"
+
+      with patch("source_resolver.verify_public_mirror"):
+        cache = sync_cache(repository, cache_root, commit)
+        self.assertEqual(commit, run_git(cache, "rev-parse", "refs/tags/obsolete^{commit}"))
+        run_git(remote, "update-ref", "-d", "refs/tags/obsolete")
+        sync_cache(repository, cache_root, commit)
+
+      result = subprocess.run(
+        ["git", "rev-parse", "--verify", "refs/tags/obsolete^{commit}"],
+        cwd=cache,
+        capture_output=True,
+        check=False,
+      )
+      self.assertNotEqual(0, result.returncode)
+
   def test_repository_policy_is_strict_and_mirror_only(self):
     value = source_inputs()
     validate_inputs(value)
@@ -492,6 +624,7 @@ class SourceResolverTests(unittest.TestCase):
     self.assertIn("source-input-audit.json", script)
     self.assertIn("source-license-audit.json", script)
     self.assertIn("source-lfs-public-audit.json", script)
+    self.assertIn("source-selection-audit.json", script)
 
   def test_audit_cli_validates_contract_before_writing_report(self):
     invalid_report = {
@@ -514,6 +647,35 @@ class SourceResolverTests(unittest.TestCase):
           "--inputs", str(inputs_path),
           "--cache-directory", str(Path(directory) / "cache"),
           "--repository", "documentserver",
+          "--report", str(report_path),
+          "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+        ])
+
+      self.assertEqual(2, exit_code)
+      self.assertFalse(report_path.exists())
+
+  def test_selection_audit_cli_validates_contract_before_writing_report(self):
+    invalid_report = {
+      "schemaVersion": 1,
+      "auditType": "source-selection",
+      "productVersion": "9.4.0",
+      "releaseCutoff": 100,
+      "status": "passed",
+      "repositories": [],
+    }
+    with tempfile.TemporaryDirectory() as directory:
+      inputs_path = Path(directory) / "inputs.json"
+      report_path = Path(directory) / "report.json"
+      inputs_path.write_text(json.dumps(source_inputs()), encoding="utf-8")
+      with patch(
+        "source_resolver.selection_audit_report",
+        return_value=invalid_report,
+      ):
+        exit_code = main([
+          "selection-audit",
+          "--inputs", str(inputs_path),
+          "--cache-directory", str(Path(directory) / "cache"),
+          "--self-root", str(Path(directory) / "self"),
           "--report", str(report_path),
           "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
         ])

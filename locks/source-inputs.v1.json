@@ -15,6 +15,9 @@
       "upstream": "https://github.com/ONLYOFFICE/build_tools.git",
       "commitSource": "self",
       "refHint": "JetOnlyOffice build scripts commit",
+      "selection": {
+        "type": "self"
+      },
       "projectFork": true,
       "buildInput": true,
       "active": true,
@@ -32,6 +35,10 @@
       "upstream": "https://github.com/ONLYOFFICE-data/build_tools_data.git",
       "commit": "743e8e55f0431523248d16b7521e01aa11744ffc",
       "refHint": "last commit before v9.4.0.129 cutoff",
+      "selection": {
+        "type": "cutoff",
+        "refPrefix": "refs/heads/upstream/"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -63,6 +70,11 @@
       "upstream": "https://github.com/ONLYOFFICE/core.git",
       "commit": "3250a848ee4ef20c2fb8c38dc86350ec579124b8",
       "refHint": "DocumentServer v9.4.0 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "documentserver",
+        "path": "core"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -80,6 +92,11 @@
       "upstream": "https://github.com/ONLYOFFICE/core-fonts.git",
       "commit": "7030c6681fb5bbed560675cb42422f91df15d5c9",
       "refHint": "DocumentServer v9.4.0 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "documentserver",
+        "path": "core-fonts"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -120,6 +137,11 @@
       "upstream": "https://github.com/ONLYOFFICE/dictionaries.git",
       "commit": "d3223bbb777883db66ac3cd249f71c6ebdc992c7",
       "refHint": "DocumentServer v9.4.0 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "documentserver",
+        "path": "dictionaries"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -154,6 +176,10 @@
       "upstream": "https://github.com/ONLYOFFICE/Docker-DocumentServer.git",
       "commit": "8da03c96b1eaa13be94bdbe46c530b3109aea99e",
       "refHint": "v9.4.0.129",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0.129"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -171,6 +197,10 @@
       "upstream": "https://github.com/ONLYOFFICE/document-formats.git",
       "commit": "7d7576a3fe2337c30f4c9b40fae70a69dc68ba08",
       "refHint": "v9.4.0.129",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0.129"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -188,6 +218,10 @@
       "upstream": "https://github.com/ONLYOFFICE/document-server-integration.git",
       "commit": "9e9653c49522e40a0388eb2eaff056082bd10ef9",
       "refHint": "v9.4.0.129",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0.129"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -205,6 +239,10 @@
       "upstream": "https://github.com/ONLYOFFICE/document-server-package.git",
       "commit": "0e73a4ff3c565da6b74b675959aad3ebbd48c793",
       "refHint": "v9.4.0.129",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0.129"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -222,6 +260,10 @@
       "upstream": "https://github.com/ONLYOFFICE/document-templates.git",
       "commit": "71430c9f183489e8912f54f9dc859e369cf0dfb4",
       "refHint": "v9.4.0.129",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0.129"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -239,6 +281,11 @@
       "upstream": "https://github.com/ONLYOFFICE/document-templates.git",
       "commit": "d600e9b0728213e775d122fcbf30f4491b8cdfe5",
       "refHint": "document-server-integration v9.4.0.129 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "document-server-integration",
+        "path": "web/documentserver-example/csharp-mvc/assets/document-templates"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -256,6 +303,10 @@
       "upstream": "https://github.com/ONLYOFFICE/DocumentServer.git",
       "commit": "fb73d33c85f59d1a5d2e5a5ed05388ebc2418337",
       "refHint": "v9.4.0",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0"
+      },
       "projectFork": true,
       "buildInput": true,
       "active": true,
@@ -273,6 +324,11 @@
       "upstream": "https://github.com/DomGries/InnoDependencyInstaller.git",
       "commit": "1bad4b4da07256c8a77c30787b59bc4a81f252a4",
       "refHint": "document-server-package v9.4.0.129 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "document-server-package",
+        "path": "exe/InnoDependencyInstaller"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -290,6 +346,11 @@
       "upstream": "https://github.com/ONLYOFFICE/plugin-aiautofill.git",
       "commit": "ea67d52df5d8c51cb7a9546fe215364118a226d0",
       "refHint": "document-server-integration v9.4.0.129 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "document-server-integration",
+        "path": "web/documentserver-example/nodejs/public/assets/plugin-aiautofill"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -307,6 +368,10 @@
       "upstream": "https://github.com/ONLYOFFICE/onlyoffice.github.io.git",
       "commit": "d8b27be33d69c54bc2657fa94fe1b194b08c3495",
       "refHint": "last commit before v9.4.0.129 cutoff",
+      "selection": {
+        "type": "cutoff",
+        "refPrefix": "refs/heads/upstream/"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -324,6 +389,11 @@
       "upstream": "https://github.com/ONLYOFFICE/sdkjs.git",
       "commit": "72b0421c0bbf9d01eed9cf14834ae47eb2df1b50",
       "refHint": "DocumentServer v9.4.0 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "documentserver",
+        "path": "sdkjs"
+      },
       "projectFork": true,
       "buildInput": true,
       "active": true,
@@ -341,6 +411,10 @@
       "upstream": "https://github.com/ONLYOFFICE/sdkjs-forms.git",
       "commit": "1a883281c41fa9aa5e98c64cce13b14782f92f56",
       "refHint": "v9.4.0.129",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0.129"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -358,6 +432,11 @@
       "upstream": "https://github.com/ONLYOFFICE/server.git",
       "commit": "d6df308acb9877a9365c741b30741de96202816e",
       "refHint": "DocumentServer v9.4.0 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "documentserver",
+        "path": "server"
+      },
       "projectFork": false,
       "buildInput": true,
       "active": true,
@@ -375,6 +454,11 @@
       "upstream": "https://github.com/ONLYOFFICE/web-apps.git",
       "commit": "9c0ca538c3b211052347df09d2a4d6781f023403",
       "refHint": "DocumentServer v9.4.0 gitlink",
+      "selection": {
+        "type": "gitlink",
+        "parent": "documentserver",
+        "path": "web-apps"
+      },
       "projectFork": true,
       "buildInput": true,
       "active": true,

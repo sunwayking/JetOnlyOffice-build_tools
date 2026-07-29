@@ -2,8 +2,17 @@
 
 `source-inputs.v1.json` is the reviewed selection policy used by the internal
 source resolver. It contains fixed commits or the explicit `self` selection
-for the build_tools commit that runs the resolver. Branch and tag names are
-provenance hints only and are never checkout selectors.
+for the build_tools commit that runs the resolver. Every repository also has a
+machine-checked `selection`: an immutable tag, an exact declared gitlink, the
+last commit reachable from `refs/heads/upstream/` before `releaseCutoff`, or
+the resolver's clean `self` checkout. These refs prove why a fixed commit was
+selected; the fixed commit remains the only checkout selector.
+
+Source-lock generation re-resolves every selection against the complete public
+mirror before it emits repository metadata. A tag or gitlink that no longer
+peels to the locked commit fails, and cutoff selection scans all official
+upstream heads and rejects any earlier commit that should have been selected
+instead. Human-readable `refHint` text is not accepted as selection evidence.
 
 `resolve-sources.ps1` is an internal source-lock authoring and audit wrapper,
 not one of the stable release-pipeline entrypoints. A release consumes its
@@ -38,10 +47,11 @@ pointers reachable from an explicitly selected locked commit, downloads every
 object through the public mirror's anonymous batch API, verifies its size and
 SHA-256, and writes a canonical report. It is available before formal source
 lock generation, so license findings cannot conceal an incomplete LFS mirror.
-The three audit commands keep independent canonical reports at
+The four audit commands keep independent canonical reports at
 `artifacts/source-input-audit.json`, `artifacts/source-license-audit.json`, and
-`artifacts/source-lfs-public-audit.json`; running one gate cannot overwrite the
-evidence from another gate.
+`artifacts/source-lfs-public-audit.json`. `SelectionAudit` writes the independent
+`artifacts/source-selection-audit.json` report; running one gate cannot
+overwrite the evidence from another gate.
 
 The current resolver accepts only the reviewed source expressions used by this
 closure (`AGPL-3.0-only`, `Apache-2.0`, and `MIT`). Adding another expression

@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/source-selection-audit.schema.json",
+  "title": "JetOnlyOffice source selection audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "auditType",
+    "productVersion",
+    "releaseCutoff",
+    "status",
+    "repositories"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "auditType": {
+      "const": "source-selection"
+    },
+    "productVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "releaseCutoff": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "const": "passed"
+    },
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/selfSelection"
+          },
+          {
+            "$ref": "#/$defs/tagSelection"
+          },
+          {
+            "$ref": "#/$defs/gitlinkSelection"
+          },
+          {
+            "$ref": "#/$defs/cutoffSelection"
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "selectionBase": {
+      "type": "object",
+      "required": [
+        "repository",
+        "type",
+        "commit"
+      ],
+      "properties": {
+        "repository": {
+          "$ref": "common.schema.json#/$defs/repositoryId"
+        },
+        "type": {
+          "enum": [
+            "self",
+            "tag",
+            "gitlink",
+            "cutoff"
+          ]
+        },
+        "commit": {
+          "$ref": "common.schema.json#/$defs/sha1"
+        }
+      }
+    },
+    "selfSelection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/selectionBase"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "type",
+            "commit"
+          ],
+          "properties": {
+            "repository": true,
+            "type": {
+              "const": "self"
+            },
+            "commit": true
+          }
+        }
+      ]
+    },
+    "tagSelection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/selectionBase"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "type",
+            "commit",
+            "ref"
+          ],
+          "properties": {
+            "repository": true,
+            "type": {
+              "const": "tag"
+            },
+            "commit": true,
+            "ref": {
+              "type": "string",
+              "pattern": "^refs/tags/[0-9A-Za-z][0-9A-Za-z._/-]*$"
+            }
+          }
+        }
+      ]
+    },
+    "gitlinkSelection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/selectionBase"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "type",
+            "commit",
+            "parent",
+            "path"
+          ],
+          "properties": {
+            "repository": true,
+            "type": {
+              "const": "gitlink"
+            },
+            "commit": true,
+            "parent": {
+              "$ref": "common.schema.json#/$defs/repositoryId"
+            },
+            "path": {
+              "$ref": "common.schema.json#/$defs/relativePath"
+            }
+          }
+        }
+      ]
+    },
+    "cutoffSelection": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/selectionBase"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repository",
+            "type",
+            "commit",
+            "commitTime",
+            "refPrefix",
+            "releaseCutoff",
+            "resolvedRef"
+          ],
+          "properties": {
+            "repository": true,
+            "type": {
+              "const": "cutoff"
+            },
+            "commit": true,
+            "commitTime": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "refPrefix": {
+              "const": "refs/heads/upstream/"
+            },
+            "releaseCutoff": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resolvedRef": {
+              "type": "string",
+              "pattern": "^refs/heads/upstream/[0-9A-Za-z][0-9A-Za-z._/-]*$"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
