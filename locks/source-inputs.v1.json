@@ -998,7 +998,7 @@
           "**/LICENSE*",
           "**/license*"
         ],
-        "reason": "Thirteen language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Twelve language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "reviewedComponents": [
           {
             "id": "ar",
@@ -1026,61 +1026,43 @@
           },
           {
             "id": "bg_BG",
-            "spdx": "GPL-2.0-only",
+            "spdx": "LGPL-2.1-only",
             "evidence": [
               {
                 "type": "git-blob",
                 "path": "bg_BG/bg_BG.aff",
-                "locator": "bg_BG/COPYING",
-                "sha256": "100035c1d3964e5528165e539619e2c5c01a421771daa43329809e06d779d692"
+                "locator": "bg_BG/Readme_bg_BG.txt",
+                "sha256": "4f0a3209fcfb28f548f7727b47ee8929f61754a8510d90d41c5dccfd2e7a7518"
               },
               {
                 "type": "git-blob",
                 "path": "bg_BG/bg_BG.dic",
-                "locator": "bg_BG/COPYING",
-                "sha256": "100035c1d3964e5528165e539619e2c5c01a421771daa43329809e06d779d692"
+                "locator": "bg_BG/Readme_bg_BG.txt",
+                "sha256": "4f0a3209fcfb28f548f7727b47ee8929f61754a8510d90d41c5dccfd2e7a7518"
               },
               {
                 "type": "git-blob",
                 "path": "bg_BG/hyph_bg_BG.dic",
-                "locator": "bg_BG/COPYING",
-                "sha256": "100035c1d3964e5528165e539619e2c5c01a421771daa43329809e06d779d692"
-              }
-            ]
-          },
-          {
-            "id": "en_CA",
-            "spdx": "GPL-2.0-only",
-            "evidence": [
-              {
-                "type": "git-blob",
-                "path": "en_CA/en_CA.aff",
-                "locator": "en_CA/license.txt",
-                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
-              },
-              {
-                "type": "git-blob",
-                "path": "en_CA/en_CA.dic",
-                "locator": "en_CA/license.txt",
-                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+                "locator": "bg_BG/Readme_bg_BG.txt",
+                "sha256": "4f0a3209fcfb28f548f7727b47ee8929f61754a8510d90d41c5dccfd2e7a7518"
               }
             ]
           },
           {
             "id": "en_ZA",
-            "spdx": "GPL-2.0-only",
+            "spdx": "LGPL-2.1-only",
             "evidence": [
               {
                 "type": "git-blob",
                 "path": "en_ZA/en_ZA.aff",
-                "locator": "en_ZA/license.txt",
-                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+                "locator": "en_ZA/Readme_en_ZA.txt",
+                "sha256": "bf5839e8fa6c59cbde6b6a914656cae2dc45ae4d6fa912e53168fc342a825d06"
               },
               {
                 "type": "git-blob",
                 "path": "en_ZA/en_ZA.dic",
-                "locator": "en_ZA/license.txt",
-                "sha256": "df84246204e3c54cd24aebbc23714235f5fc41d754d53b65444a2afbf070130f"
+                "locator": "en_ZA/Readme_en_ZA.txt",
+                "sha256": "bf5839e8fa6c59cbde6b6a914656cae2dc45ae4d6fa912e53168fc342a825d06"
               }
             ]
           },
@@ -1294,6 +1276,7 @@
           "de_DE",
           "el_GR",
           "en_AU",
+          "en_CA",
           "en_GB",
           "en_US",
           "eu_ES",
