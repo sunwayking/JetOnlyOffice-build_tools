@@ -484,6 +484,17 @@ def write_canonical_json(path, value):
   path.write_bytes(canonical_json_bytes(value) + b"\n")
 
 
+def discard_previous_output(path, description):
+  path = Path(path)
+  try:
+    path.unlink(missing_ok=True)
+  except OSError as error:
+    raise ResolutionError(
+      f"{path}: cannot remove previous {description}: {error}",
+      3,
+    ) from error
+
+
 def load_source_lock(path):
   path = Path(path)
   if not path.is_file():
@@ -1890,6 +1901,8 @@ def main(argv=None):
   args = parser.parse_args(argv)
   try:
     if args.command == "audit":
+      if args.report:
+        discard_previous_output(args.report, "source input audit report")
       inputs = load_json(args.inputs)
       validate_inputs(inputs)
       report = audit_report(inputs)
@@ -1903,6 +1916,7 @@ def main(argv=None):
           )
         return 3
     elif args.command == "license-audit":
+      discard_previous_output(args.report, "source license audit report")
       inputs = load_json(args.inputs)
       validate_inputs(inputs)
       report = license_inventory_report(inputs, args.cache_directory)
@@ -1924,6 +1938,7 @@ def main(argv=None):
       if report["status"] == "failed":
         return 3
     elif args.command == "lfs-audit":
+      discard_previous_output(args.report, "source LFS audit report")
       inputs = load_json(args.inputs)
       validate_inputs(inputs)
       report = lfs_public_audit_report(
@@ -1934,6 +1949,7 @@ def main(argv=None):
       validate_contract(report, "source-lfs-audit", args.schema_dir)
       write_canonical_json(args.report, report)
     elif args.command == "selection-audit":
+      discard_previous_output(args.report, "source selection audit report")
       inputs = load_json(args.inputs)
       validate_inputs(inputs)
       report = selection_audit_report(
@@ -1944,6 +1960,7 @@ def main(argv=None):
       validate_contract(report, "source-selection-audit", args.schema_dir)
       write_canonical_json(args.report, report)
     elif args.command == "resolve":
+      discard_previous_output(args.lock_output, "source lock")
       inputs = load_json(args.inputs)
       validate_inputs(inputs)
       lock, _ = build_source_lock(inputs, args.cache_directory, args.self_root)

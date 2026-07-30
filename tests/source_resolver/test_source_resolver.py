@@ -1257,6 +1257,54 @@ class SourceResolverTests(unittest.TestCase):
       self.assertEqual(2, exit_code)
       self.assertFalse(report_path.exists())
 
+  def test_selection_audit_cli_removes_stale_report_before_failed_rerun(self):
+    with tempfile.TemporaryDirectory() as directory:
+      inputs_path = Path(directory) / "inputs.json"
+      report_path = Path(directory) / "selection-audit.json"
+      inputs_path.write_text(json.dumps(source_inputs()), encoding="utf-8")
+      report_path.write_text('{"status":"passed"}\n', encoding="utf-8")
+      with patch(
+        "source_resolver.selection_audit_report",
+        side_effect=ResolutionError("public mirror is unavailable", 3),
+      ):
+        exit_code = main([
+          "selection-audit",
+          "--inputs", str(inputs_path),
+          "--cache-directory", str(Path(directory) / "cache"),
+          "--self-root", str(Path(directory) / "self"),
+          "--report", str(report_path),
+          "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+        ])
+
+      self.assertEqual(3, exit_code)
+      self.assertFalse(report_path.exists())
+
+  def test_resolve_cli_removes_stale_lock_before_license_failure(self):
+    inputs = source_inputs()
+    inputs["repositories"][1]["license"] = {
+      "status": "missing",
+      "payloadPatterns": ["**/*.bin"],
+      "reason": "test payload license is unresolved",
+      "unresolvedComponents": ["payload"],
+    }
+    with tempfile.TemporaryDirectory() as directory:
+      inputs_path = Path(directory) / "inputs.json"
+      lock_path = Path(directory) / "sources.lock.json"
+      inputs_path.write_text(json.dumps(inputs), encoding="utf-8")
+      lock_path.write_text('{"lockType":"source"}\n', encoding="utf-8")
+
+      exit_code = main([
+        "resolve",
+        "--inputs", str(inputs_path),
+        "--cache-directory", str(Path(directory) / "cache"),
+        "--lock-output", str(lock_path),
+        "--self-root", str(Path(directory) / "self"),
+        "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+      ])
+
+      self.assertEqual(3, exit_code)
+      self.assertFalse(lock_path.exists())
+
   def test_lfs_fetch_does_not_trust_objects_already_in_cache(self):
     with tempfile.TemporaryDirectory() as directory:
       checkout, _, _ = create_repository(directory)

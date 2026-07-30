@@ -107,6 +107,15 @@ The four audit commands keep independent canonical reports at
 `artifacts/source-selection-audit.json` report; running one gate cannot
 overwrite the evidence from another gate.
 
+Every audit rerun removes its own previous report before reading inputs or
+contacting a mirror. `Resolve` applies the same rule to its requested source
+lock output. A contract error, incomplete license inventory, or transient
+network failure therefore leaves that run's output absent instead of exposing
+an older passed report or stale lock as current evidence. Formal authoring must
+retain the exit status together with the newly generated report; a missing
+report after a failed rerun is blocking evidence, not permission to reuse the
+previous file.
+
 The resolver accepts only the source and component expressions explicitly
 listed in its reviewed set. Adding another expression requires a resolver and
 contract update backed by real license evidence; arbitrary or syntactically
