@@ -130,7 +130,7 @@
           "**/LICENSE*",
           "**/OFL*"
         ],
-        "reason": "Thirty-three font components are mapped to exact license grants in the locked tree or embedded in every locked font payload; six components remain unresolved because their available evidence is incomplete or non-redistributable.",
+        "reason": "Thirty-seven font components have verified license evidence in the locked tree or embedded in every locked font payload; ASC.ttf and liberation remain unresolved because their locked bytes do not contain redistributable license terms.",
         "reviewedComponents": [
           {
             "id": "abyssinica",
@@ -391,6 +391,66 @@
             ]
           },
           {
+            "id": "fonts-beng-extra",
+            "spdx": "LicenseRef-Core-Fonts-FreeBang-Embedded-GPL",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "fonts-beng-extra/JamrulNormal.ttf",
+                "locator": "name:13",
+                "sha256": "56c6c49a0903982f925560c8261ae7a7ba909fa83f1a3e56ad59ad66dbf25c46"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-beng-extra/LikhanNormal.ttf",
+                "locator": "name:0",
+                "sha256": "df2f87cb55b2c8212ae8d572d29584a27bb80f45d8da9f6740c37e61e3e3985f"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-beng-extra/MuktiNarrow.ttf",
+                "locator": "name:13",
+                "sha256": "3eed340a07ddaec3b34985dfb183a1f067d551a110a64c165be13d1fe2c0182e"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-beng-extra/MuktiNarrowBold.ttf",
+                "locator": "name:13",
+                "sha256": "54374943797d70d10d508c0770e7c6f481e43761b30dc09ade8b981fb9d24a0a"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-beng-extra/ani.ttf",
+                "locator": "name:13",
+                "sha256": "f8db92be806a54a11c713cf8f46f99550407648dac6f8bf96bbd4b33aff477a5"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-beng-extra/mitra.ttf",
+                "locator": "name:13",
+                "sha256": "94db8babadab0ed1a6817c1e5f2334b71991a8e7b7abd134cdaa35fec018bdf7"
+              }
+            ]
+          },
+          {
+            "id": "fonts-gujr-extra",
+            "spdx": "LicenseRef-Core-Fonts-Gujarati-Embedded-GPL",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "fonts-gujr-extra/Rekha.ttf",
+                "locator": "name:0",
+                "sha256": "514080e4f9a4ec2873e4448945da2bc969c990a19e86ce16f2ed6e36724ed0d6"
+              },
+              {
+                "type": "font-name",
+                "path": "fonts-gujr-extra/padmaa.ttf",
+                "locator": "name:0",
+                "sha256": "2c4be554a10b2dc0872ae7c9cac7e0256202454c912d906d260b7e8a451fae41"
+              }
+            ]
+          },
+          {
             "id": "fonts-telu-extra",
             "spdx": "GPL-2.0-or-later WITH Font-exception-2.0",
             "evidence": [
@@ -483,6 +543,120 @@
                 "path": "freefont/FreeSerifItalic.ttf",
                 "locator": "name:13",
                 "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              }
+            ]
+          },
+          {
+            "id": "kacst",
+            "spdx": "LicenseRef-Core-Fonts-KACST-Embedded-GPL",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "kacst/KacstArt.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstBook.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstDecorative.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstDigital.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstFarsi.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstLetter.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstNaskh.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstOffice.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstPen.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstPoster.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstQurn.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstScreen.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstTitle.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/KacstTitleL.ttf",
+                "locator": "name:0",
+                "sha256": "c3e06051a15f1fee7f47514aac5fc44e8c6e2bee33f39614ac7f796b5ec87054"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst/mry_KacstQurn.ttf",
+                "locator": "name:0",
+                "sha256": "2bef5a671d1a84d175e6cbae67f9dfa48d66af4f257c5ee88629541c8774f4b4"
+              }
+            ]
+          },
+          {
+            "id": "kacst-one",
+            "spdx": "LicenseRef-Core-Fonts-KACST-Embedded-GPL",
+            "evidence": [
+              {
+                "type": "font-name",
+                "path": "kacst-one/KacstOne-Bold.ttf",
+                "locator": "name:0",
+                "sha256": "9042abc6925a02219e27cf89ad3bd24896bb834655595fd1ce38ea2e50c3f18e"
+              },
+              {
+                "type": "font-name",
+                "path": "kacst-one/KacstOne.ttf",
+                "locator": "name:0",
+                "sha256": "9042abc6925a02219e27cf89ad3bd24896bb834655595fd1ce38ea2e50c3f18e"
               }
             ]
           },
@@ -1215,10 +1389,6 @@
         ],
         "unresolvedComponents": [
           "ASC.ttf",
-          "fonts-beng-extra",
-          "fonts-gujr-extra",
-          "kacst",
-          "kacst-one",
           "liberation"
         ]
       }

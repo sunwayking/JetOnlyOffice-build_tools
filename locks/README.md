@@ -56,16 +56,17 @@ evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
 exit code 3 while legal mappings are incomplete, even when candidate files
 exist.
 
-At the current lock, this closes the GLEW archive and thirty-three font
-components. In addition to the previously reviewed families, the lock now
-maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `nanum`, `openoffice`,
-`takao-gothic`, and `wqy-zenhei` to exact Git blobs or embedded font license
-records. The release gate remains blocked for `build-tools-data` Android, CEF,
-Python, Qt, and sysroot payloads. The `ASC.ttf`, `fonts-beng-extra`,
-`fonts-gujr-extra`, `kacst`, `kacst-one`, and `liberation` font components also
-remain unresolved because their locked bytes do not provide a complete,
-redistributable, version-specific grant. A product name, copyright line,
-package family, or unrelated nearby license is not accepted as a substitute.
+At the current lock, this closes the GLEW archive and thirty-seven font
+components. The `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
+`kacst-one` families are mapped payload by payload to exact license records in
+their locked OpenType name tables. Their reviewed `LicenseRef` expressions
+preserve the upstream text without inventing a GPL version. The release gate
+remains blocked for `build-tools-data` Android, CEF, Python, Qt, and sysroot
+payloads. `ASC.ttf` remains unresolved because its only relevant locked record
+says all rights reserved. `liberation` remains unresolved because its locked
+records name and link to the Liberation Fonts license but do not contain its
+redistribution terms. A product name, copyright line, package family, external
+URL, or unrelated nearby license is not accepted as a substitute.
 
 Nineteen dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree: `ar`, `bg_BG`, `cs_CZ`, `en_ZA`, `es_ES`,

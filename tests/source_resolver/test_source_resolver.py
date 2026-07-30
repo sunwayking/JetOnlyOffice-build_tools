@@ -393,8 +393,7 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "ASC.ttf", "fonts-beng-extra", "fonts-gujr-extra", "kacst",
-        "kacst-one", "liberation",
+        "ASC.ttf", "liberation",
       ],
       next(
         finding["unresolvedComponents"]
@@ -417,8 +416,12 @@ class SourceResolverTests(unittest.TestCase):
         "crosextra",
         "dejavu",
         "droid",
+        "fonts-beng-extra",
+        "fonts-gujr-extra",
         "fonts-telu-extra",
         "freefont",
+        "kacst",
+        "kacst-one",
         "lohit-assamese",
         "lohit-bengali",
         "lohit-devanagari",
@@ -460,6 +463,14 @@ class SourceResolverTests(unittest.TestCase):
       "crosextra": ("OFL-1.1", 4),
       "dejavu": ("Bitstream-Vera AND LicenseRef-AMSFonts", 22),
       "droid": ("Apache-2.0", 1),
+      "fonts-beng-extra": (
+        "LicenseRef-Core-Fonts-FreeBang-Embedded-GPL", 6
+      ),
+      "fonts-gujr-extra": (
+        "LicenseRef-Core-Fonts-Gujarati-Embedded-GPL", 2
+      ),
+      "kacst": ("LicenseRef-Core-Fonts-KACST-Embedded-GPL", 15),
+      "kacst-one": ("LicenseRef-Core-Fonts-KACST-Embedded-GPL", 2),
       "lohit-assamese": ("OFL-1.1", 1),
       "lohit-bengali": ("OFL-1.1", 1),
       "lohit-devanagari": ("OFL-1.1", 1),
@@ -489,6 +500,13 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(
       record["type"] == "font-name"
       for record in reviewed_by_id["wqy-zenhei"]["evidence"]
+    ))
+    self.assertTrue(all(
+      record["type"] == "font-name"
+      for component_id in (
+        "fonts-beng-extra", "fonts-gujr-extra", "kacst", "kacst-one",
+      )
+      for record in reviewed_by_id[component_id]["evidence"]
     ))
 
     dictionaries = next(
