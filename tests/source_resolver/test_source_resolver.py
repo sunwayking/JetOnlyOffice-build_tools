@@ -371,8 +371,8 @@ class SourceResolverTests(unittest.TestCase):
         "az_Latn_AZ",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
         "en_CA", "en_GB", "en_US", "gl_ES",
-        "hr_HR", "id_ID", "it_IT",
-        "lt_LT", "pl_PL", "pt_PT",
+        "hr_HR", "id_ID", "it_IT", "kk_KZ",
+        "lt_LT", "mn_MN", "pl_PL", "pt_PT",
         "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
         "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
@@ -550,22 +550,12 @@ class SourceResolverTests(unittest.TestCase):
         {"hu_HU/README_hu_HU.txt", "hu_HU/hyph_hu_HU.dic"},
         3,
       ),
-      "kk_KZ": (
-        "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
-        {"kk_KZ/README_kk_KZ.txt"},
-        2,
-      ),
       "ko_KR": (
-        "GPL-3.0-or-later",
+        "GPL-3.0-or-later AND (GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1)",
         {"ko_KR/ko_KR.aff", "ko_KR/ko_KR_LICENSE.txt"},
         2,
       ),
       "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
-      "mn_MN": (
-        "LicenseRef-LPPL-1.3-or-later",
-        {"mn_MN/Readme_mn_MN.txt", "mn_MN/hyph_mn_MN.dic"},
-        3,
-      ),
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
@@ -591,7 +581,6 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertIn("ca_ES/ca_ES.aff", dictionaries["license"]["patterns"])
     self.assertIn("ko_KR/ko_KR.aff", dictionaries["license"]["patterns"])
-    self.assertIn("mn_MN/hyph_mn_MN.dic", dictionaries["license"]["patterns"])
     self.assertNotIn("en_CA", reviewed_dictionaries)
     self.assertIn("en_CA", dictionaries["license"]["unresolvedComponents"])
     expected_lgpl_evidence = {
@@ -1464,6 +1453,52 @@ class SourceResolverTests(unittest.TestCase):
 
       verify_materialized(lock, source_root)
 
+  def test_materialize_rejects_ignored_files_in_a_reused_checkout(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      source_root = Path(directory) / "workspace"
+      materialize(lock, {"source": bare}, source_root)
+      checkout = source_root / "sources" / "source"
+      (checkout / ".git" / "info" / "exclude").write_text(
+        "ignored.bin\n", encoding="ascii"
+      )
+      (checkout / "ignored.bin").write_bytes(b"unlocked build input\n")
+
+      with self.assertRaisesRegex(ResolutionError, "checkout is dirty"):
+        materialize(lock, {"source": bare}, source_root)
+
+  def test_materialize_rejects_files_outside_locked_checkouts(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      source_root = Path(directory) / "workspace"
+      materialize(lock, {"source": bare}, source_root)
+      (source_root / "unlocked.txt").write_bytes(b"unlocked build input\n")
+
+      with self.assertRaisesRegex(ResolutionError, "unexpected path"):
+        materialize(lock, {"source": bare}, source_root)
+
   def test_materialize_does_not_publish_a_partial_workspace(self):
     with tempfile.TemporaryDirectory() as directory:
       _, first_bare, first_commit = create_repository(directory, "first")
@@ -1491,6 +1526,32 @@ class SourceResolverTests(unittest.TestCase):
           {"first": first_bare, "second": Path(directory) / "missing.git"},
           source_root,
         )
+
+      self.assertFalse(source_root.exists())
+
+  def test_materialize_reports_a_staging_cleanup_failure(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      source_root = Path(directory) / "workspace"
+
+      with patch("source_resolver.shutil.rmtree", side_effect=OSError("busy")):
+        with self.assertRaisesRegex(ResolutionError, "cannot clean source staging"):
+          materialize(
+            lock,
+            {"source": Path(directory) / "missing.git"},
+            source_root,
+          )
 
       self.assertFalse(source_root.exists())
 

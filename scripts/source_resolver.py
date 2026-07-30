@@ -1802,11 +1802,64 @@ def materialize(lock, caches, source_directory):
     staging_directory = None
   finally:
     if staging_directory is not None:
-      shutil.rmtree(staging_directory, ignore_errors=True)
+      try:
+        shutil.rmtree(staging_directory)
+      except OSError as error:
+        raise ResolutionError(
+          f"{staging_directory}: cannot clean source staging: {error}",
+          3,
+        ) from error
+
+
+def verify_workspace_inventory(lock, source_directory):
+  expected = {
+    PurePosixPath(repository["checkoutPath"]).parts
+    for repository in lock["repositories"]
+  }
+  ancestors = {
+    parts[:index]
+    for parts in expected
+    for index in range(1, len(parts))
+  }
+
+  def verify_directory(directory, prefix=()):
+    try:
+      with os.scandir(directory) as stream:
+        entries = sorted(stream, key=lambda entry: entry.name)
+    except OSError as error:
+      raise ResolutionError(
+        f"{directory}: cannot inspect locked source workspace: {error}"
+      ) from error
+    for entry in entries:
+      relative = prefix + (entry.name,)
+      path = Path(entry.path)
+      is_junction = getattr(path, "is_junction", lambda: False)()
+      if relative in expected:
+        if entry.is_symlink() or is_junction or not entry.is_dir(follow_symlinks=False):
+          raise ResolutionError(
+            f"{source_directory}: locked checkout path is not a directory: "
+            + PurePosixPath(*relative).as_posix()
+          )
+        continue
+      if relative in ancestors:
+        if entry.is_symlink() or is_junction or not entry.is_dir(follow_symlinks=False):
+          raise ResolutionError(
+            f"{source_directory}: locked checkout parent is not a directory: "
+            + PurePosixPath(*relative).as_posix()
+          )
+        verify_directory(path, relative)
+        continue
+      raise ResolutionError(
+        f"{source_directory}: unexpected path outside locked checkouts: "
+        + PurePosixPath(*relative).as_posix()
+      )
+
+  verify_directory(source_directory)
 
 
 def verify_materialized(lock, source_directory):
   source_directory = Path(source_directory).resolve()
+  verify_workspace_inventory(lock, source_directory)
   for repository in lock["repositories"]:
     checkout = _resolve_within(
       source_directory,
@@ -1848,7 +1901,10 @@ def verify_materialized(lock, source_directory):
           raise ResolutionError(f"{checkout}:{path}: Git LFS size does not match the lock")
         if _sha256_file(materialized) != lfs_object["oid"]:
           raise ResolutionError(f"{checkout}:{path}: Git LFS digest does not match the lock")
-    if _run_git(["status", "--porcelain", "--untracked-files=all"], cwd=checkout):
+    if _run_git(
+      ["status", "--porcelain", "--untracked-files=all", "--ignored"],
+      cwd=checkout,
+    ):
       raise ResolutionError(f"{checkout}: checkout is dirty")
 
 

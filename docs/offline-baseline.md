@@ -49,8 +49,8 @@ materialized at
 cannot silently supply a host or image Python fallback.
 The `@yao-pkg/pkg` runtime cache is likewise isolated at
 `/work/offline-cache/pkg` through `PKG_CACHE_PATH`; package binaries must be
-locked and materialized there during bootstrap rather than downloaded on the
-first build.
+locked and downloaded during bootstrap, then materialized there before build
+rather than fetched on the first `pkg` invocation.
 
 The build entrypoint also emits a deterministic source snapshot and the
 executable `build-output/packaging/package.sh` driver. The driver and its JWT
@@ -110,11 +110,11 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-Thirty-seven font components and twenty-five dictionary packs now have
+Thirty-seven font components and twenty-three dictionary packs now have
 payload-complete, machine-verified primary evidence. The remaining blockers
-are the selected CEF, Python, and Qt payloads; two font components; and twenty-four
-dictionary packs enumerated in
-`locks/source-inputs.v1.json`, for twenty-nine unresolved components in total.
+are the selected CEF, Python, and Qt payloads; two font components; and
+twenty-six dictionary packs enumerated in
+`locks/source-inputs.v1.json`, for thirty-one unresolved components in total.
 The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
 V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
 behavior tests bind those exclusions to the published entrypoint and upstream
@@ -168,7 +168,10 @@ pwsh -NoProfile -File scripts/package.ps1
 Bootstrap is restartable: a complete matching source workspace is verified and
 reused, while a failed first materialization is staged outside the public
 workspace and removed instead of leaving a partial checkout that blocks the
-next run. Build and package remain strictly `--network none`.
+next run. Failure to clean the private staging directory is itself reported as
+a blocking source error. Reuse rejects ignored files and every path outside the
+locked checkout inventory, so an existing workspace cannot add untracked build
+input. Build and package remain strictly `--network none`.
 
 Repeat bootstrap, build, and package in a second independent cache, workspace,
 and artifact root. Only then invoke `verify.ps1` with both artifact manifests;
