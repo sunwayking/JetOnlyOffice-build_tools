@@ -45,38 +45,20 @@
       "license": {
         "status": "component-scoped",
         "payloadPatterns": [
-          "**/*.7z",
-          "**/*.sh",
-          "**/*.tar.gz",
-          "**/*.tar.xz",
-          "**/*.zip"
+          "cef/5414/linux_64/cef_binary.7z",
+          "python/python3.tar.gz",
+          "qt/qt_binary_5.9.9_gcc_64.7z"
         ],
         "patterns": [
           "**/COPYING*",
           "**/LICENSE*",
           "**/NOTICE*"
         ],
-        "reason": "The upstream repository contains no repository license; GLEW is mapped to its locked archive license, while the remaining payload families still lack a complete reviewed inventory.",
-        "reviewedComponents": [
-          {
-            "id": "glew",
-            "spdx": "BSD-3-Clause AND MIT",
-            "evidence": [
-              {
-                "type": "zip-member",
-                "path": "glew/glew-2.1.0-win32.zip",
-                "locator": "glew-2.1.0/LICENSE.txt",
-                "sha256": "38a38de1748714672193f12c6412489a00ff65a61e1bd2da9f360db990d156cf"
-              }
-            ]
-          }
-        ],
+        "reason": "The upstream repository contains no repository license. This release inventory is restricted to the exact linux_64 server payload candidates: Android is unreachable for the selected platform, sysroot is disabled by --sysroot 0, the Windows Mobile GLEW path returns immediately on Linux, and the locked Python is materialized without the upstream extraction helper. The selected CEF, Python archive, and Qt archive still lack a complete reviewed inventory.",
         "unresolvedComponents": [
-          "android",
           "cef",
           "python",
-          "qt",
-          "sysroot"
+          "qt"
         ]
       }
     },

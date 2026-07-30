@@ -384,12 +384,21 @@ class SourceResolverTests(unittest.TestCase):
       ),
     )
     self.assertEqual(
-      ["android", "cef", "python", "qt", "sysroot"],
+      ["cef", "python", "qt"],
       next(
         finding["unresolvedComponents"]
         for finding in findings
         if finding["repository"] == "build-tools-data"
       ),
+    )
+    build_tools_data = repositories_by_id["build-tools-data"]
+    self.assertEqual(
+      [
+        "cef/5414/linux_64/cef_binary.7z",
+        "python/python3.tar.gz",
+        "qt/qt_binary_5.9.9_gcc_64.7z",
+      ],
+      build_tools_data["license"]["payloadPatterns"],
     )
     self.assertEqual(
       [

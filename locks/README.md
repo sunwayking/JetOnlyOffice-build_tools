@@ -38,7 +38,14 @@ whose license coverage is not proved by the locked tree. The audit report
 copies that inventory verbatim, so a generic repository-level failure cannot
 hide which evidence is still missing. Candidate license files do not become a
 declaration until their asset mapping and SPDX expression have been reviewed.
-`payloadPatterns` defines the build payloads covered by this structural audit;
+`payloadPatterns` defines the build payloads covered by this structural audit.
+For build-tools-data it is an exact release-profile inventory, not a
+repository-wide extension match: the published build entrypoint fixes
+`server`, `linux_64`, and `--sysroot 0`, and behavior tests bind those options
+to the upstream platform guards. Android V8, Ubuntu 16 sysroot, the Windows
+Mobile GLEW archive, and the Python extraction helper are therefore outside
+this release payload; expanding the release profile must add them back and
+close their licenses before release. In all other cases,
 `patterns` defines candidate evidence only and does not declare a license.
 `reviewedComponents` is narrower: every payload in such a component must be
 covered by one immutable evidence record and an explicitly reviewed SPDX
@@ -56,17 +63,30 @@ evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
 exit code 3 while legal mappings are incomplete, even when candidate files
 exist.
 
-At the current lock, this closes the GLEW archive and thirty-seven font
+At the current lock, this closes thirty-seven font
 components. The `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
 `kacst-one` families are mapped payload by payload to exact license records in
 their locked OpenType name tables. Their reviewed `LicenseRef` expressions
 preserve the upstream text without inventing a GPL version. The release gate
-remains blocked for `build-tools-data` Android, CEF, Python, Qt, and sysroot
+remains blocked for the selected `build-tools-data` CEF, Python, and Qt
 payloads. `ASC.ttf` remains unresolved because its only relevant locked record
 says all rights reserved. `liberation` remains unresolved because its locked
 records name and link to the Liberation Fonts license but do not contain its
 redistribution terms. A product name, copyright line, package family, external
 URL, or unrelated nearby license is not accepted as a substitute.
+
+Primary archive inspection at build-tools-data commit
+`743e8e55f0431523248d16b7521e01aa11744ffc` found no license, notice, or
+copyright member in either the selected CEF 5414 Linux archive (SHA-256
+`dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145`)
+or the selected Qt 5.9.9 Linux archive (LFS/SHA-256
+`84181f983a5e76c2f8a63f8bf06d5ce27675f543c45febe014514633a1289f0e`).
+The Python archive (SHA-256
+`c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360`)
+contains the Python, pip, setuptools, and wheel license texts, but those files
+do not yet prove a complete payload-to-license expression for the bundled
+runtime. All three components therefore remain unresolved; no SPDX expression
+is inferred from product identity or adjacent upstream sources.
 
 Nineteen dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree: `ar`, `bg_BG`, `cs_CZ`, `en_ZA`, `es_ES`,

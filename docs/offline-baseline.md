@@ -106,13 +106,17 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-The locked GLEW archive and six font components now have payload-complete,
-machine-verified primary evidence. The remaining blockers are Android, CEF,
-Python, Qt, and sysroot payloads; 33 font components; and 49 dictionary packs
-enumerated in `locks/source-inputs.v1.json`. These 87 components include both
-unresolved inputs and inputs with candidate evidence still awaiting review.
-Partial evidence does not turn any of the three repositories into a
-repository-wide declaration.
+Thirty-three font components and nineteen dictionary packs now have
+payload-complete, machine-verified primary evidence. The remaining blockers
+are the selected CEF, Python, and Qt payloads; six font components; and thirty
+dictionary packs enumerated in
+`locks/source-inputs.v1.json`, for thirty-nine unresolved components in total.
+The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
+V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
+behavior tests bind those exclusions to the published entrypoint and upstream
+guards. A future profile that selects any of those paths must restore it to the
+audited payload inventory. Partial evidence does not turn any of the three
+repositories into a repository-wide declaration.
 
 The image lock, offline materializer, deterministic package driver, and release
 artifact verifier are concrete and locally reverified. The formal toolchain
