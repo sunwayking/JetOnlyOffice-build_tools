@@ -368,11 +368,11 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "az_Latn_AZ", "ca_ES", "ca_ES_valencia",
+        "az_Latn_AZ",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
         "en_CA", "en_GB", "en_US", "gl_ES",
-        "hr_HR", "id_ID", "it_IT", "kk_KZ", "ko_KR",
-        "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
+        "hr_HR", "id_ID", "it_IT",
+        "lt_LT", "pl_PL", "pt_PT",
         "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
         "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
@@ -528,6 +528,16 @@ class SourceResolverTests(unittest.TestCase):
       for component in dictionaries["license"]["reviewedComponents"]
     }
     expected_dictionary_licenses = {
+      "ca_ES": (
+        "GPL-2.0-or-later AND GPL-3.0-or-later",
+        {"ca_ES/ca_ES.aff", "ca_ES/hyph_ca_ES.dic"},
+        3,
+      ),
+      "ca_ES_valencia": (
+        "GPL-2.0-or-later OR LGPL-2.1-or-later",
+        {"ca_ES_valencia/ca_ES_valencia.aff"},
+        2,
+      ),
       "cs_CZ": ("GPL-2.0-only", {"cs_CZ/cs_CZ_Czech.txt"}, 3),
       "eu_ES": ("GPL-2.0-only", {"eu_ES/Reamde_eu_ES.txt"}, 2),
       "fr_FR": (
@@ -540,9 +550,29 @@ class SourceResolverTests(unittest.TestCase):
         {"hu_HU/README_hu_HU.txt", "hu_HU/hyph_hu_HU.dic"},
         3,
       ),
+      "kk_KZ": (
+        "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+        {"kk_KZ/README_kk_KZ.txt"},
+        2,
+      ),
+      "ko_KR": (
+        "GPL-3.0-or-later",
+        {"ko_KR/ko_KR.aff", "ko_KR/ko_KR_LICENSE.txt"},
+        2,
+      ),
       "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
+      "mn_MN": (
+        "LicenseRef-LPPL-1.3-or-later",
+        {"mn_MN/Readme_mn_MN.txt", "mn_MN/hyph_mn_MN.dic"},
+        3,
+      ),
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
+      ),
+      "pt_BR": (
+        "LGPL-2.1-only AND LGPL-3.0-only",
+        {"pt_BR/README_hyph_pt_BR.txt", "pt_BR/README_pt_BR.TXT"},
+        3,
       ),
       "ro_RO": ("GPL-2.0-only", {"ro_RO/ro_RO_Romanian.txt"}, 3),
     }
@@ -559,6 +589,9 @@ class SourceResolverTests(unittest.TestCase):
     self.assertIn(
       "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
     )
+    self.assertIn("ca_ES/ca_ES.aff", dictionaries["license"]["patterns"])
+    self.assertIn("ko_KR/ko_KR.aff", dictionaries["license"]["patterns"])
+    self.assertIn("mn_MN/hyph_mn_MN.dic", dictionaries["license"]["patterns"])
     self.assertNotIn("en_CA", reviewed_dictionaries)
     self.assertIn("en_CA", dictionaries["license"]["unresolvedComponents"])
     expected_lgpl_evidence = {

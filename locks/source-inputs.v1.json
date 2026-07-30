@@ -1406,9 +1406,14 @@
           "**/COPYING*",
           "**/LICENSE*",
           "**/license*",
-          "hu_HU/hyph_hu_HU.dic"
+          "ca_ES/ca_ES.aff",
+          "ca_ES/hyph_ca_ES.dic",
+          "ca_ES_valencia/ca_ES_valencia.aff",
+          "hu_HU/hyph_hu_HU.dic",
+          "ko_KR/ko_KR.aff",
+          "mn_MN/hyph_mn_MN.dic"
         ],
-        "reason": "Nineteen language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Twenty-five language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "reviewedComponents": [
           {
             "id": "ar",
@@ -1455,6 +1460,48 @@
                 "path": "bg_BG/hyph_bg_BG.dic",
                 "locator": "bg_BG/Readme_bg_BG.txt",
                 "sha256": "4f0a3209fcfb28f548f7727b47ee8929f61754a8510d90d41c5dccfd2e7a7518"
+              }
+            ]
+          },
+          {
+            "id": "ca_ES",
+            "spdx": "GPL-2.0-or-later AND GPL-3.0-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "ca_ES/ca_ES.aff",
+                "locator": "ca_ES/ca_ES.aff",
+                "sha256": "3e86955b22ffb9187a08ebe0fb7206a52640587cf0b66e5c8d003788f11c5c32"
+              },
+              {
+                "type": "git-blob",
+                "path": "ca_ES/ca_ES.dic",
+                "locator": "ca_ES/ca_ES.aff",
+                "sha256": "3e86955b22ffb9187a08ebe0fb7206a52640587cf0b66e5c8d003788f11c5c32"
+              },
+              {
+                "type": "git-blob",
+                "path": "ca_ES/hyph_ca_ES.dic",
+                "locator": "ca_ES/hyph_ca_ES.dic",
+                "sha256": "4a4816e93a92df35819c5f4775106577aa279739a12c687291d747a3ce767b8b"
+              }
+            ]
+          },
+          {
+            "id": "ca_ES_valencia",
+            "spdx": "GPL-2.0-or-later OR LGPL-2.1-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "ca_ES_valencia/ca_ES_valencia.aff",
+                "locator": "ca_ES_valencia/ca_ES_valencia.aff",
+                "sha256": "b4c50941df5a8e3116b706ceb6010b09a8e6b15a99e20c4f281fcbee2d2544e4"
+              },
+              {
+                "type": "git-blob",
+                "path": "ca_ES_valencia/ca_ES_valencia.dic",
+                "locator": "ca_ES_valencia/ca_ES_valencia.aff",
+                "sha256": "b4c50941df5a8e3116b706ceb6010b09a8e6b15a99e20c4f281fcbee2d2544e4"
               }
             ]
           },
@@ -1591,6 +1638,42 @@
             ]
           },
           {
+            "id": "kk_KZ",
+            "spdx": "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "kk_KZ/kk_KZ.aff",
+                "locator": "kk_KZ/README_kk_KZ.txt",
+                "sha256": "e858f2d541e7b7220f973e892477bd8046c25aa90da42a25bd237f417721e52e"
+              },
+              {
+                "type": "git-blob",
+                "path": "kk_KZ/kk_KZ.dic",
+                "locator": "kk_KZ/README_kk_KZ.txt",
+                "sha256": "e858f2d541e7b7220f973e892477bd8046c25aa90da42a25bd237f417721e52e"
+              }
+            ]
+          },
+          {
+            "id": "ko_KR",
+            "spdx": "GPL-3.0-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "ko_KR/ko_KR.aff",
+                "locator": "ko_KR/ko_KR.aff",
+                "sha256": "43a984d8f1e2309490b69cfde31832d217a0b31164c67661e293efc096083688"
+              },
+              {
+                "type": "git-blob",
+                "path": "ko_KR/ko_KR.dic",
+                "locator": "ko_KR/ko_KR_LICENSE.txt",
+                "sha256": "3343ec4cef9613eab56e343229126cc17b24d650151a5b95d01668ba7c5cca07"
+              }
+            ]
+          },
+          {
             "id": "lb_LU",
             "spdx": "EUPL-1.1",
             "evidence": [
@@ -1629,6 +1712,30 @@
                 "path": "lv_LV/lv_LV.dic",
                 "locator": "lv_LV/license.txt",
                 "sha256": "bb117c0fbd7f57f64170b690285d7df07c2371b578e3b3cd3aa2e1155ef461a0"
+              }
+            ]
+          },
+          {
+            "id": "mn_MN",
+            "spdx": "LicenseRef-LPPL-1.3-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "mn_MN/hyph_mn_MN.dic",
+                "locator": "mn_MN/hyph_mn_MN.dic",
+                "sha256": "1a84d6b69fef22efdbee6e2f53e45b2aabfbfc7789b1dabc54950d7d3cd29ebe"
+              },
+              {
+                "type": "git-blob",
+                "path": "mn_MN/mn_MN.aff",
+                "locator": "mn_MN/Readme_mn_MN.txt",
+                "sha256": "a1072d76b0677f45e49f04882e28f446509df25cee59fa5da8d803a64d821307"
+              },
+              {
+                "type": "git-blob",
+                "path": "mn_MN/mn_MN.dic",
+                "locator": "mn_MN/Readme_mn_MN.txt",
+                "sha256": "a1072d76b0677f45e49f04882e28f446509df25cee59fa5da8d803a64d821307"
               }
             ]
           },
@@ -1719,6 +1826,30 @@
                 "path": "oc_FR/oc_FR.dic",
                 "locator": "oc_FR/LICENSES-en.txt",
                 "sha256": "3d2815ba38e153311beadeb0954da46de8dbf3abfc9752f302491e72ecd6e9a4"
+              }
+            ]
+          },
+          {
+            "id": "pt_BR",
+            "spdx": "LGPL-2.1-only AND LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/README_hyph_pt_BR.txt",
+                "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/pt_BR.aff",
+                "locator": "pt_BR/README_pt_BR.TXT",
+                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/pt_BR.dic",
+                "locator": "pt_BR/README_pt_BR.TXT",
+                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
               }
             ]
           },
@@ -1833,8 +1964,6 @@
         ],
         "unresolvedComponents": [
           "az_Latn_AZ",
-          "ca_ES",
-          "ca_ES_valencia",
           "da_DK",
           "de_AT",
           "de_CH",
@@ -1848,12 +1977,8 @@
           "hr_HR",
           "id_ID",
           "it_IT",
-          "kk_KZ",
-          "ko_KR",
           "lt_LT",
-          "mn_MN",
           "pl_PL",
-          "pt_BR",
           "pt_PT",
           "ru_RU",
           "sl_SI",

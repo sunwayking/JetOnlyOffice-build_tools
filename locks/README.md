@@ -88,13 +88,17 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Nineteen dictionary language packs are mapped payload by payload to exact
-license blobs in the locked tree: `ar`, `bg_BG`, `cs_CZ`, `en_ZA`, `es_ES`,
-`eu_ES`, `fr_FR`, `hu_HU`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`,
-`oc_FR`, `ro_RO`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`. The remaining thirty
-language packs stay incomplete; twenty-eight have
-candidate text that still requires a precise mapping and `az_Latn_AZ` plus
-`ru_RU` have no in-tree license candidate.
+Twenty-five dictionary language packs are mapped payload by payload to exact
+license blobs in the locked tree: `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`,
+`cs_CZ`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `hu_HU`, `kk_KZ`, `ko_KR`,
+`lb_LU`, `lv_LV`, `mn_MN`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`,
+`ro_RO`, `sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`. Embedded grants are accepted
+only when the payload identifies itself or explicitly identifies its paired
+word list. Mixed-origin payloads stay unresolved when a grant covers only an
+adaptation but not the version-specific license of the underlying material.
+The remaining twenty-four language packs stay incomplete; twenty-two have
+candidate text that does not yet provide a complete, version-specific payload
+mapping, while `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
