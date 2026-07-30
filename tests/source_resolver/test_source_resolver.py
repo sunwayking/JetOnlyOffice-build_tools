@@ -417,7 +417,7 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-        "en_CA", "en_GB", "en_US", "gl_ES",
+        "en_GB", "en_US", "gl_ES",
         "hr_HR", "id_ID", "it_IT", "kk_KZ",
         "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
         "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
@@ -568,6 +568,9 @@ class SourceResolverTests(unittest.TestCase):
         2,
       ),
       "cs_CZ": ("GPL-2.0-only", {"cs_CZ/cs_CZ_Czech.txt"}, 3),
+      "en_CA": (
+        "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
+      ),
       "eu_ES": ("GPL-2.0-only", {"eu_ES/Reamde_eu_ES.txt"}, 2),
       "fr_FR": (
         "MPL-2.0 AND MIT AND LGPL-2.1-or-later",
@@ -605,7 +608,7 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertIn("ca_ES/ca_ES.aff", dictionaries["license"]["patterns"])
     self.assertIn("ko_KR/ko_KR.aff", dictionaries["license"]["patterns"])
-    for component_id in ("en_CA", "pt_BR"):
+    for component_id in ("kk_KZ", "pt_BR"):
       self.assertNotIn(component_id, reviewed_dictionaries)
       self.assertIn(
         component_id, dictionaries["license"]["unresolvedComponents"]

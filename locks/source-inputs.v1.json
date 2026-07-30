@@ -1242,7 +1242,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Twenty-two language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Twenty-three language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "reviewedComponents": [
           {
             "id": "ar",
@@ -1355,6 +1355,24 @@
                 "path": "cs_CZ/hyph_cs_CZ.dic",
                 "locator": "cs_CZ/cs_CZ_Czech.txt",
                 "sha256": "c3bc15289865d136d7bf79f516f40052fd8ab6af6f8c9285f3da3cf90fd5a978"
+              }
+            ]
+          },
+          {
+            "id": "en_CA",
+            "spdx": "LicenseRef-SCOWL-2020-12-07",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "en_CA/en_CA.aff",
+                "locator": "en_CA/Readme_en_CA.txt",
+                "sha256": "86700e39b2307dda4c087ad3505a1e634a5b4d518ab808c398a16d21ebe957e2"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_CA/en_CA.dic",
+                "locator": "en_CA/Readme_en_CA.txt",
+                "sha256": "86700e39b2307dda4c087ad3505a1e634a5b4d518ab808c398a16d21ebe957e2"
               }
             ]
           },
@@ -1733,7 +1751,6 @@
           "de_DE",
           "el_GR",
           "en_AU",
-          "en_CA",
           "en_GB",
           "en_US",
           "gl_ES",

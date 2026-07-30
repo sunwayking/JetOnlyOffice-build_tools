@@ -65,6 +65,7 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "LGPL-2.1-only AND LGPL-3.0-only",
   "LGPL-2.1-or-later",
   "LGPL-3.0-only",
+  "LicenseRef-SCOWL-2020-12-07",
   "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
   "MIT",
   "MPL-2.0",
