@@ -31,6 +31,7 @@ from source_resolver import (  # noqa: E402
   policy_findings,
   repository_license_inventory,
   repository_metadata,
+  selection_audit_report,
   sync_cache,
   validate_inputs,
   verify_materialized,
@@ -304,6 +305,35 @@ class SourceResolverTests(unittest.TestCase):
       commits["tagged"] = SHA1_B
       with self.assertRaisesRegex(ResolutionError, "tag does not resolve"):
         verify_selections(inputs, caches, commits)
+
+  def test_selection_audit_rejects_index_flags_hiding_self_changes(self):
+    expected_origin = (
+      "https://github.com/sunwayking/JetOnlyOffice-build-tools-self.git"
+    )
+    inputs = {
+      "productVersion": "9.4.0",
+      "releaseCutoff": 100,
+      "repositories": [{
+        "id": "build-tools",
+        "origin": expected_origin,
+        "commitSource": "self",
+        "selection": {"type": "self"},
+      }],
+      "relationships": [],
+    }
+    for flag in ("--skip-worktree", "--assume-unchanged"):
+      with self.subTest(flag=flag), tempfile.TemporaryDirectory() as directory:
+        checkout, _, _ = create_repository(directory)
+        run_git(checkout, "remote", "add", "origin", expected_origin)
+        run_git(checkout, "update-index", flag, "content.txt")
+        (checkout / "content.txt").write_text("hidden change\n", encoding="ascii")
+
+        with self.assertRaisesRegex(ResolutionError, "unsafe Git index flag"):
+          selection_audit_report(
+            inputs,
+            Path(directory) / "cache",
+            checkout,
+          )
 
   def test_cache_sync_prunes_tags_removed_from_the_public_mirror(self):
     with tempfile.TemporaryDirectory() as directory:

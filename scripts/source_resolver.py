@@ -1389,6 +1389,7 @@ def fetch_lfs_objects(repository, cache, commit, lfs_objects):
 
 def resolve_self_commit(self_root, expected_origin):
   self_root = Path(self_root).resolve()
+  verify_git_index_flags(self_root)
   if _run_git(["status", "--porcelain", "--untracked-files=all"], cwd=self_root):
     raise ResolutionError("build-tools self checkout must be clean")
   origin = _run_git(["remote", "get-url", "origin"], cwd=self_root)

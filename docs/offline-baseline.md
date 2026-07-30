@@ -144,8 +144,9 @@ build/package retries are not supported.
 ## Shortest real build path after closure
 
 Run the authoring gates from the clean, merged build_tools commit that the
-source lock will identify. They are intentionally separate from the four
-stable release entrypoints:
+source lock will identify. The self checkout rejects `skip-worktree` and
+`assume-unchanged` flags before resolving that commit. These gates are
+intentionally separate from the four stable release entrypoints:
 
 ```powershell
 pwsh -NoProfile -File scripts/resolve-sources.ps1 -Command Audit
