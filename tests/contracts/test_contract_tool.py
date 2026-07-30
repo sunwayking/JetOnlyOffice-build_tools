@@ -662,6 +662,23 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "missing required types"):
       validate_contract(value, "artifact-manifest", self.schema_dir)
 
+  def test_image_lock_rejects_unsafe_or_digest_bearing_references(self):
+    value = image_lock()
+    value["images"][0]["reference"] = "registry.example:5000/ns/image:tag_1"
+    validate_contract(value, "image-lock", self.schema_dir)
+
+    for reference in (
+      "https://registry.example/image:tag",
+      "Ubuntu:24.04",
+      "ubuntu:bad tag",
+      "ubuntu:24.04@" + OCI_A,
+    ):
+      with self.subTest(reference=reference):
+        value = image_lock()
+        value["images"][0]["reference"] = reference
+        with self.assertRaisesRegex(ContractError, "value does not match"):
+          validate_contract(value, "image-lock", self.schema_dir)
+
   def test_build_manifest_binds_one_executable_package_driver(self):
     value = build_manifest()
     value["packageDriver"]["sha256"] = SHA256_B
