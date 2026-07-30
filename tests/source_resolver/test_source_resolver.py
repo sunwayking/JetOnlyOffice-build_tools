@@ -120,6 +120,22 @@ def create_repository(root, name="source"):
   return checkout, bare, commit
 
 
+def create_source_lock(root, identifier="source"):
+  _, bare, commit = create_repository(root, identifier)
+  repository = repository_input(identifier, commit)
+  record = repository_metadata(repository, bare, commit)
+  lock = {
+    "schemaVersion": 1,
+    "lockType": "source",
+    "productVersion": "9.4.0",
+    "baseline": {"repository": identifier, "commit": commit},
+    "sourceDateEpoch": record["commitTime"],
+    "repositories": [record],
+    "relationships": [],
+  }
+  return repository, bare, commit, lock
+
+
 def font_with_license_name(license_text):
   encoded = license_text.encode("utf-16-be")
   name_table = (
@@ -1429,18 +1445,7 @@ class SourceResolverTests(unittest.TestCase):
 
   def test_materialize_produces_detached_clean_locked_checkout(self):
     with tempfile.TemporaryDirectory() as directory:
-      _, bare, commit = create_repository(directory)
-      repository = repository_input("source", commit)
-      record = repository_metadata(repository, bare, commit)
-      lock = {
-        "schemaVersion": 1,
-        "lockType": "source",
-        "productVersion": "9.4.0",
-        "baseline": {"repository": "source", "commit": commit},
-        "sourceDateEpoch": record["commitTime"],
-        "repositories": [record],
-        "relationships": [],
-      }
+      repository, bare, commit, lock = create_source_lock(directory)
       validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
       source_root = Path(directory) / "workspace"
       materialize(lock, {"source": bare}, source_root)
@@ -1456,18 +1461,7 @@ class SourceResolverTests(unittest.TestCase):
 
   def test_materialize_is_idempotent_for_a_matching_locked_workspace(self):
     with tempfile.TemporaryDirectory() as directory:
-      _, bare, commit = create_repository(directory)
-      repository = repository_input("source", commit)
-      record = repository_metadata(repository, bare, commit)
-      lock = {
-        "schemaVersion": 1,
-        "lockType": "source",
-        "productVersion": "9.4.0",
-        "baseline": {"repository": "source", "commit": commit},
-        "sourceDateEpoch": record["commitTime"],
-        "repositories": [record],
-        "relationships": [],
-      }
+      _, bare, _, lock = create_source_lock(directory)
       source_root = Path(directory) / "workspace"
 
       materialize(lock, {"source": bare}, source_root)
@@ -1477,18 +1471,7 @@ class SourceResolverTests(unittest.TestCase):
 
   def test_materialize_rejects_ignored_files_in_a_reused_checkout(self):
     with tempfile.TemporaryDirectory() as directory:
-      _, bare, commit = create_repository(directory)
-      repository = repository_input("source", commit)
-      record = repository_metadata(repository, bare, commit)
-      lock = {
-        "schemaVersion": 1,
-        "lockType": "source",
-        "productVersion": "9.4.0",
-        "baseline": {"repository": "source", "commit": commit},
-        "sourceDateEpoch": record["commitTime"],
-        "repositories": [record],
-        "relationships": [],
-      }
+      _, bare, _, lock = create_source_lock(directory)
       source_root = Path(directory) / "workspace"
       materialize(lock, {"source": bare}, source_root)
       checkout = source_root / "sources" / "source"
@@ -1503,18 +1486,7 @@ class SourceResolverTests(unittest.TestCase):
   def test_materialize_rejects_index_flags_that_hide_worktree_changes(self):
     for flag in ("--skip-worktree", "--assume-unchanged"):
       with self.subTest(flag=flag), tempfile.TemporaryDirectory() as directory:
-        _, bare, commit = create_repository(directory)
-        repository = repository_input("source", commit)
-        record = repository_metadata(repository, bare, commit)
-        lock = {
-          "schemaVersion": 1,
-          "lockType": "source",
-          "productVersion": "9.4.0",
-          "baseline": {"repository": "source", "commit": commit},
-          "sourceDateEpoch": record["commitTime"],
-          "repositories": [record],
-          "relationships": [],
-        }
+        _, bare, _, lock = create_source_lock(directory)
         source_root = Path(directory) / "workspace"
         materialize(lock, {"source": bare}, source_root)
         checkout = source_root / "sources" / "source"
@@ -1526,18 +1498,7 @@ class SourceResolverTests(unittest.TestCase):
 
   def test_materialize_rejects_files_outside_locked_checkouts(self):
     with tempfile.TemporaryDirectory() as directory:
-      _, bare, commit = create_repository(directory)
-      repository = repository_input("source", commit)
-      record = repository_metadata(repository, bare, commit)
-      lock = {
-        "schemaVersion": 1,
-        "lockType": "source",
-        "productVersion": "9.4.0",
-        "baseline": {"repository": "source", "commit": commit},
-        "sourceDateEpoch": record["commitTime"],
-        "repositories": [record],
-        "relationships": [],
-      }
+      _, bare, _, lock = create_source_lock(directory)
       source_root = Path(directory) / "workspace"
       materialize(lock, {"source": bare}, source_root)
       (source_root / "unlocked.txt").write_bytes(b"unlocked build input\n")
@@ -1577,18 +1538,7 @@ class SourceResolverTests(unittest.TestCase):
 
   def test_materialize_reports_a_staging_cleanup_failure(self):
     with tempfile.TemporaryDirectory() as directory:
-      _, bare, commit = create_repository(directory)
-      repository = repository_input("source", commit)
-      record = repository_metadata(repository, bare, commit)
-      lock = {
-        "schemaVersion": 1,
-        "lockType": "source",
-        "productVersion": "9.4.0",
-        "baseline": {"repository": "source", "commit": commit},
-        "sourceDateEpoch": record["commitTime"],
-        "repositories": [record],
-        "relationships": [],
-      }
+      _, _, _, lock = create_source_lock(directory)
       source_root = Path(directory) / "workspace"
 
       with patch("source_resolver.shutil.rmtree", side_effect=OSError("busy")):
