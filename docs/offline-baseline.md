@@ -169,9 +169,10 @@ Bootstrap is restartable: a complete matching source workspace is verified and
 reused, while a failed first materialization is staged outside the public
 workspace and removed instead of leaving a partial checkout that blocks the
 next run. Failure to clean the private staging directory is itself reported as
-a blocking source error. Reuse rejects ignored files and every path outside the
-locked checkout inventory, so an existing workspace cannot add untracked build
-input. Build and package remain strictly `--network none`.
+a blocking source error. Reuse rejects ignored files, every path outside the
+locked checkout inventory, and `skip-worktree` or `assume-unchanged` index
+flags, so an existing workspace cannot hide modified tracked files or add
+untracked build input. Build and package remain strictly `--network none`.
 
 Repeat bootstrap, build, and package in a second independent cache, workspace,
 and artifact root. Only then invoke `verify.ps1` with both artifact manifests;

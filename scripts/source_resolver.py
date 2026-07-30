@@ -1857,6 +1857,19 @@ def verify_workspace_inventory(lock, source_directory):
   verify_directory(source_directory)
 
 
+def verify_git_index_flags(checkout):
+  entries = _run_git_bytes(["ls-files", "-v", "-z"], cwd=checkout)
+  for entry in entries.split(b"\0"):
+    if not entry:
+      continue
+    marker = entry[:1]
+    if marker == b"S" or marker.islower():
+      path = entry[2:].decode("utf-8", errors="replace")
+      raise ResolutionError(
+        f"{checkout}:{path}: unsafe Git index flag {marker.decode('ascii')}"
+      )
+
+
 def verify_materialized(lock, source_directory):
   source_directory = Path(source_directory).resolve()
   verify_workspace_inventory(lock, source_directory)
@@ -1880,6 +1893,7 @@ def verify_materialized(lock, source_directory):
     tree = _run_git(["rev-parse", "HEAD^{tree}"], cwd=checkout)
     if tree != repository["tree"]:
       raise ResolutionError(f"{checkout}: tree does not match the lock")
+    verify_git_index_flags(checkout)
     actual_lfs_objects = lfs_objects_at_commit(repository, checkout, head)
     if actual_lfs_objects != repository["lfsObjects"]:
       raise ResolutionError(f"{checkout}: Git LFS object manifest does not match the lock")

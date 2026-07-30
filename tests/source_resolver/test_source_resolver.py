@@ -1520,6 +1520,30 @@ class SourceResolverTests(unittest.TestCase):
       with self.assertRaisesRegex(ResolutionError, "checkout is dirty"):
         materialize(lock, {"source": bare}, source_root)
 
+  def test_materialize_rejects_index_flags_that_hide_worktree_changes(self):
+    for flag in ("--skip-worktree", "--assume-unchanged"):
+      with self.subTest(flag=flag), tempfile.TemporaryDirectory() as directory:
+        _, bare, commit = create_repository(directory)
+        repository = repository_input("source", commit)
+        record = repository_metadata(repository, bare, commit)
+        lock = {
+          "schemaVersion": 1,
+          "lockType": "source",
+          "productVersion": "9.4.0",
+          "baseline": {"repository": "source", "commit": commit},
+          "sourceDateEpoch": record["commitTime"],
+          "repositories": [record],
+          "relationships": [],
+        }
+        source_root = Path(directory) / "workspace"
+        materialize(lock, {"source": bare}, source_root)
+        checkout = source_root / "sources" / "source"
+        run_git(checkout, "update-index", flag, "content.txt")
+        (checkout / "content.txt").write_text("hidden change\n", encoding="ascii")
+
+        with self.assertRaisesRegex(ResolutionError, "unsafe Git index flag"):
+          materialize(lock, {"source": bare}, source_root)
+
   def test_materialize_rejects_files_outside_locked_checkouts(self):
     with tempfile.TemporaryDirectory() as directory:
       _, bare, commit = create_repository(directory)
