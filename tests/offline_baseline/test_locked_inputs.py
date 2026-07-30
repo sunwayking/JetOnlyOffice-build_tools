@@ -231,8 +231,12 @@ class LockedInputTests(unittest.TestCase):
       '[{"Id":"' + config + '","RepoDigests":["ubuntu@' + digest
       + '"],"Os":"linux","Architecture":"amd64"}]'
     )
-    with patch("offline_baseline.run_external", return_value=record):
+    with patch("offline_baseline.run_external", return_value=record) as inspect:
       verify_local_image("docker", image)
+    inspect.assert_called_once_with(
+      ["docker", "image", "inspect", "ubuntu@" + digest],
+      "locked image inspect for builder",
+    )
 
     bad_record = record.replace(config, "sha256:" + "c" * 64, 1)
     with patch("offline_baseline.run_external", return_value=bad_record):

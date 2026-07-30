@@ -14,7 +14,10 @@ from unittest.mock import patch
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT))
 sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
-from offline_baseline import verify as verify_offline_baseline  # noqa: E402
+from offline_baseline import (  # noqa: E402
+  pinned_image_reference,
+  verify as verify_offline_baseline,
+)
 SHA1_A = "a" * 40
 SHA1_B = "b" * 40
 SHA256_A = "a" * 64
@@ -840,7 +843,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       arguments = json.loads(log.read_text(encoding="utf-8"))
       self.assertEqual("none", arguments[arguments.index("--network") + 1])
       self.assertEqual("never", arguments[arguments.index("--pull") + 1])
-      self.assertIn(builder["reference"] + "@" + builder["digest"], arguments)
+      self.assertIn(pinned_image_reference(builder), arguments)
       environments = [
         arguments[index + 1]
         for index, item in enumerate(arguments)

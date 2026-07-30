@@ -5,16 +5,21 @@ import os
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
+
+from offline_baseline import pinned_image_reference  # noqa: E402
+
 with (REPOSITORY_ROOT / "locks" / "images.lock.json").open(encoding="utf-8") as stream:
   IMAGE_LOCK = json.load(stream)
 BUILDER_IMAGE = next(item for item in IMAGE_LOCK["images"] if item["role"] == "builder")
-UBUNTU_IMAGE = BUILDER_IMAGE["reference"] + "@" + BUILDER_IMAGE["digest"]
+UBUNTU_IMAGE = pinned_image_reference(BUILDER_IMAGE)
 
 
 def docker_has_locked_image():

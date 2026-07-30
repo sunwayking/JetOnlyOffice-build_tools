@@ -203,8 +203,16 @@ def run_external(command, description, exit_code=3):
   return result.stdout.strip()
 
 
+def pinned_image_reference(image):
+  reference = image["reference"]
+  last_slash = reference.rfind("/")
+  last_colon = reference.rfind(":")
+  repository = reference[:last_colon] if last_colon > last_slash else reference
+  return repository + "@" + image["digest"]
+
+
 def verify_local_image(docker, image):
-  pinned = image["reference"] + "@" + image["digest"]
+  pinned = pinned_image_reference(image)
   output = run_external(
     [docker, "image", "inspect", pinned],
     f"locked image inspect for {image['id']}",
@@ -241,11 +249,7 @@ def verify_local_image(docker, image):
     raise BaselineError(
       f"locked image inspect returned an unexpected image record for {image['id']}", 3
     )
-  reference = image["reference"]
-  last_slash = reference.rfind("/")
-  last_colon = reference.rfind(":")
-  repository = reference[:last_colon] if last_colon > last_slash else reference
-  expected_repository_digest = repository + "@" + image["digest"]
+  expected_repository_digest = pinned_image_reference(image)
   if expected_repository_digest not in repository_digests:
     raise BaselineError(
       f"locked image repository digest mismatch for {image['id']}", 3
@@ -254,7 +258,7 @@ def verify_local_image(docker, image):
 
 @contextmanager
 def export_locked_runtime_rootfs(docker, image, parent_directory):
-  pinned = image["reference"] + "@" + image["digest"]
+  pinned = pinned_image_reference(image)
   container_id = run_external(
     [docker, "create", "--pull=never", "--platform", "linux/amd64", pinned],
     "locked runtime container creation",
@@ -355,7 +359,7 @@ def bootstrap(args):
   image_records = []
   docker = args.docker
   for image in image_lock["images"]:
-    pinned = image["reference"] + "@" + image["digest"]
+    pinned = pinned_image_reference(image)
     run_external(
       [docker, "pull", "--platform", "linux/amd64", pinned],
       f"locked image pull for {image['id']}",
@@ -667,7 +671,7 @@ def build(args):
       "type=bind,src=" + Path(work_directory).as_posix() + ",dst=/work",
       "--mount",
       "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
-      builder["reference"] + "@" + builder["digest"],
+      pinned_image_reference(builder),
       "/bin/sh",
       "/jetonlyoffice/container/build-baseline.sh",
     ]
@@ -1193,7 +1197,7 @@ def package(args):
       "type=bind,src=" + Path(work_directory).as_posix() + ",dst=/work",
       "--mount",
       "type=bind,src=" + container_scripts.as_posix() + ",dst=/jetonlyoffice/container,readonly",
-      builder["reference"] + "@" + builder["digest"],
+      pinned_image_reference(builder),
       "/bin/sh",
       "/jetonlyoffice/container/package-baseline.sh",
     ]
