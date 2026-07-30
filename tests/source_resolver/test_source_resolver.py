@@ -373,7 +373,7 @@ class SourceResolverTests(unittest.TestCase):
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
         "en_CA", "en_GB", "en_US", "gl_ES",
         "hr_HR", "id_ID", "it_IT", "kk_KZ",
-        "lt_LT", "mn_MN", "pl_PL", "pt_PT",
+        "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
         "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
         "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
@@ -542,11 +542,6 @@ class SourceResolverTests(unittest.TestCase):
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
-      "pt_BR": (
-        "LGPL-2.1-only AND LGPL-3.0-only",
-        {"pt_BR/README_hyph_pt_BR.txt", "pt_BR/README_pt_BR.TXT"},
-        3,
-      ),
       "ro_RO": ("GPL-2.0-only", {"ro_RO/ro_RO_Romanian.txt"}, 3),
     }
     for component_id, (spdx, locators, evidence_count) in (
@@ -564,8 +559,11 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertIn("ca_ES/ca_ES.aff", dictionaries["license"]["patterns"])
     self.assertIn("ko_KR/ko_KR.aff", dictionaries["license"]["patterns"])
-    self.assertNotIn("en_CA", reviewed_dictionaries)
-    self.assertIn("en_CA", dictionaries["license"]["unresolvedComponents"])
+    for component_id in ("en_CA", "pt_BR"):
+      self.assertNotIn(component_id, reviewed_dictionaries)
+      self.assertIn(
+        component_id, dictionaries["license"]["unresolvedComponents"]
+      )
     expected_lgpl_evidence = {
       "bg_BG": "bg_BG/Readme_bg_BG.txt",
       "en_ZA": "en_ZA/Readme_en_ZA.txt",

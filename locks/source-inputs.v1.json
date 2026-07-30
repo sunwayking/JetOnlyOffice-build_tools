@@ -1242,7 +1242,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Twenty-three language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Twenty-two language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "reviewedComponents": [
           {
             "id": "ar",
@@ -1617,30 +1617,6 @@
             ]
           },
           {
-            "id": "pt_BR",
-            "spdx": "LGPL-2.1-only AND LGPL-3.0-only",
-            "evidence": [
-              {
-                "type": "git-blob",
-                "path": "pt_BR/hyph_pt_BR.dic",
-                "locator": "pt_BR/README_hyph_pt_BR.txt",
-                "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
-              },
-              {
-                "type": "git-blob",
-                "path": "pt_BR/pt_BR.aff",
-                "locator": "pt_BR/README_pt_BR.TXT",
-                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
-              },
-              {
-                "type": "git-blob",
-                "path": "pt_BR/pt_BR.dic",
-                "locator": "pt_BR/README_pt_BR.TXT",
-                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
-              }
-            ]
-          },
-          {
             "id": "ro_RO",
             "spdx": "GPL-2.0-only",
             "evidence": [
@@ -1768,6 +1744,7 @@
           "lt_LT",
           "mn_MN",
           "pl_PL",
+          "pt_BR",
           "pt_PT",
           "ru_RU",
           "sl_SI",

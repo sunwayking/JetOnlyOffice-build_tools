@@ -88,19 +88,20 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Twenty-three dictionary language packs are mapped payload by payload to exact
+Twenty-two dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree: `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`,
 `cs_CZ`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `hu_HU`, `ko_KR`, `lb_LU`,
-`lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `ro_RO`, `sk_SK`,
-`sv_SE`, `tr_TR`, and `vi_VN`. Embedded grants are accepted only when the
+`lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `ro_RO`, `sk_SK`, `sv_SE`,
+`tr_TR`, and `vi_VN`. Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
-also remain fail-closed. The remaining twenty-six language packs stay
-incomplete; twenty-four have candidate text that does not yet provide a
-complete, version-specific payload mapping, while `az_Latn_AZ` and `ru_RU`
-have no in-tree license candidate.
+also remain fail-closed. This includes `pt_BR`, whose hyphenation notice names
+LGPLv3 together with an unspecified Mozilla Public License. The remaining
+twenty-seven language packs stay incomplete; twenty-five have candidate text
+that does not yet provide a complete, version-specific payload mapping, while
+`az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
