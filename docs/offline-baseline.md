@@ -47,6 +47,10 @@ running upstream code. The build entrypoint invokes only the locked Python
 materialized at
 `sources/build_tools/tools/linux/python3/bin/python3`; the minimal Ubuntu image
 cannot silently supply a host or image Python fallback.
+The `@yao-pkg/pkg` runtime cache is likewise isolated at
+`/work/offline-cache/pkg` through `PKG_CACHE_PATH`; package binaries must be
+locked and materialized there during bootstrap rather than downloaded on the
+first build.
 
 The build entrypoint also emits a deterministic source snapshot and the
 executable `build-output/packaging/package.sh` driver. The driver and its JWT
@@ -106,17 +110,28 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-Thirty-three font components and nineteen dictionary packs now have
+Thirty-seven font components and nineteen dictionary packs now have
 payload-complete, machine-verified primary evidence. The remaining blockers
-are the selected CEF, Python, and Qt payloads; six font components; and thirty
+are the selected CEF, Python, and Qt payloads; two font components; and thirty
 dictionary packs enumerated in
-`locks/source-inputs.v1.json`, for thirty-nine unresolved components in total.
+`locks/source-inputs.v1.json`, for thirty-five unresolved components in total.
 The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
 V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
 behavior tests bind those exclusions to the published entrypoint and upstream
 guards. A future profile that selects any of those paths must restore it to the
 audited payload inventory. Partial evidence does not turn any of the three
 repositories into a repository-wide declaration.
+
+License closure alone does not make the first full build runnable. The locked
+`core` tree does not contain the source directories that `boost.py`, `icu.py`,
+and `openssl.py` clone when absent. `cef.py` still performs a remote metadata
+probe and download, `deploy_server.py` still downloads the three plugin runtime
+files even though `plugin-catalog` is a locked source input, and
+`build_server.py` executes `npm ci` plus `pkg`. The formal toolchain closure
+must therefore materialize every exact native, apt, npm, pkg, Java, Qt, CEF,
+and third-party source byte and remove these remaining network call sites from
+the offline path. `--update 0` only disables repository updates; it is not a
+general offline switch.
 
 The image lock, offline materializer, deterministic package driver, and release
 artifact verifier are concrete and locally reverified. The formal toolchain
@@ -125,6 +140,39 @@ prerequisites. Until those inputs and the formal source lock are reviewed and
 published, the public entrypoints must stop before producing a release
 candidate. Placeholder locks, `NOASSERTION`, upstream fallbacks, and online
 build/package retries are not supported.
+
+## Shortest real build path after closure
+
+Run the authoring gates from the clean, merged build_tools commit that the
+source lock will identify. They are intentionally separate from the four
+stable release entrypoints:
+
+```powershell
+pwsh -NoProfile -File scripts/resolve-sources.ps1 -Command Audit
+pwsh -NoProfile -File scripts/resolve-sources.ps1 -Command LicenseAudit
+pwsh -NoProfile -File scripts/resolve-sources.ps1 -Command LfsAudit
+pwsh -NoProfile -File scripts/resolve-sources.ps1 -Command SelectionAudit
+pwsh -NoProfile -File scripts/resolve-sources.ps1 -Command Resolve
+```
+
+Publish the canonical `sources.lock.json` as the immutable build_tools release
+asset, place that exact asset and the reviewed `toolchain.lock.json` beside the
+committed image lock, then run:
+
+```powershell
+pwsh -NoProfile -File scripts/bootstrap-source.ps1
+pwsh -NoProfile -File scripts/build.ps1
+pwsh -NoProfile -File scripts/package.ps1
+```
+
+Bootstrap is restartable: a complete matching source workspace is verified and
+reused, while a failed first materialization is staged outside the public
+workspace and removed instead of leaving a partial checkout that blocks the
+next run. Build and package remain strictly `--network none`.
+
+Repeat bootstrap, build, and package in a second independent cache, workspace,
+and artifact root. Only then invoke `verify.ps1` with both artifact manifests;
+the first build cannot serve as its own reproducibility reference.
 
 The stable exit codes are:
 

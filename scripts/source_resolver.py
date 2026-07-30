@@ -1727,9 +1727,7 @@ def caches_from_lock(lock, cache_directory):
   return caches
 
 
-def materialize(lock, caches, source_directory):
-  source_directory = Path(source_directory).resolve()
-  source_directory.mkdir(parents=True, exist_ok=True)
+def _materialize_into(lock, caches, source_directory):
   for repository in lock["repositories"]:
     destination = _resolve_within(
       source_directory,
@@ -1766,6 +1764,34 @@ def materialize(lock, caches, source_directory):
     if repository["lfsObjects"]:
       _run_git(["lfs", "checkout"], cwd=destination, exit_code=3)
   verify_materialized(lock, source_directory)
+
+
+def materialize(lock, caches, source_directory):
+  source_directory = Path(source_directory).resolve()
+  if source_directory.exists():
+    verify_materialized(lock, source_directory)
+    return
+  source_directory.parent.mkdir(parents=True, exist_ok=True)
+  staging_directory = Path(tempfile.mkdtemp(
+    dir=source_directory.parent,
+    prefix="." + source_directory.name + ".",
+  ))
+  try:
+    _materialize_into(lock, caches, staging_directory)
+    try:
+      staging_directory.rename(source_directory)
+    except OSError as error:
+      if source_directory.exists():
+        verify_materialized(lock, source_directory)
+        return
+      raise ResolutionError(
+        f"{source_directory}: cannot publish locked source workspace: {error}",
+        3,
+      ) from error
+    staging_directory = None
+  finally:
+    if staging_directory is not None:
+      shutil.rmtree(staging_directory, ignore_errors=True)
 
 
 def verify_materialized(lock, source_directory):

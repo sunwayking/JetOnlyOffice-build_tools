@@ -19,6 +19,7 @@ export PKG_CONFIG_PATH="$toolchain_root/usr/local/lib/pkgconfig:$toolchain_root/
 export CMAKE_PREFIX_PATH="$toolchain_root/usr/local:$toolchain_root/usr"
 export NPM_CONFIG_CACHE="$offline_cache_root/npm"
 export PIP_FIND_LINKS="$offline_cache_root/pip"
+export PKG_CACHE_PATH="$offline_cache_root/pkg"
 
 reject_alias_path() {
   alias_root=$1

@@ -125,6 +125,19 @@ class ContainerMaterializationTests(unittest.TestCase):
       )
       self.assertEqual(0, result.returncode, result.stderr + result.stdout)
 
+  def test_materializer_exports_offline_package_cache_locations(self):
+    with tempfile.TemporaryDirectory() as directory:
+      cache, work = self.prepare_file_plan(Path(directory))
+      result = self.run_materializer(
+        cache,
+        work,
+        ". /jetonlyoffice/container/materialize-toolchain.sh; "
+        "test \"$NPM_CONFIG_CACHE\" = /work/offline-cache/npm; "
+        "test \"$PIP_FIND_LINKS\" = /work/offline-cache/pip; "
+        "test \"$PKG_CACHE_PATH\" = /work/offline-cache/pkg",
+      )
+      self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+
   def test_materializer_rejects_symbolic_link_parent_alias(self):
     with tempfile.TemporaryDirectory() as directory:
       cache, work = self.prepare_file_plan(Path(directory))

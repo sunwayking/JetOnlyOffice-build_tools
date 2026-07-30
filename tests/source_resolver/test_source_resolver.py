@@ -1362,6 +1362,57 @@ class SourceResolverTests(unittest.TestCase):
       )
       self.assertEqual("", run_git(checkout, "status", "--porcelain"))
 
+  def test_materialize_is_idempotent_for_a_matching_locked_workspace(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      source_root = Path(directory) / "workspace"
+
+      materialize(lock, {"source": bare}, source_root)
+      materialize(lock, {"source": bare}, source_root)
+
+      verify_materialized(lock, source_root)
+
+  def test_materialize_does_not_publish_a_partial_workspace(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, first_bare, first_commit = create_repository(directory, "first")
+      _, second_bare, second_commit = create_repository(directory, "second")
+      first = repository_metadata(
+        repository_input("first", first_commit), first_bare, first_commit
+      )
+      second = repository_metadata(
+        repository_input("second", second_commit), second_bare, second_commit
+      )
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "first", "commit": first_commit},
+        "sourceDateEpoch": max(first["commitTime"], second["commitTime"]),
+        "repositories": [first, second],
+        "relationships": [],
+      }
+      source_root = Path(directory) / "workspace"
+
+      with self.assertRaises(ResolutionError):
+        materialize(
+          lock,
+          {"first": first_bare, "second": Path(directory) / "missing.git"},
+          source_root,
+        )
+
+      self.assertFalse(source_root.exists())
+
   def test_materialize_restores_and_verifies_lfs_content_without_download(self):
     with tempfile.TemporaryDirectory() as directory:
       checkout, _, _ = create_repository(directory)
