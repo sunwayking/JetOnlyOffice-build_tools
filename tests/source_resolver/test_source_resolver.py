@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -1301,6 +1302,47 @@ class SourceResolverTests(unittest.TestCase):
       self.assertEqual(3, exit_code)
       self.assertFalse(report_path.exists())
 
+  def test_audit_clis_remove_stale_reports_before_contract_failure(self):
+    with tempfile.TemporaryDirectory() as directory:
+      inputs_path = Path(directory) / "invalid-inputs.json"
+      inputs_path.write_text("{}\n", encoding="utf-8")
+      commands = [
+        ("audit", ["--report"]),
+        (
+          "license-audit",
+          [
+            "--cache-directory", str(Path(directory) / "cache"),
+            "--report",
+            "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+          ],
+        ),
+        (
+          "lfs-audit",
+          [
+            "--cache-directory", str(Path(directory) / "cache"),
+            "--repository", "documentserver",
+            "--report",
+            "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+          ],
+        ),
+      ]
+      for command, arguments in commands:
+        with self.subTest(command=command):
+          report_path = Path(directory) / f"{command}.json"
+          report_path.write_text('{"status":"passed"}\n', encoding="utf-8")
+          report_index = arguments.index("--report") + 1
+          arguments = list(arguments)
+          arguments.insert(report_index, str(report_path))
+
+          exit_code = main([
+            command,
+            "--inputs", str(inputs_path),
+            *arguments,
+          ])
+
+          self.assertEqual(2, exit_code)
+          self.assertFalse(report_path.exists())
+
   def test_resolve_cli_removes_stale_lock_before_license_failure(self):
     inputs = source_inputs()
     inputs["repositories"][1]["license"] = {
@@ -1607,6 +1649,34 @@ class SourceResolverTests(unittest.TestCase):
       )
       self.assertEqual(3, result.returncode, result.stderr)
       self.assertEqual("failed", json.loads(report.read_text(encoding="utf-8"))["status"])
+
+  @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
+  def test_powershell_wrapper_removes_stale_report_before_python_discovery(self):
+    with tempfile.TemporaryDirectory() as directory:
+      report = Path(directory) / "selection-audit.json"
+      report.write_text('{"status":"passed"}\n', encoding="utf-8")
+      environment = os.environ.copy()
+      environment["PATH"] = ""
+      result = subprocess.run(
+        [
+          str(shutil.which("pwsh")),
+          "-NoProfile",
+          "-File",
+          str(REPOSITORY_ROOT / "scripts" / "resolve-sources.ps1"),
+          "-Command",
+          "SelectionAudit",
+          "-SelectionAuditReport",
+          str(report),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env=environment,
+        check=False,
+      )
+
+      self.assertEqual(2, result.returncode, result.stderr)
+      self.assertFalse(report.exists())
 
   @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
   def test_public_bootstrap_fails_closed_when_lock_asset_is_missing(self):

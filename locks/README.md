@@ -113,14 +113,16 @@ The four audit commands keep independent canonical reports at
 `artifacts/source-selection-audit.json` report; running one gate cannot
 overwrite the evidence from another gate.
 
-Every audit rerun removes its own previous report before reading inputs or
-contacting a mirror. `Resolve` applies the same rule to its requested source
-lock output. A contract error, incomplete license inventory, or transient
-network failure therefore leaves that run's output absent instead of exposing
-an older passed report or stale lock as current evidence. Formal authoring must
-retain the exit status together with the newly generated report; a missing
-report after a failed rerun is blocking evidence, not permission to reuse the
-previous file.
+Every audit rerun removes its own previous report before locating Python,
+reading inputs, or contacting a mirror. `Resolve` applies the same rule to its
+requested source lock output. A startup, contract, or network failure that
+prevents a new canonical result therefore leaves that run's output absent
+instead of exposing an older passed report or stale lock as current evidence.
+`Audit` and `LicenseAudit` can intentionally write a new canonical `failed`
+report and return exit code 3; that report is current blocking evidence.
+Formal authoring must retain the exit status together with the newly generated
+report. A missing report after a failed rerun is also blocking evidence, not
+permission to reuse the previous file.
 
 The resolver accepts only the source and component expressions explicitly
 listed in its reviewed set. Adding another expression requires a resolver and

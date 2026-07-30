@@ -14,6 +14,28 @@ param(
     [string]$SelfRoot = (Join-Path $PSScriptRoot "..")
 )
 
+$outputPath = switch ($Command) {
+    "Audit" { $AuditReport }
+    "LicenseAudit" { $LicenseAuditReport }
+    "LfsAudit" { $LfsAuditReport }
+    "SelectionAudit" { $SelectionAuditReport }
+    "Resolve" { $LockPath }
+}
+if ($outputPath -and (Test-Path -LiteralPath $outputPath)) {
+    try {
+        $output = Get-Item -LiteralPath $outputPath -Force -ErrorAction Stop
+        if ($output.PSIsContainer) {
+            Write-Error "$outputPath`: previous output is not a file."
+            exit 3
+        }
+        Remove-Item -LiteralPath $outputPath -Force -ErrorAction Stop
+    }
+    catch {
+        Write-Error "$outputPath`: cannot remove previous output: $($_.Exception.Message)"
+        exit 3
+    }
+}
+
 $python = $null
 $pythonCandidates = if ($IsWindows) { @("python", "python3") } else { @("python3", "python") }
 foreach ($candidate in $pythonCandidates) {
