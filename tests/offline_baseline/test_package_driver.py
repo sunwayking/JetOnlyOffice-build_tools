@@ -5,11 +5,14 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 import sys
 import tarfile
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
+import zipfile
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -36,7 +39,14 @@ specification = importlib.util.spec_from_file_location("package_driver", DRIVER_
 package_driver = importlib.util.module_from_spec(specification)
 specification.loader.exec_module(package_driver)
 sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
-from offline_baseline import verify_oci_artifact, verify_supply_chain_artifacts  # noqa: E402
+from offline_baseline import (  # noqa: E402
+  BaselineError,
+  verify_cyclonedx_artifact,
+  verify_license_artifact,
+  verify_oci_artifact,
+  verify_spdx_artifact,
+  verify_supply_chain_artifacts,
+)
 from contracts.contract_tool import canonical_sha256, validate_contract  # noqa: E402
 
 
@@ -81,6 +91,44 @@ def toolchain_lock():
       "license": "BSD-3-Clause",
     }],
   }
+
+
+def component_license():
+  payload = b"component payload\n"
+  license_text = b"custom component license\n"
+  return payload, license_text, {
+    "scope": "component",
+    "payloadPatterns": ["**/*.bin"],
+    "components": [{
+      "id": "fonts",
+      "payloadPaths": ["fonts/payload.bin"],
+      "license": {
+        "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+        "evidence": [{
+          "type": "git-blob",
+          "path": "fonts/payload.bin",
+          "blob": "e" * 40,
+          "sha256": hashlib.sha256(payload).hexdigest(),
+          "locator": "fonts/LICENSE.txt",
+          "evidenceSha256": hashlib.sha256(license_text).hexdigest(),
+        }],
+      },
+    }],
+  }
+
+
+def font_with_license_name(license_text):
+  encoded = license_text.encode("utf-16-be")
+  name_table = (
+    struct.pack(">HHH", 0, 1, 18)
+    + struct.pack(">HHHHHH", 3, 1, 0x0409, 13, len(encoded), 0)
+    + encoded
+  )
+  return (
+    struct.pack(">IHHHH", 0x00010000, 1, 0, 0, 0)
+    + struct.pack(">4sIII", b"name", 0, 28, len(name_table))
+    + name_table
+  )
 
 
 class PackageDriverTests(unittest.TestCase):
@@ -136,6 +184,240 @@ class PackageDriverTests(unittest.TestCase):
       cdx_value = json.loads(cdx.read_text(encoding="utf-8"))
       self.assertEqual(source_digest, cdx_value["metadata"]["properties"][0]["value"])
 
+  def test_sbom_rejects_custom_tool_license_without_extracted_text(self):
+    with tempfile.TemporaryDirectory() as directory:
+      tools = toolchain_lock()
+      tools["tools"][0]["license"] = "LicenseRef-Unbundled-Tool-License"
+      with self.assertRaisesRegex(
+        package_driver.PackageError, "missing extracted license text"
+      ):
+        package_driver.make_sbom(
+          "spdx",
+          source_lock(),
+          tools,
+          [],
+          "f" * 64,
+          Path(directory) / "release.spdx.json",
+        )
+
+  def test_sboms_preserve_component_licenses_and_custom_license_text(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = source_lock()
+      _, license_text, license_record = component_license()
+      source["repositories"][0]["license"] = license_record
+      source_digest = hashlib.sha256(
+        package_driver.canonical_bytes(source).rstrip(b"\n")
+      ).hexdigest()
+      spdx = root / "release.spdx.json"
+      cdx = root / "release.cdx.json"
+      extracted = {
+        "LicenseRef-Unicode-Fonts-for-Ancient-Scripts": license_text.decode("utf-8")
+      }
+
+      package_driver.make_sbom(
+        "spdx", source, toolchain_lock(), [], source_digest, spdx, extracted
+      )
+      package_driver.make_sbom(
+        "cyclonedx", source, toolchain_lock(), [], source_digest, cdx, extracted
+      )
+
+      spdx_value = json.loads(spdx.read_text(encoding="utf-8"))
+      component_package = next(
+        item for item in spdx_value["packages"]
+        if item["SPDXID"] == "SPDXRef-documentserver-fonts"
+      )
+      self.assertEqual(
+        "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+        component_package["licenseDeclared"],
+      )
+      self.assertIn("fonts/payload.bin", component_package["comment"])
+      self.assertEqual([{
+        "licenseId": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+        "extractedText": license_text.decode("utf-8"),
+      }], spdx_value["hasExtractedLicensingInfos"])
+      cdx_value = json.loads(cdx.read_text(encoding="utf-8"))
+      component = next(
+        item for item in cdx_value["components"]
+        if item["bom-ref"] == "repo:documentserver:fonts"
+      )
+      self.assertEqual(
+        [{"expression": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts"}],
+        component["licenses"],
+      )
+      self.assertTrue(any(
+        item["name"] == "jetonlyoffice.licenseEvidence"
+        and "fonts/LICENSE.txt" in item["value"]
+        for item in component["properties"]
+      ))
+
+      spdx_manifest = {"artifacts": [{
+        "id": "jetonlyoffice-spdx", "type": "spdx", "path": spdx.name,
+      }]}
+      cdx_manifest = {"artifacts": [{
+        "id": "jetonlyoffice-cyclonedx", "type": "cyclonedx", "path": cdx.name,
+      }]}
+      verify_spdx_artifact(spdx_manifest, root, source, toolchain_lock())
+      verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
+
+      original_packages = list(spdx_value["packages"])
+      spdx_value["packages"] = [
+        item for item in original_packages
+        if item["SPDXID"] != "SPDXRef-tool-zstd"
+      ]
+      spdx.write_bytes(package_driver.canonical_bytes(spdx_value))
+      with self.assertRaisesRegex(BaselineError, "missing zstd"):
+        verify_spdx_artifact(spdx_manifest, root, source, toolchain_lock())
+      spdx_value["packages"] = original_packages
+
+      del spdx_value["hasExtractedLicensingInfos"]
+      spdx.write_bytes(package_driver.canonical_bytes(spdx_value))
+      with self.assertRaisesRegex(BaselineError, "extracted license"):
+        verify_spdx_artifact(spdx_manifest, root, source, toolchain_lock())
+
+      original_components = list(cdx_value["components"])
+      cdx_value["components"] = [
+        item for item in original_components
+        if item["bom-ref"] != "tool:zstd"
+      ]
+      cdx.write_bytes(package_driver.canonical_bytes(cdx_value))
+      with self.assertRaisesRegex(BaselineError, "missing zstd"):
+        verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
+      cdx_value["components"] = original_components
+
+      component["properties"] = [
+        item for item in component["properties"]
+        if item["name"] != "jetonlyoffice.licenseEvidence"
+      ]
+      cdx.write_bytes(package_driver.canonical_bytes(cdx_value))
+      with self.assertRaisesRegex(BaselineError, "license evidence"):
+        verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
+
+  def test_license_bundle_collects_component_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_tree = root / "source"
+      checkout = source_tree / "sources" / "DocumentServer"
+      (checkout / "fonts").mkdir(parents=True)
+      payload, license_text, license_record = component_license()
+      (checkout / "fonts" / "payload.bin").write_bytes(payload)
+      (checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+      source = source_lock()
+      source["repositories"][0]["license"] = license_record
+      work = root / "work"
+      notice = root / "NOTICE.txt"
+
+      with patch.object(package_driver, "tar_directory"):
+        extracted = package_driver.make_license_artifacts(
+          source_tree,
+          source,
+          toolchain_lock(),
+          "f" * 64,
+          work,
+          root / "licenses.tar.zst",
+          notice,
+          source["sourceDateEpoch"],
+        )
+
+      evidence = work / "license-bundle" / "repositories" / "documentserver" \
+        / "components" / "fonts" / "evidence" \
+        / (hashlib.sha256(license_text).hexdigest() + ".license")
+      self.assertEqual(license_text, evidence.read_bytes())
+      self.assertEqual({
+        "LicenseRef-Unicode-Fonts-for-Ancient-Scripts": license_text.decode("utf-8")
+      }, extracted)
+      manifest = json.loads(
+        (work / "license-bundle" / "manifest.json").read_text(encoding="utf-8")
+      )
+      component = manifest["repositories"][0]["components"][0]
+      self.assertEqual("fonts/payload.bin", component["payloadPaths"][0])
+      self.assertEqual(
+        evidence.relative_to(work / "license-bundle").as_posix(),
+        component["license"]["evidence"][0]["licensePath"],
+      )
+      self.assertIn("documentserver/fonts", notice.read_text(encoding="utf-8"))
+
+      bundle_root = work / "license-bundle"
+      archive = root / "licenses.tar"
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+      license_manifest = {"artifacts": [{
+        "id": "jetonlyoffice-licenses", "type": "licenses", "path": archive.name,
+      }]}
+      self.assertEqual({
+        "LicenseRef-Unicode-Fonts-for-Ancient-Scripts": license_text.decode("utf-8")
+      }, verify_license_artifact(license_manifest, root, source, toolchain_lock()))
+
+      manifest["tools"] = []
+      (bundle_root / "manifest.json").write_bytes(
+        package_driver.canonical_bytes(manifest)
+      )
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+      with self.assertRaisesRegex(BaselineError, "toolchain inventory"):
+        verify_license_artifact(license_manifest, root, source, toolchain_lock())
+
+      manifest["tools"] = [{
+        "id": "zstd",
+        "name": "zstd",
+        "version": "1.5.6",
+        "license": "BSD-3-Clause",
+        "sourceUrl": "https://packages.example.test/zstd.deb",
+      }]
+      (bundle_root / "manifest.json").write_bytes(
+        package_driver.canonical_bytes(manifest)
+      )
+
+      evidence.write_bytes(b"tampered license\n")
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+      with self.assertRaisesRegex(BaselineError, "evidence digest"):
+        verify_license_artifact(license_manifest, root, source, toolchain_lock())
+
+  def test_component_license_bundle_extracts_font_and_zip_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout = Path(directory)
+      font_text = "embedded font license"
+      font = font_with_license_name(font_text)
+      font_path = checkout / "fonts" / "Example.ttf"
+      font_path.parent.mkdir()
+      font_path.write_bytes(font)
+      font_evidence = {
+        "type": "font-name",
+        "path": "fonts/Example.ttf",
+        "blob": "1" * 40,
+        "sha256": hashlib.sha256(font).hexdigest(),
+        "locator": "name:13",
+        "evidenceSha256": hashlib.sha256(font_text.encode("utf-8")).hexdigest(),
+      }
+      repository = {"id": "fonts", "lfsObjects": []}
+      self.assertEqual(
+        font_text.encode("utf-8"),
+        package_driver.component_evidence_bytes(checkout, repository, font_evidence),
+      )
+
+      zip_path = checkout / "archives" / "bundle.zip"
+      zip_path.parent.mkdir()
+      zip_text = b"archive license\n"
+      with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("LICENSE.txt", zip_text)
+      zip_payload = zip_path.read_bytes()
+      zip_evidence = {
+        "type": "zip-member",
+        "path": "archives/bundle.zip",
+        "blob": "2" * 40,
+        "sha256": hashlib.sha256(zip_payload).hexdigest(),
+        "locator": "LICENSE.txt",
+        "evidenceSha256": hashlib.sha256(zip_text).hexdigest(),
+      }
+      self.assertEqual(
+        zip_text,
+        package_driver.component_evidence_bytes(checkout, repository, zip_evidence),
+      )
+
   def test_provenance_binds_only_release_carriers(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
@@ -190,9 +472,20 @@ class PackageDriverTests(unittest.TestCase):
       "projectFork": False, "buildInput": True, "active": True,
       "license": {"path": "LICENSE", "blob": "7" * 40,
                   "sha256": hashlib.sha256(b"package license\n").hexdigest(),
-                  "spdx": "AGPL-3.0-only"},
+                   "spdx": "AGPL-3.0-only"},
+    }
+    component_payload, component_text, component_record = component_license()
+    component_input = {
+      "id": "font-assets", "role": "build-input",
+      "checkoutPath": "sources/font-assets",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-font-assets.git",
+      "upstream": "https://github.com/ONLYOFFICE/font-assets.git",
+      "commit": "8" * 40, "tree": "9" * 40, "commitTime": epoch,
+      "projectFork": False, "buildInput": True, "active": True,
+      "lfsObjects": [], "license": component_record,
     }
     source["repositories"][0:0] = [docker_input, package_input]
+    source["repositories"].append(component_input)
     documentserver_input = next(
       item for item in source["repositories"] if item["id"] == "documentserver"
     )
@@ -274,6 +567,10 @@ class PackageDriverTests(unittest.TestCase):
         "\tdpkg-deb --build --root-owner-group fixture deb/onlyoffice-documentserver_$(PRODUCT_VERSION)-$(BUILD_NUMBER)_amd64.deb\n",
         encoding="utf-8", newline="\n",
       )
+      component_source = source_tree / "sources" / "font-assets" / "fonts"
+      component_source.mkdir(parents=True)
+      (component_source / "payload.bin").write_bytes(component_payload)
+      (component_source / "LICENSE.txt").write_bytes(component_text)
       package_driver.tar_directory(source_tree, build_output / "source-archive.tar.zst",
                                    epoch, compressed=True)
       runtime_tree = root / "runtime-tree"
@@ -303,7 +600,7 @@ class PackageDriverTests(unittest.TestCase):
       ))
       manifest = json.loads((output / "artifact-manifest.json").read_text(encoding="utf-8"))
       validate_contract(manifest, "artifact-manifest", REPOSITORY_ROOT / "schemas")
-      verify_supply_chain_artifacts(manifest, output, source)
+      verify_supply_chain_artifacts(manifest, output, source, tools)
       license_tree = root / "license-tree"
       license_tree.mkdir()
       subprocess.run(
@@ -317,6 +614,10 @@ class PackageDriverTests(unittest.TestCase):
         (license_tree / "repositories" / "documentserver" / "LICENSE")
         .read_text(encoding="utf-8"),
       )
+      component_evidence = license_tree / "repositories" / "font-assets" \
+        / "components" / "fonts" / "evidence" \
+        / (hashlib.sha256(component_text).hexdigest() + ".license")
+      self.assertEqual(component_text, component_evidence.read_bytes())
       notice = (output / "licenses" / "NOTICE.txt").read_text(encoding="utf-8")
       self.assertIn("document-server-package", notice)
       self.assertIn(canonical_sha256(source), notice)

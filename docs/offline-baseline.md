@@ -61,6 +61,20 @@ toolchain, image, and runtime-rootfs locks as read-only inputs and emits the
 DEB, normalized rootfs archive, OCI image layout, source archive, SPDX,
 CycloneDX, SLSA provenance, and checksums manifest.
 
+Repository-level and component-scoped license records are both first-class
+source-lock inputs. Packaging copies a declared repository license or extracts
+the exact reviewed bytes from a Git blob, OpenType name record, or locked ZIP
+member for every component payload. The deterministic license bundle records
+those paths and digests in its own canonical manifest. SPDX represents each
+component independently and includes `hasExtractedLicensingInfos` for every
+custom `LicenseRef-*`; CycloneDX preserves the same component expression,
+payload paths, and immutable evidence references. `verify.ps1` reopens the
+license archive, checks its repository and toolchain inventories against both
+locks, and cross-checks its extracted text against both SBOMs rather than
+accepting artifact presence alone. Git LFS evidence binds the pointer bytes in
+Git and extracts embedded font or archive terms only from the separately
+digest-verified LFS object.
+
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any
 previous manifest at that path is removed. The build manifest must bind one

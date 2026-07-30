@@ -53,6 +53,28 @@ def license_record():
   }
 
 
+def component_license_record():
+  return {
+    "scope": "component",
+    "payloadPatterns": ["**/*.ttf"],
+    "components": [{
+      "id": "fonts",
+      "payloadPaths": ["fonts/Example.ttf"],
+      "license": {
+        "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+        "evidence": [{
+          "type": "git-blob",
+          "path": "fonts/Example.ttf",
+          "blob": SHA1_A,
+          "sha256": SHA256_A,
+          "locator": "fonts/LICENSE.txt",
+          "evidenceSha256": SHA256_B,
+        }],
+      },
+    }],
+  }
+
+
 def source_lock():
   return {
     "schemaVersion": 1,
@@ -493,6 +515,35 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "normalized and relative"):
       validate_contract(value, "source-lock", self.schema_dir)
 
+  def test_source_lock_accepts_component_scoped_license_evidence(self):
+    value = source_lock()
+    value["repositories"][0]["license"] = component_license_record()
+
+    validate_contract(value, "source-lock", self.schema_dir)
+
+  def test_source_lock_rejects_invalid_component_scoped_license_evidence(self):
+    value = source_lock()
+    value["repositories"][0]["license"] = component_license_record()
+    value["repositories"][0]["license"]["path"] = "LICENSE"
+    with self.assertRaisesRegex(ContractError, "exactly one schema"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["license"] = component_license_record()
+    value["repositories"][0]["license"]["components"][0]["payloadPaths"] = [
+      "fonts/Other.ttf"
+    ]
+    with self.assertRaisesRegex(ContractError, "evidence.*exactly cover"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["license"] = component_license_record()
+    value["repositories"][0]["license"]["components"][0]["license"]["spdx"] = (
+      "NOASSERTION"
+    )
+    with self.assertRaisesRegex(ContractError, "reviewed source set"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
   def test_source_license_audit_rejects_status_and_inventory_drift(self):
     value = source_license_audit()
     value["repositories"][0]["components"].reverse()
@@ -575,12 +626,33 @@ class ContractToolTests(unittest.TestCase):
       for repository in value["repositories"]
       if repository["type"] == "branch"
     )["ref"] = "refs/heads/main"
-    with self.assertRaisesRegex(ContractError, "develop branch ref"):
+    with self.assertRaisesRegex(ContractError, "expected constant"):
       validate_contract(value, "source-selection-audit", self.schema_dir)
 
     value = source_selection_audit()
     value["repositories"] = list(reversed(value["repositories"]))
     with self.assertRaisesRegex(ContractError, "must be sorted"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
+
+  def test_source_selection_audit_rejects_incomplete_discriminated_records(self):
+    value = source_selection_audit()
+    tag = next(
+      repository
+      for repository in value["repositories"]
+      if repository["type"] == "tag"
+    )
+    del tag["ref"]
+    with self.assertRaisesRegex(ContractError, "missing required property ref"):
+      validate_contract(value, "source-selection-audit", self.schema_dir)
+
+    value = source_selection_audit()
+    self_selection = next(
+      repository
+      for repository in value["repositories"]
+      if repository["type"] == "self"
+    )
+    self_selection["ref"] = "refs/heads/develop"
+    with self.assertRaisesRegex(ContractError, "unknown properties: ref"):
       validate_contract(value, "source-selection-audit", self.schema_dir)
 
   def test_contracts_reject_path_traversal(self):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import fnmatch
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -232,10 +233,61 @@ def _matches_type(value, expected):
   raise ContractError("unsupported schema type: " + expected)
 
 
+def _schema_property_const(schema, property_name, store, current_name):
+  if not isinstance(schema, dict):
+    return None
+  if "$ref" in schema:
+    target, target_name = store.resolve(schema["$ref"], current_name)
+    return _schema_property_const(target, property_name, store, target_name)
+  direct = schema.get("properties", {}).get(property_name, {})
+  if isinstance(direct, dict) and "const" in direct:
+    return direct["const"]
+  values = {
+    value
+    for candidate in schema.get("allOf", [])
+    if (value := _schema_property_const(
+      candidate, property_name, store, current_name
+    )) is not None
+  }
+  return next(iter(values)) if len(values) == 1 else None
+
+
 def _validate_schema(value, schema, store, current_name, path="$"):
+  if schema is True:
+    return
+  if schema is False:
+    raise ContractError(f"{path}: value is not allowed")
   if "$ref" in schema:
     target, target_name = store.resolve(schema["$ref"], current_name)
     _validate_schema(value, target, store, target_name, path)
+    return
+
+  if "allOf" in schema:
+    for candidate in schema["allOf"]:
+      _validate_schema(value, candidate, store, current_name, path)
+    return
+
+  if "oneOf" in schema:
+    matches = 0
+    for candidate in schema["oneOf"]:
+      try:
+        _validate_schema(value, candidate, store, current_name, path)
+      except ContractError:
+        continue
+      matches += 1
+    if matches != 1:
+      if matches == 0 and isinstance(value, dict) and "type" in value:
+        discriminated = [
+          candidate
+          for candidate in schema["oneOf"]
+          if _schema_property_const(candidate, "type", store, current_name)
+          == value["type"]
+        ]
+        if len(discriminated) == 1:
+          # Re-run the selected branch so callers receive its precise field error.
+          # The generic oneOf error below remains the fail-closed fallback.
+          _validate_schema(value, discriminated[0], store, current_name, path)
+      raise ContractError(f"{path}: must match exactly one schema")
     return
 
   if "const" in schema and value != schema["const"]:
@@ -371,11 +423,69 @@ def _validate_source_lock(value):
   for index, repository in enumerate(repositories):
     prefix = f"$.repositories[{index}]"
     _validate_relative_path(repository["checkoutPath"], prefix + ".checkoutPath")
-    _validate_relative_path(repository["license"]["path"], prefix + ".license.path")
     _validate_https(repository["origin"], prefix + ".origin")
     _validate_https(repository["upstream"], prefix + ".upstream")
-    if repository["license"]["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
-      raise ContractError(prefix + ".license.spdx: expression is not in the reviewed source set")
+    license_record = repository["license"]
+    if license_record.get("scope") == "component":
+      patterns = license_record["payloadPatterns"]
+      if patterns != sorted(set(patterns)):
+        raise ContractError(prefix + ".license.payloadPatterns: values must be sorted and unique")
+      for pattern_index, pattern in enumerate(patterns):
+        if "\\" in pattern or pattern.startswith("/") or ".." in pattern.split("/"):
+          raise ContractError(
+            f"{prefix}.license.payloadPatterns[{pattern_index}]: invalid repository glob"
+          )
+      components = license_record["components"]
+      _validate_sorted_unique(components, lambda item: item["id"], prefix + ".license.components")
+      all_payload_paths = []
+      for component_index, component in enumerate(components):
+        component_prefix = f"{prefix}.license.components[{component_index}]"
+        payload_paths = component["payloadPaths"]
+        _validate_sorted_unique(payload_paths, lambda path: path, component_prefix + ".payloadPaths")
+        for payload_path in payload_paths:
+          _validate_relative_path(payload_path, component_prefix + ".payloadPaths")
+          if payload_path.partition("/")[0] != component["id"]:
+            raise ContractError(component_prefix + ": id does not match payload component")
+          if not any(
+            fnmatch.fnmatchcase(payload_path, pattern)
+            or (pattern.startswith("**/") and fnmatch.fnmatchcase(payload_path, pattern[3:]))
+            for pattern in patterns
+          ):
+            raise ContractError(component_prefix + ": payload path does not match payloadPatterns")
+        all_payload_paths.extend(payload_paths)
+        component_license = component["license"]
+        if component_license["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
+          raise ContractError(
+            component_prefix + ".license.spdx: expression is not in the reviewed source set"
+          )
+        evidence = component_license["evidence"]
+        _validate_sorted_unique(
+          evidence,
+          lambda item: (item["path"], item["type"], item["locator"]),
+          component_prefix + ".license.evidence",
+        )
+        evidence_paths = []
+        for evidence_index, evidence_record in enumerate(evidence):
+          evidence_prefix = f"{component_prefix}.license.evidence[{evidence_index}]"
+          _validate_relative_path(evidence_record["path"], evidence_prefix + ".path")
+          if evidence_record["type"] == "font-name":
+            if evidence_record["locator"] not in {"name:0", "name:13"}:
+              raise ContractError(evidence_prefix + ".locator: unsupported font name locator")
+          else:
+            _validate_relative_path(evidence_record["locator"], evidence_prefix + ".locator")
+          evidence_paths.append(evidence_record["path"])
+        if evidence_paths != payload_paths:
+          raise ContractError(
+            component_prefix + ".license.evidence: must exactly cover payloadPaths"
+          )
+      if len(all_payload_paths) != len(set(all_payload_paths)):
+        raise ContractError(prefix + ".license.components: payload paths must be unique")
+    else:
+      _validate_relative_path(license_record["path"], prefix + ".license.path")
+      if license_record["spdx"] not in SOURCE_LICENSE_EXPRESSIONS:
+        raise ContractError(
+          prefix + ".license.spdx: expression is not in the reviewed source set"
+        )
     _validate_sorted_unique(
       repository["lfsObjects"],
       lambda item: item["oid"],

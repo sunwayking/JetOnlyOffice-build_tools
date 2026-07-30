@@ -23,6 +23,7 @@ from source_resolver import (  # noqa: E402
   LfsActionRefreshRequired,
   ResolutionError,
   audit_report,
+  build_source_lock,
   fetch_lfs_objects,
   license_inventory_report,
   lfs_public_audit_report,
@@ -1043,6 +1044,205 @@ class SourceResolverTests(unittest.TestCase):
         record["license"]["sha256"],
       )
       self.assertEqual([], record["lfsObjects"])
+
+  def test_repository_metadata_records_complete_component_scoped_licenses(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      payload = b"licensed payload\n"
+      license_text = b"complete custom license terms\n"
+      (checkout / "fonts").mkdir()
+      (checkout / "fonts" / "Example.ttf").write_bytes(payload)
+      (checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+      run_git(checkout, "add", "fonts")
+      run_git(checkout, "commit", "-m", "add component license fixture")
+      commit = run_git(checkout, "rev-parse", "HEAD^{commit}")
+      bare = Path(directory) / "source-final.git"
+      run_git(directory, "clone", "--bare", str(checkout), str(bare))
+      repository = repository_input("source", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "All component evidence has been reviewed.",
+        "reviewedComponents": [{
+          "id": "fonts",
+          "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+          "evidence": [{
+            "type": "git-blob",
+            "path": "fonts/Example.ttf",
+            "locator": "fonts/LICENSE.txt",
+            "sha256": hashlib.sha256(license_text).hexdigest(),
+          }],
+        }],
+        "unresolvedComponents": [],
+      }
+
+      self.assertEqual([], policy_findings({"repositories": [repository]}))
+      record = repository_metadata(repository, bare, commit)
+      self.assertEqual({
+        "scope": "component",
+        "payloadPatterns": ["**/*.ttf"],
+        "components": [{
+          "id": "fonts",
+          "payloadPaths": ["fonts/Example.ttf"],
+          "license": {
+            "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+            "evidence": [{
+              "type": "git-blob",
+              "path": "fonts/Example.ttf",
+              "blob": run_git(bare, "rev-parse", f"{commit}:fonts/Example.ttf"),
+              "sha256": hashlib.sha256(payload).hexdigest(),
+              "locator": "fonts/LICENSE.txt",
+              "evidenceSha256": hashlib.sha256(license_text).hexdigest(),
+            }],
+          },
+        }],
+      }, record["license"])
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      source_root = Path(directory) / "workspace"
+      materialize(lock, {"source": bare}, source_root)
+      verify_materialized(lock, source_root)
+
+      tampered = json.loads(json.dumps(lock))
+      tampered["repositories"][0]["license"]["components"][0]["license"] \
+        ["evidence"][0]["evidenceSha256"] = "0" * 64
+      with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
+        verify_materialized(tampered, source_root)
+
+  def test_component_scoped_zip_evidence_uses_materialized_lfs_bytes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      archive_stream = io.BytesIO()
+      license_text = b"license stored inside an LFS archive\n"
+      with zipfile.ZipFile(archive_stream, "w") as archive:
+        archive.writestr("LICENSE.txt", license_text)
+      (checkout / "fonts").mkdir()
+      bare, commit, oid, content = add_lfs_object(
+        directory,
+        checkout,
+        name="fonts/archive.bin",
+        content=archive_stream.getvalue(),
+      )
+      repository = repository_input("source", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.bin"],
+        "patterns": [],
+        "reason": "All component evidence has been reviewed.",
+        "reviewedComponents": [{
+          "id": "fonts",
+          "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+          "evidence": [{
+            "type": "zip-member",
+            "path": "fonts/archive.bin",
+            "locator": "LICENSE.txt",
+            "sha256": hashlib.sha256(license_text).hexdigest(),
+          }],
+        }],
+        "unresolvedComponents": [],
+      }
+
+      record = repository_metadata(repository, bare, commit)
+
+      evidence = record["license"]["components"][0]["license"]["evidence"][0]
+      pointer = (
+        "version https://git-lfs.github.com/spec/v1\n"
+        f"oid sha256:{oid}\n"
+        f"size {len(content)}\n"
+      ).encode("ascii")
+      self.assertEqual(hashlib.sha256(pointer).hexdigest(), evidence["sha256"])
+      self.assertEqual(oid, record["lfsObjects"][0]["oid"])
+      self.assertEqual(len(content), record["lfsObjects"][0]["size"])
+      self.assertEqual(hashlib.sha256(license_text).hexdigest(), evidence["evidenceSha256"])
+
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      source_root = Path(directory) / "workspace"
+      materialize(lock, {"source": bare}, source_root)
+      verify_materialized(lock, source_root)
+
+  def test_build_source_lock_supports_declared_and_component_scoped_licenses(self):
+    with tempfile.TemporaryDirectory() as directory:
+      self_checkout, self_bare, self_commit = create_repository(directory, "build-tools")
+      self_origin = "https://github.com/sunwayking/JetOnlyOffice-build-tools.git"
+      run_git(self_checkout, "remote", "add", "origin", self_origin)
+      component_checkout, component_bare, _ = create_repository(directory, "fonts")
+      payload = b"font payload\n"
+      license_text = b"font terms\n"
+      (component_checkout / "fonts").mkdir()
+      (component_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+      (component_checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+      run_git(component_checkout, "add", "fonts")
+      run_git(component_checkout, "commit", "-m", "add font payload")
+      component_commit = run_git(component_checkout, "rev-parse", "HEAD^{commit}")
+      run_git(component_checkout, "tag", "v1.0.0")
+      run_git(
+        component_bare,
+        "fetch",
+        str(component_checkout),
+        f"{component_commit}:refs/heads/main",
+        "refs/tags/v1.0.0:refs/tags/v1.0.0",
+      )
+      build_tools = repository_input("build-tools", self_commit)
+      del build_tools["commit"]
+      build_tools["commitSource"] = "self"
+      build_tools["selection"] = {"type": "self"}
+      build_tools["origin"] = self_origin
+      fonts = repository_input("fonts", component_commit)
+      fonts["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "All components are resolved.",
+        "reviewedComponents": [{
+          "id": "fonts",
+          "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+          "evidence": [{
+            "type": "git-blob",
+            "path": "fonts/Example.ttf",
+            "locator": "fonts/LICENSE.txt",
+            "sha256": hashlib.sha256(license_text).hexdigest(),
+          }],
+        }],
+        "unresolvedComponents": [],
+      }
+      inputs = {
+        "schemaVersion": 1,
+        "productVersion": "9.4.0",
+        "releaseCutoff": 2000000000,
+        "baseline": {"repository": "fonts", "commit": component_commit},
+        "repositories": [build_tools, fonts],
+        "relationships": [],
+      }
+      validate_inputs(inputs)
+      caches = {"build-tools": self_bare, "fonts": component_bare}
+
+      with patch(
+        "source_resolver.sync_cache",
+        side_effect=lambda repository, _cache, _commit: caches[repository["id"]],
+      ):
+        lock, _ = build_source_lock(inputs, Path(directory) / "cache", self_checkout)
+
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      self.assertIn("path", lock["repositories"][0]["license"])
+      self.assertEqual("component", lock["repositories"][1]["license"]["scope"])
 
   def test_repository_metadata_records_locked_lfs_objects_and_paths(self):
     with tempfile.TemporaryDirectory() as directory:

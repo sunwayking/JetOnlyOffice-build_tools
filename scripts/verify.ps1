@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$SourceLockPath = (Join-Path $PSScriptRoot "..\locks\sources.lock.json"),
+    [string]$ToolchainLockPath = (Join-Path $PSScriptRoot "..\locks\toolchain.lock.json"),
     [string]$ArtifactManifestPath = (Join-Path $PSScriptRoot "..\artifacts\artifact-manifest.json"),
     [string]$ReferenceArtifactManifestPath = (Join-Path $PSScriptRoot "..\artifacts-reference\artifact-manifest.json"),
     [string]$ArtifactDirectory = (Join-Path $PSScriptRoot "..\artifacts"),
@@ -43,6 +44,7 @@ $arguments = @(
     "--artifact-manifest", $ArtifactManifestPath,
     "--reference-artifact-manifest", $ReferenceArtifactManifestPath,
     "--source-lock", $SourceLockPath,
+    "--toolchain-lock", $ToolchainLockPath,
     "--artifact-directory", $ArtifactDirectory,
     "--reference-artifact-directory", $ReferenceArtifactDirectory,
     "--release-policy", $ReleasePolicyPath,

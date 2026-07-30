@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import subprocess
 import sys
@@ -787,6 +788,194 @@ def one_artifact(manifest, artifact_type):
   return matches[0]
 
 
+def sbom_identifier(prefix, value):
+  sanitized = "".join(
+    character if character.isalnum() or character in ".-" else "-"
+    for character in value
+  )
+  return prefix + sanitized
+
+
+def locked_license_units(source_lock, toolchain):
+  units = []
+  for repository in source_lock["repositories"]:
+    license_record = repository["license"]
+    if license_record.get("scope") == "component":
+      for component in license_record["components"]:
+        units.append({
+          "spdxId": sbom_identifier(
+            "SPDXRef-", repository["id"] + "-" + component["id"]
+          ),
+          "bomRef": "repo:" + repository["id"] + ":" + component["id"],
+          "name": repository["id"] + "/" + component["id"],
+          "version": repository["commit"],
+          "origin": repository["origin"],
+          "spdx": component["license"]["spdx"],
+          "repository": repository["id"],
+          "payloadPaths": list(component["payloadPaths"]),
+          "evidence": [
+            f"{item['type']}:{item['path']}:{item['locator']}:"
+            f"sha256:{item['evidenceSha256']}"
+            for item in component["license"]["evidence"]
+          ],
+          "externalType": "vcs",
+        })
+    else:
+      units.append({
+        "spdxId": sbom_identifier("SPDXRef-", repository["id"]),
+        "bomRef": "repo:" + repository["id"],
+        "name": repository["id"],
+        "version": repository["commit"],
+        "origin": repository["origin"],
+        "spdx": license_record["spdx"],
+        "repository": repository["id"],
+        "payloadPaths": [],
+        "evidence": [],
+        "externalType": "vcs",
+      })
+  for tool in toolchain.get("tools", []):
+    units.append({
+      "spdxId": sbom_identifier("SPDXRef-tool-", tool["id"]),
+      "bomRef": "tool:" + tool["id"],
+      "name": tool["name"],
+      "version": tool["version"],
+      "origin": tool["sourceUrl"],
+      "spdx": tool["license"],
+      "repository": None,
+      "payloadPaths": [],
+      "evidence": [],
+      "externalType": "distribution",
+    })
+  return units
+
+
+def license_references(expression):
+  return sorted(set(re.findall(r"LicenseRef-[A-Za-z0-9.-]+", expression)))
+
+
+def load_supply_chain_json(manifest, artifact_root, artifact_type):
+  record = one_artifact(manifest, artifact_type)
+  try:
+    return load_json(Path(artifact_root) / record["path"])
+  except ContractError as error:
+    raise BaselineError(f"{artifact_type} artifact is invalid: {error}", 4) from error
+
+
+def verify_spdx_artifact(
+  manifest, artifact_root, source_lock, toolchain, expected_extracted_licenses=None
+):
+  value = load_supply_chain_json(manifest, artifact_root, "spdx")
+  if value.get("spdxVersion") != "SPDX-2.3":
+    raise BaselineError("SPDX artifact is not SPDX 2.3", 4)
+  packages = value.get("packages")
+  if not isinstance(packages, list):
+    raise BaselineError("SPDX artifact has no package inventory", 4)
+  packages_by_id = {
+    item.get("SPDXID"): item for item in packages if isinstance(item, dict)
+  }
+  if len(packages_by_id) != len(packages):
+    raise BaselineError("SPDX artifact has duplicate or invalid package ids", 4)
+  units = locked_license_units(source_lock, toolchain)
+  for unit in units:
+    package = packages_by_id.get(unit["spdxId"])
+    if package is None:
+      raise BaselineError(f"SPDX artifact is missing {unit['name']}", 4)
+    expected = {
+      "name": unit["name"],
+      "versionInfo": unit["version"],
+      "downloadLocation": unit["origin"],
+      "licenseConcluded": unit["spdx"],
+      "licenseDeclared": unit["spdx"],
+    }
+    if any(package.get(key) != expected_value for key, expected_value in expected.items()):
+      raise BaselineError(f"SPDX artifact metadata does not match {unit['name']}", 4)
+    if unit["payloadPaths"] and any(
+      text not in package.get("comment", "")
+      for text in unit["payloadPaths"] + unit["evidence"]
+    ):
+      raise BaselineError(
+        f"SPDX artifact license evidence does not match {unit['name']}", 4
+      )
+  described = value.get("documentDescribes", [])
+  if any(unit["spdxId"] not in described for unit in units):
+    raise BaselineError("SPDX artifact does not describe every locked source", 4)
+  required_references = sorted({
+    identifier
+    for unit in units
+    for identifier in license_references(unit["spdx"])
+  })
+  extracted = value.get("hasExtractedLicensingInfos", [])
+  extracted_by_id = {
+    item.get("licenseId"): item.get("extractedText")
+    for item in extracted
+    if isinstance(item, dict)
+  }
+  if len(extracted_by_id) != len(extracted):
+    raise BaselineError("SPDX artifact has duplicate or invalid extracted licenses", 4)
+  if any(
+    not isinstance(extracted_by_id.get(identifier), str)
+    or not extracted_by_id[identifier]
+    for identifier in required_references
+  ):
+    raise BaselineError("SPDX artifact is missing extracted license text", 4)
+  if set(extracted_by_id) != set(required_references):
+    raise BaselineError("SPDX extracted license inventory does not match locks", 4)
+  if expected_extracted_licenses is not None and any(
+    extracted_by_id.get(identifier) != text
+    for identifier, text in expected_extracted_licenses.items()
+  ):
+    raise BaselineError("SPDX extracted license text does not match license bundle", 4)
+
+
+def verify_cyclonedx_artifact(manifest, artifact_root, source_lock, toolchain):
+  value = load_supply_chain_json(manifest, artifact_root, "cyclonedx")
+  if value.get("bomFormat") != "CycloneDX" or value.get("specVersion") != "1.5":
+    raise BaselineError("CycloneDX artifact is not version 1.5", 4)
+  components = value.get("components")
+  if not isinstance(components, list):
+    raise BaselineError("CycloneDX artifact has no component inventory", 4)
+  components_by_ref = {
+    item.get("bom-ref"): item for item in components if isinstance(item, dict)
+  }
+  if len(components_by_ref) != len(components):
+    raise BaselineError("CycloneDX artifact has duplicate or invalid bom-ref values", 4)
+  for unit in locked_license_units(source_lock, toolchain):
+    component = components_by_ref.get(unit["bomRef"])
+    if component is None:
+      raise BaselineError(f"CycloneDX artifact is missing {unit['name']}", 4)
+    if (
+      component.get("name") != unit["name"]
+      or component.get("version") != unit["version"]
+      or component.get("licenses") != [{"expression": unit["spdx"]}]
+    ):
+      raise BaselineError(
+        f"CycloneDX artifact metadata does not match {unit['name']}", 4
+      )
+    references = component.get("externalReferences", [])
+    if {"type": unit["externalType"], "url": unit["origin"]} not in references:
+      raise BaselineError(
+        f"CycloneDX artifact origin does not match {unit['name']}", 4
+      )
+    if unit["payloadPaths"]:
+      properties = component.get("properties", [])
+      property_pairs = [
+        (item.get("name"), item.get("value"))
+        for item in properties if isinstance(item, dict)
+      ]
+      expected_pairs = [
+        ("jetonlyoffice.repository", unit["repository"]),
+        ("jetonlyoffice.payloadPaths", ",".join(unit["payloadPaths"])),
+        *[
+          ("jetonlyoffice.licenseEvidence", reference)
+          for reference in unit["evidence"]
+        ],
+      ]
+      if property_pairs != expected_pairs:
+        raise BaselineError(
+          f"CycloneDX artifact license evidence does not match {unit['name']}", 4
+        )
+
+
 def verify_checksums_artifact(manifest, artifact_root):
   record = one_artifact(manifest, "checksums")
   path = Path(artifact_root) / record["path"]
@@ -803,7 +992,7 @@ def verify_checksums_artifact(manifest, artifact_root):
     raise BaselineError("checksums artifact does not bind the artifact manifest", 4)
 
 
-def verify_provenance_artifact(manifest, artifact_root, source_lock):
+def verify_provenance_artifact(manifest, artifact_root, source_lock, toolchain):
   record = one_artifact(manifest, "provenance")
   try:
     value = load_json(Path(artifact_root) / record["path"])
@@ -828,6 +1017,8 @@ def verify_provenance_artifact(manifest, artifact_root, source_lock):
   )
   if external.get("sourceLockSha256") != canonical_sha256(source_lock):
     raise BaselineError("provenance artifact source lock binding does not match", 4)
+  if external.get("toolchainLockSha256") != canonical_sha256(toolchain):
+    raise BaselineError("provenance artifact toolchain lock binding does not match", 4)
   if external.get("network") != "none":
     raise BaselineError("provenance artifact does not attest an offline build", 4)
 
@@ -861,6 +1052,189 @@ def read_tar_member(archive, members, name, description):
   if stream is None:
     raise BaselineError(f"{description} cannot be read: {name}", 4)
   return stream.read()
+
+
+@contextmanager
+def open_license_archive(path):
+  try:
+    archive = tarfile.open(path, "r:*")
+  except tarfile.ReadError as direct_error:
+    zstd = shutil.which("zstd")
+    if zstd is None:
+      raise BaselineError(
+        "license archive requires the locked zstd verifier", 4
+      ) from direct_error
+    with tempfile.TemporaryDirectory(prefix="jetonlyoffice-license-verify-") as directory:
+      expanded = Path(directory) / "licenses.tar"
+      with expanded.open("wb") as output:
+        result = subprocess.run(
+          [zstd, "--decompress", "--stdout", str(path)],
+          stdout=output,
+          stderr=subprocess.PIPE,
+          check=False,
+        )
+      if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise BaselineError(
+          "license archive decompression failed" + (f": {detail}" if detail else ""),
+          4,
+        )
+      try:
+        with tarfile.open(expanded, "r:") as archive:
+          yield archive
+      except (OSError, tarfile.TarError) as error:
+        raise BaselineError(f"license archive is invalid: {error}", 4) from error
+    return
+  try:
+    with archive:
+      yield archive
+  except (OSError, tarfile.TarError) as error:
+    raise BaselineError(f"license archive is invalid: {error}", 4) from error
+
+
+def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
+  record = one_artifact(manifest, "licenses")
+  path = Path(artifact_root) / record["path"]
+  extracted_materials = {}
+  with open_license_archive(path) as archive:
+    members = safe_tar_members(archive, "license archive")
+    manifest_bytes = read_tar_member(
+      archive, members, "manifest.json", "license archive"
+    )
+    try:
+      license_manifest = json.loads(manifest_bytes.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError) as error:
+      raise BaselineError(f"license archive manifest is invalid: {error}", 4) from error
+    if manifest_bytes != canonical_json_bytes(license_manifest) + b"\n":
+      raise BaselineError("license archive manifest is not canonical", 4)
+    repository_records = license_manifest.get("repositories")
+    if not isinstance(repository_records, list):
+      raise BaselineError("license archive has no repository inventory", 4)
+    by_id = {
+      item.get("id"): item for item in repository_records if isinstance(item, dict)
+    }
+    expected_ids = [item["id"] for item in source_lock["repositories"]]
+    if sorted(by_id) != expected_ids or len(by_id) != len(repository_records):
+      raise BaselineError("license archive repository inventory does not match source lock", 4)
+    for repository in source_lock["repositories"]:
+      bundled = by_id[repository["id"]]
+      if (
+        bundled.get("commit") != repository["commit"]
+        or bundled.get("origin") != repository["origin"]
+      ):
+        raise BaselineError(
+          f"license archive metadata does not match {repository['id']}", 4
+        )
+      license_record = repository["license"]
+      if license_record.get("scope") == "component":
+        if (
+          bundled.get("scope") != "component"
+          or bundled.get("payloadPatterns") != license_record["payloadPatterns"]
+        ):
+          raise BaselineError(
+            f"license archive component scope does not match {repository['id']}", 4
+          )
+        bundled_components = bundled.get("components")
+        if not isinstance(bundled_components, list):
+          raise BaselineError(
+            f"license archive has no components for {repository['id']}", 4
+          )
+        components_by_id = {
+          item.get("id"): item
+          for item in bundled_components if isinstance(item, dict)
+        }
+        expected_component_ids = [
+          item["id"] for item in license_record["components"]
+        ]
+        if (
+          sorted(components_by_id) != expected_component_ids
+          or len(components_by_id) != len(bundled_components)
+        ):
+          raise BaselineError(
+            f"license archive component inventory does not match {repository['id']}", 4
+          )
+        for component in license_record["components"]:
+          bundled_component = components_by_id[component["id"]]
+          if (
+            bundled_component.get("payloadPaths") != component["payloadPaths"]
+            or bundled_component.get("license", {}).get("spdx")
+            != component["license"]["spdx"]
+          ):
+            raise BaselineError(
+              f"license archive component metadata does not match "
+              f"{repository['id']}/{component['id']}", 4
+            )
+          bundled_evidence = bundled_component.get("license", {}).get("evidence")
+          if not isinstance(bundled_evidence, list):
+            raise BaselineError(
+              f"license archive has no evidence for "
+              f"{repository['id']}/{component['id']}", 4
+            )
+          if len(bundled_evidence) != len(component["license"]["evidence"]):
+            raise BaselineError(
+              f"license archive evidence inventory does not match "
+              f"{repository['id']}/{component['id']}", 4
+            )
+          for expected, actual in zip(
+            component["license"]["evidence"], bundled_evidence
+          ):
+            if any(actual.get(key) != value for key, value in expected.items()):
+              raise BaselineError(
+                f"license archive evidence metadata does not match "
+                f"{repository['id']}/{component['id']}", 4
+              )
+            evidence_path = actual.get("licensePath")
+            if not isinstance(evidence_path, str):
+              raise BaselineError("license archive evidence path is missing", 4)
+            evidence_bytes = read_tar_member(
+              archive, members, evidence_path, "license archive evidence"
+            )
+            if hashlib.sha256(evidence_bytes).hexdigest() != expected["evidenceSha256"]:
+              raise BaselineError("license archive evidence digest does not match", 4)
+            for identifier in license_references(component["license"]["spdx"]):
+              try:
+                evidence_text = evidence_bytes.decode("utf-8")
+              except UnicodeDecodeError as error:
+                raise BaselineError(
+                  f"{identifier} license evidence is not UTF-8: {error}", 4
+                ) from error
+              extracted_materials.setdefault(identifier, set()).add(evidence_text)
+      else:
+        if (
+          bundled.get("spdx") != license_record["spdx"]
+          or bundled.get("licenseSha256") != license_record["sha256"]
+        ):
+          raise BaselineError(
+            f"license archive declaration does not match {repository['id']}", 4
+          )
+        license_path = bundled.get("licensePath")
+        if not isinstance(license_path, str):
+          raise BaselineError("license archive repository license path is missing", 4)
+        license_bytes = read_tar_member(
+          archive, members, license_path, "repository license"
+        )
+        if hashlib.sha256(license_bytes).hexdigest() != license_record["sha256"]:
+          raise BaselineError("license archive repository license digest does not match", 4)
+    bundled_tools = license_manifest.get("tools")
+    if not isinstance(bundled_tools, list):
+      raise BaselineError("license archive has no toolchain inventory", 4)
+    expected_tools = [
+      {
+        "id": tool["id"],
+        "name": tool["name"],
+        "version": tool["version"],
+        "license": tool["license"],
+        "sourceUrl": tool["sourceUrl"],
+        **({"sha256": tool["sha256"]} if "sha256" in tool else {}),
+      }
+      for tool in sorted(toolchain.get("tools", []), key=lambda item: item["id"])
+    ]
+    if bundled_tools != expected_tools:
+      raise BaselineError("license archive toolchain inventory does not match lock", 4)
+  return {
+    identifier: "\n\n".join(sorted(materials))
+    for identifier, materials in sorted(extracted_materials.items())
+  }
 
 
 def extract_tar_member(archive, members, name, description, output):
@@ -948,14 +1322,21 @@ def verify_oci_artifact(manifest, artifact_root):
     raise BaselineError("OCI JWT entrypoint does not match the locked source", 4)
 
 
-def verify_supply_chain_artifacts(manifest, artifact_root, source_lock):
+def verify_supply_chain_artifacts(manifest, artifact_root, source_lock, toolchain):
   for artifact_type in (
     "deb", "rootfs", "oci", "source", "spdx", "cyclonedx", "provenance",
     "checksums", "licenses", "notice",
   ):
     one_artifact(manifest, artifact_type)
   verify_checksums_artifact(manifest, artifact_root)
-  verify_provenance_artifact(manifest, artifact_root, source_lock)
+  extracted_licenses = verify_license_artifact(
+    manifest, artifact_root, source_lock, toolchain
+  )
+  verify_spdx_artifact(
+    manifest, artifact_root, source_lock, toolchain, extracted_licenses
+  )
+  verify_cyclonedx_artifact(manifest, artifact_root, source_lock, toolchain)
+  verify_provenance_artifact(manifest, artifact_root, source_lock, toolchain)
   verify_oci_artifact(manifest, artifact_root)
 
 
@@ -1230,6 +1611,12 @@ def verify(args):
   source_lock = load_contract(
     args.source_lock, "source-lock", "locked source input", args.schema_dir
   )
+  toolchain = load_contract(
+    args.toolchain_lock,
+    "toolchain-lock",
+    "locked toolchain input",
+    args.schema_dir,
+  )
   if artifact_manifest["sourceLockSha256"] != canonical_sha256(source_lock):
     raise BaselineError("artifact manifest source lock does not match the lock", 3)
   artifact_directory = Path(args.artifact_directory).resolve()
@@ -1278,9 +1665,11 @@ def verify(args):
       f"REPRODUCIBILITY_MISMATCH: {types} differ; diffoscope evidence: {summary}", 4
     )
 
-  verify_supply_chain_artifacts(artifact_manifest, artifact_directory, source_lock)
   verify_supply_chain_artifacts(
-    reference_manifest, args.reference_artifact_directory, source_lock
+    artifact_manifest, artifact_directory, source_lock, toolchain
+  )
+  verify_supply_chain_artifacts(
+    reference_manifest, args.reference_artifact_directory, source_lock, toolchain
   )
 
   oci = next(item for item in artifact_manifest["artifacts"] if item["type"] == "oci")
@@ -1365,6 +1754,7 @@ def main(argv=None):
   verify_parser.add_argument("--artifact-manifest", required=True)
   verify_parser.add_argument("--reference-artifact-manifest", required=True)
   verify_parser.add_argument("--source-lock", required=True)
+  verify_parser.add_argument("--toolchain-lock", required=True)
   verify_parser.add_argument("--artifact-directory", required=True)
   verify_parser.add_argument("--reference-artifact-directory", required=True)
   verify_parser.add_argument("--release-policy", required=True)

@@ -352,6 +352,8 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
       source = contract_source_lock()
       source_path = root / "locks" / "sources.lock.json"
       write_json(source_path, source)
+      toolchain_path = root / "locks" / "toolchain.lock.json"
+      write_json(toolchain_path, toolchain_lock())
 
       artifact_directory = root / "artifacts"
       reference_directory = root / "reference" / "artifacts"
@@ -388,6 +390,7 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
         artifact_manifest=str(manifest_path),
         reference_artifact_manifest=str(reference_manifest_path),
         source_lock=str(source_path),
+        toolchain_lock=str(toolchain_path),
         artifact_directory=str(artifact_directory),
         reference_artifact_directory=str(reference_directory),
         release_policy=str(policy_path),
@@ -420,6 +423,8 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       source = contract_source_lock()
       source_path = root / "locks" / "sources.lock.json"
       write_json(source_path, source)
+      toolchain_path = root / "locks" / "toolchain.lock.json"
+      write_json(toolchain_path, toolchain_lock())
       manifest = artifact_manifest()
       manifest["sourceLockSha256"] = canonical_sha256(source)
       materialize_artifacts(root, manifest)
@@ -432,6 +437,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-ArtifactManifestPath", str(manifest_path),
           "-ReferenceArtifactManifestPath", str(manifest_path),
           "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
           "-ArtifactDirectory", str(root / "artifacts"),
           "-ReferenceArtifactDirectory", str(root / "artifacts"),
           "-ReleasePolicyPath", str(root / "artifacts" / "release-policy.json"),
@@ -452,6 +458,8 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       source = contract_source_lock()
       source_path = root / "locks" / "sources.lock.json"
       write_json(source_path, source)
+      toolchain_path = root / "locks" / "toolchain.lock.json"
+      write_json(toolchain_path, toolchain_lock())
       manifest = artifact_manifest()
       reference_manifest = artifact_manifest()
       source_hash = canonical_sha256(source)
@@ -502,6 +510,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-ArtifactManifestPath", str(manifest_path),
           "-ReferenceArtifactManifestPath", str(reference_manifest_path),
           "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
           "-ArtifactDirectory", str(root / "artifacts"),
           "-ReferenceArtifactDirectory", str(root / "reference" / "artifacts"),
           "-ReleasePolicyPath", str(root / "artifacts" / "release-policy.json"),
@@ -533,6 +542,8 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       source = contract_source_lock()
       source_path = root / "locks" / "sources.lock.json"
       write_json(source_path, source)
+      toolchain_path = root / "locks" / "toolchain.lock.json"
+      write_json(toolchain_path, toolchain_lock())
       manifest = artifact_manifest()
       manifest["sourceLockSha256"] = canonical_sha256(source)
       materialize_artifacts(root, manifest)
@@ -547,6 +558,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           "-ArtifactManifestPath", str(manifest_path),
           "-ReferenceArtifactManifestPath", str(root / "reference" / "artifact-manifest.json"),
           "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
           "-ArtifactDirectory", str(root / "artifacts"),
           "-ReleasePolicyPath", str(root / "artifacts" / "release-policy.json"),
           "-GateResultDirectory", str(root / "artifacts" / "gate-results"),
@@ -566,6 +578,8 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       source = contract_source_lock()
       source_path = root / "locks" / "sources.lock.json"
       write_json(source_path, source)
+      toolchain_path = root / "locks" / "toolchain.lock.json"
+      write_json(toolchain_path, toolchain_lock())
       manifest = artifact_manifest()
       manifest["sourceLockSha256"] = canonical_sha256(source)
       manifest_path = root / "artifacts" / "artifact-manifest.json"
@@ -578,6 +592,7 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           str(REPOSITORY_ROOT / "scripts" / "verify.ps1"),
           "-ArtifactManifestPath", str(manifest_path),
           "-SourceLockPath", str(source_path),
+          "-ToolchainLockPath", str(toolchain_path),
           "-ArtifactDirectory", str(root / "artifacts"),
           "-ReleasePolicyPath", str(root / "artifacts" / "release-policy.json"),
           "-GateResultDirectory", str(root / "artifacts" / "gate-results"),

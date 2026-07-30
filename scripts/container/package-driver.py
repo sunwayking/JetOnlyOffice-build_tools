@@ -3,16 +3,20 @@
 
 import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
 from pathlib import PurePosixPath
 import posixpath
+import re
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
+import zipfile
 
 
 class PackageError(RuntimeError):
@@ -546,6 +550,137 @@ def spdx_identifier(prefix, value):
   return prefix + sanitized
 
 
+def read_uint16(content, offset, context):
+  if offset < 0 or offset + 2 > len(content):
+    fail(f"{context}: truncated font metadata")
+  return struct.unpack_from(">H", content, offset)[0]
+
+
+def read_uint32(content, offset, context):
+  if offset < 0 or offset + 4 > len(content):
+    fail(f"{context}: truncated font metadata")
+  return struct.unpack_from(">I", content, offset)[0]
+
+
+def font_name_texts(content, name_id, context):
+  if content[:4] == b"ttcf":
+    font_count = read_uint32(content, 8, context)
+    if font_count < 1 or font_count > 1024:
+      fail(f"{context}: invalid TrueType collection")
+    offset_end = 12 + (font_count * 4)
+    if offset_end > len(content):
+      fail(f"{context}: truncated TrueType collection")
+    font_offsets = [
+      read_uint32(content, 12 + (index * 4), context)
+      for index in range(font_count)
+    ]
+  elif content[:4] in {b"\x00\x01\x00\x00", b"OTTO", b"true", b"typ1"}:
+    font_offsets = [0]
+  else:
+    fail(f"{context}: unsupported font payload")
+  texts = set()
+  for font_offset in font_offsets:
+    table_count = read_uint16(content, font_offset + 4, context)
+    directory_end = font_offset + 12 + (table_count * 16)
+    if table_count < 1 or table_count > 4096 or directory_end > len(content):
+      fail(f"{context}: invalid font table directory")
+    name_offset = None
+    name_length = None
+    for table_index in range(table_count):
+      record_offset = font_offset + 12 + (table_index * 16)
+      if content[record_offset:record_offset + 4] != b"name":
+        continue
+      name_offset = read_uint32(content, record_offset + 8, context)
+      name_length = read_uint32(content, record_offset + 12, context)
+      break
+    if name_offset is None or name_offset + name_length > len(content):
+      fail(f"{context}: font has no valid name table")
+    record_count = read_uint16(content, name_offset + 2, context)
+    string_offset = read_uint16(content, name_offset + 4, context)
+    records_end = name_offset + 6 + (record_count * 12)
+    storage_offset = name_offset + string_offset
+    if records_end > len(content) or storage_offset > name_offset + name_length:
+      fail(f"{context}: invalid font name table")
+    for record_index in range(record_count):
+      record_offset = name_offset + 6 + (record_index * 12)
+      platform_id, _, _, record_name_id, length, offset = struct.unpack_from(
+        ">6H", content, record_offset
+      )
+      if record_name_id != name_id or platform_id not in {0, 1, 3}:
+        continue
+      text_start = storage_offset + offset
+      text_end = text_start + length
+      if text_end > name_offset + name_length or text_end > len(content):
+        fail(f"{context}: invalid font name string")
+      encoding = "utf-16-be" if platform_id in {0, 3} else "mac_roman"
+      try:
+        text = content[text_start:text_end].decode(encoding)
+      except UnicodeDecodeError as error:
+        fail(f"{context}: invalid font name encoding: {error}")
+      if text:
+        texts.add(text)
+  if not texts:
+    fail(f"{context}: font license name record is missing")
+  return sorted(texts)
+
+
+def component_evidence_bytes(checkout, repository, evidence):
+  context = f"{repository['id']}:{evidence['path']}:{evidence['locator']}"
+  payload = require_file(
+    safe_destination(checkout, evidence["path"], context), context
+  ).read_bytes()
+  lfs_object = next(
+    (
+      item for item in repository.get("lfsObjects", [])
+      if evidence["path"] in item["paths"]
+    ),
+    None,
+  )
+  expected_payload_digest = (
+    lfs_object["oid"] if lfs_object is not None else evidence["sha256"]
+  )
+  if hashlib.sha256(payload).hexdigest() != expected_payload_digest:
+    fail(f"{context}: payload digest does not match source lock")
+  if lfs_object is not None and len(payload) != lfs_object["size"]:
+    fail(f"{context}: payload size does not match source lock")
+  if evidence["type"] == "git-blob":
+    material = require_file(
+      safe_destination(checkout, evidence["locator"], context), context
+    ).read_bytes()
+  elif evidence["type"] == "font-name":
+    name_id = int(evidence["locator"].split(":", 1)[1])
+    matching = [
+      text.encode("utf-8")
+      for text in font_name_texts(payload, name_id, context)
+      if hashlib.sha256(text.encode("utf-8")).hexdigest()
+      == evidence["evidenceSha256"]
+    ]
+    if len(matching) != 1:
+      fail(f"{context}: license evidence digest does not match source lock")
+    material = matching[0]
+  else:
+    try:
+      with zipfile.ZipFile(io.BytesIO(payload), "r") as archive:
+        matching = [
+          info for info in archive.infolist()
+          if info.filename == evidence["locator"] and not info.is_dir()
+        ]
+        if len(matching) != 1 or matching[0].flag_bits & 1:
+          fail(f"{context}: archive license member is invalid")
+        if matching[0].file_size > 4 * 1024 * 1024:
+          fail(f"{context}: archive license member is too large")
+        material = archive.read(matching[0])
+    except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError) as error:
+      fail(f"{context}: invalid ZIP license evidence: {error}")
+  if hashlib.sha256(material).hexdigest() != evidence["evidenceSha256"]:
+    fail(f"{context}: license evidence digest does not match source lock")
+  return material
+
+
+def license_references(expression):
+  return sorted(set(re.findall(r"LicenseRef-[A-Za-z0-9.-]+", expression)))
+
+
 def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_digest,
                            work, archive_output, notice_output, epoch):
   license_root = Path(work) / "license-bundle"
@@ -560,36 +695,84 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
     "",
     "Source repositories:",
   ]
+  extracted_materials = {}
   for repository in sorted(
-    (item for item in source_lock["repositories"]
-     if item["active"] and item["buildInput"]),
+    source_lock["repositories"],
     key=lambda item: item["id"],
   ):
     checkout = locked_repository(source_tree, source_lock, repository["id"])
-    license_source = safe_destination(
-      checkout, repository["license"]["path"], f"{repository['id']} license"
-    )
-    require_file(license_source, f"{repository['id']} license")
-    actual_digest = sha256_file(license_source)
-    if actual_digest != repository["license"]["sha256"]:
-      fail(f"{repository['id']} license digest does not match source lock")
-    destination = license_root / "repositories" / repository["id"] \
-      / Path(repository["license"]["path"]).name
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(license_source, destination)
-    destination.chmod(0o644)
-    repository_records.append({
-      "id": repository["id"],
-      "commit": repository["commit"],
-      "origin": repository["origin"],
-      "spdx": repository["license"]["spdx"],
-      "licensePath": destination.relative_to(license_root).as_posix(),
-      "licenseSha256": actual_digest,
-    })
-    notice_lines.append(
-      f"- {repository['id']} | {repository['license']['spdx']} | "
-      f"{repository['origin']} | {repository['commit']}"
-    )
+    if repository["license"].get("scope") == "component":
+      component_records = []
+      for component in repository["license"]["components"]:
+        evidence_records = []
+        for evidence in component["license"]["evidence"]:
+          material = component_evidence_bytes(checkout, repository, evidence)
+          destination = license_root / "repositories" / repository["id"] \
+            / "components" / component["id"] / "evidence" \
+            / (evidence["evidenceSha256"] + ".license")
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          if destination.exists():
+            if destination.read_bytes() != material:
+              fail(f"{repository['id']} component license evidence conflicts")
+          else:
+            write_bytes(destination, material)
+            destination.chmod(0o644)
+          evidence_records.append({
+            **dict(evidence),
+            "licensePath": destination.relative_to(license_root).as_posix(),
+          })
+          for identifier in license_references(component["license"]["spdx"]):
+            try:
+              text = material.decode("utf-8")
+            except UnicodeDecodeError as error:
+              fail(f"{identifier} license evidence is not UTF-8: {error}")
+            extracted_materials.setdefault(identifier, set()).add(text)
+        component_records.append({
+          "id": component["id"],
+          "payloadPaths": list(component["payloadPaths"]),
+          "license": {
+            "spdx": component["license"]["spdx"],
+            "evidence": evidence_records,
+          },
+        })
+        notice_lines.append(
+          f"- {repository['id']}/{component['id']} | "
+          f"{component['license']['spdx']} | {repository['origin']} | "
+          f"{repository['commit']}"
+        )
+      repository_records.append({
+        "id": repository["id"],
+        "commit": repository["commit"],
+        "origin": repository["origin"],
+        "scope": "component",
+        "payloadPatterns": list(repository["license"]["payloadPatterns"]),
+        "components": component_records,
+      })
+    else:
+      license_source = safe_destination(
+        checkout, repository["license"]["path"], f"{repository['id']} license"
+      )
+      require_file(license_source, f"{repository['id']} license")
+      actual_digest = sha256_file(license_source)
+      if actual_digest != repository["license"]["sha256"]:
+        fail(f"{repository['id']} license digest does not match source lock")
+      destination = license_root / "repositories" / repository["id"] \
+        / Path(repository["license"]["path"]).name
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      shutil.copyfile(license_source, destination)
+      destination.chmod(0o644)
+      repository_records.append({
+        "id": repository["id"],
+        "commit": repository["commit"],
+        "origin": repository["origin"],
+        "spdx": repository["license"]["spdx"],
+        "licensePath": destination.relative_to(license_root).as_posix(),
+        "licenseSha256": actual_digest,
+      })
+      notice_lines.append(
+        f"- {repository['id']} | {repository['license']['spdx']} | "
+        f"{repository['origin']} | {repository['commit']}"
+      )
   tool_records = []
   notice_lines += ["", "Locked toolchain and runtime inputs:"]
   for tool in sorted(toolchain.get("tools", []), key=lambda item: item["id"]):
@@ -614,19 +797,79 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
   normalize_tree(license_root, epoch)
   tar_directory(license_root, archive_output, epoch, compressed=True)
   write_bytes(notice_output, ("\n".join(notice_lines) + "\n").encode("utf-8"))
+  return {
+    identifier: "\n\n".join(sorted(materials))
+    for identifier, materials in sorted(extracted_materials.items())
+  }
 
 
-def make_sbom(kind, source_lock, toolchain, carriers, source_lock_digest, output):
+def source_license_units(source_lock):
+  for repository in source_lock["repositories"]:
+    if repository["license"].get("scope") == "component":
+      for component in repository["license"]["components"]:
+        evidence_references = [
+          f"{item['type']}:{item['path']}:{item['locator']}:sha256:{item['evidenceSha256']}"
+          for item in component["license"]["evidence"]
+        ]
+        yield {
+          "id": repository["id"] + "-" + component["id"],
+          "bomRef": "repo:" + repository["id"] + ":" + component["id"],
+          "name": repository["id"] + "/" + component["id"],
+          "version": repository["commit"],
+          "origin": repository["origin"],
+          "spdx": component["license"]["spdx"],
+          "repository": repository["id"],
+          "payloadPaths": list(component["payloadPaths"]),
+          "evidenceReferences": evidence_references,
+        }
+    else:
+      yield {
+        "id": repository["id"],
+        "bomRef": "repo:" + repository["id"],
+        "name": repository["id"],
+        "version": repository["commit"],
+        "origin": repository["origin"],
+        "spdx": repository["license"]["spdx"],
+        "repository": repository["id"],
+        "payloadPaths": [],
+        "evidenceReferences": [
+          f"git-blob:{repository['license']['path']}:sha256:{repository['license']['sha256']}"
+        ],
+      }
+
+
+def make_sbom(kind, source_lock, toolchain, carriers, source_lock_digest, output,
+              extracted_licenses=None):
+  extracted_licenses = dict(extracted_licenses or {})
+  source_units = list(source_license_units(source_lock))
+  required_references = sorted({
+    identifier
+    for unit in source_units
+    for identifier in license_references(unit["spdx"])
+  }.union(
+    identifier
+    for tool in toolchain.get("tools", [])
+    for identifier in license_references(tool["license"])
+  ))
+  missing_references = sorted(set(required_references) - set(extracted_licenses))
+  if missing_references:
+    fail("missing extracted license text: " + ", ".join(missing_references))
   if kind == "spdx":
     packages = []
-    for repo in source_lock["repositories"]:
-      packages.append({"SPDXID": spdx_identifier("SPDXRef-", repo["id"]),
-                       "name": repo["id"], "versionInfo": repo["commit"],
-                       "downloadLocation": repo["origin"],
-                       "licenseConcluded": repo["license"]["spdx"],
-                       "licenseDeclared": repo["license"]["spdx"],
+    for unit in source_units:
+      package = {"SPDXID": spdx_identifier("SPDXRef-", unit["id"]),
+                       "name": unit["name"], "versionInfo": unit["version"],
+                       "downloadLocation": unit["origin"],
+                       "licenseConcluded": unit["spdx"],
+                       "licenseDeclared": unit["spdx"],
                        "filesAnalyzed": False,
-                       "copyrightText": "Copyright holders identified in source"})
+                       "copyrightText": "Copyright holders identified in source"}
+      if unit["payloadPaths"]:
+        package["comment"] = (
+          "Payloads: " + ", ".join(unit["payloadPaths"])
+          + "; License evidence: " + ", ".join(unit["evidenceReferences"])
+        )
+      packages.append(package)
     for tool in toolchain.get("tools", []):
       packages.append({"SPDXID": spdx_identifier("SPDXRef-tool-", tool["id"]),
                        "name": tool["name"], "versionInfo": tool["version"],
@@ -639,17 +882,32 @@ def make_sbom(kind, source_lock, toolchain, carriers, source_lock_digest, output
              "SPDXID": "SPDXRef-DOCUMENT", "name": "JetOnlyOffice",
              "documentNamespace": "https://jetonlyoffice.dev/spdx/" + source_lock_digest,
              "creationInfo": {"created": iso_time(source_lock["sourceDateEpoch"]),
-                              "creators": ["Tool: JetOnlyOffice package-driver"]},
+                               "creators": ["Tool: JetOnlyOffice package-driver"]},
              "packages": sorted(packages, key=lambda item: item["SPDXID"]),
              "documentDescribes": [item["SPDXID"] for item in
                                    sorted(packages, key=lambda item: item["SPDXID"])]}
+    if extracted_licenses:
+      value["hasExtractedLicensingInfos"] = [
+        {"licenseId": identifier, "extractedText": extracted_licenses[identifier]}
+        for identifier in sorted(extracted_licenses)
+      ]
   else:
     components = []
-    for repo in source_lock["repositories"]:
-      components.append({"type": "library", "bom-ref": "repo:" + repo["id"],
-                         "name": repo["id"], "version": repo["commit"],
-                         "externalReferences": [{"type": "vcs", "url": repo["origin"]}],
-                         "licenses": [{"expression": repo["license"]["spdx"]}]})
+    for unit in source_units:
+      component = {"type": "library", "bom-ref": unit["bomRef"],
+                   "name": unit["name"], "version": unit["version"],
+                   "externalReferences": [{"type": "vcs", "url": unit["origin"]}],
+                   "licenses": [{"expression": unit["spdx"]}]}
+      if unit["payloadPaths"]:
+        component["properties"] = [
+          {"name": "jetonlyoffice.repository", "value": unit["repository"]},
+          {"name": "jetonlyoffice.payloadPaths", "value": ",".join(unit["payloadPaths"])},
+          *[
+            {"name": "jetonlyoffice.licenseEvidence", "value": reference}
+            for reference in unit["evidenceReferences"]
+          ],
+        ]
+      components.append(component)
     for tool in toolchain.get("tools", []):
       components.append({"type": "library", "bom-ref": "tool:" + tool["id"],
                          "name": tool["name"], "version": tool["version"],
@@ -738,7 +996,7 @@ def package(args):
     ]
     license_archive = output_root / "licenses" / "jetonlyoffice-licenses.tar.zst"
     notice = output_root / "licenses" / "NOTICE.txt"
-    make_license_artifacts(
+    extracted_licenses = make_license_artifacts(
       source_tree, source_lock, toolchain, source_lock_digest, temporary,
       license_archive, notice, epoch,
     )
@@ -754,8 +1012,14 @@ def package(args):
     ]
     spdx = output_root / "sbom" / "jetonlyoffice.spdx.json"
     cdx = output_root / "sbom" / "jetonlyoffice.cdx.json"
-    make_sbom("spdx", source_lock, toolchain, carrier_ids, source_lock_digest, spdx)
-    make_sbom("cyclonedx", source_lock, toolchain, carrier_ids, source_lock_digest, cdx)
+    make_sbom(
+      "spdx", source_lock, toolchain, carrier_ids, source_lock_digest, spdx,
+      extracted_licenses,
+    )
+    make_sbom(
+      "cyclonedx", source_lock, toolchain, carrier_ids, source_lock_digest, cdx,
+      extracted_licenses,
+    )
     records += [artifact_record("jetonlyoffice-spdx", "spdx", spdx, output_root, carrier_ids, "application/spdx+json"),
                 artifact_record("jetonlyoffice-cyclonedx", "cyclonedx", cdx, output_root, carrier_ids, "application/vnd.cyclonedx+json")]
     provenance = output_root / "provenance" / "jetonlyoffice.intoto.jsonl"

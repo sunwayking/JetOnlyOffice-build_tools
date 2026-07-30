@@ -27,6 +27,21 @@ It is generated after the resolver commit is merged and published as an
 immutable build_tools release asset, which avoids a lock file referring to the
 commit that contains itself.
 
+The formal lock preserves two mutually exclusive license shapes. Repositories
+with one reviewed declaration retain the existing `path`, Git blob, SHA-256,
+and SPDX record. Component-scoped repositories retain `scope: component`, the
+reviewed `payloadPatterns`, and a complete sorted component inventory. Each
+component binds its concrete payload paths and SPDX expression to expanded
+evidence containing the payload Git blob and SHA-256 plus the evidence locator
+and SHA-256. Audit-only candidate paths, diagnostic reasons, and unresolved
+states never enter a formal lock. Bootstrap and local verification re-enumerate
+the locked tree from `payloadPatterns`, so deleting a component from the lock
+cannot hide a matching payload.
+For an LFS payload, the evidence `blob` and payload SHA-256 bind the Git pointer,
+while the matching `lfsObjects` record binds the materialized bytes. Embedded
+font and archive evidence is extracted only after that LFS object has passed
+its locked size and SHA-256 checks.
+
 The current policy is expected to fail with `LICENSE_INCOMPLETE` for inputs
 whose upstream repositories do not provide complete license evidence. That
 failure is a release gate, not an invitation to replace the evidence with
