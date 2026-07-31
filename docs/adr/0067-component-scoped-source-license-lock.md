@@ -7,4 +7,5 @@ Bootstrap 和 Verify 必须按 `payloadPatterns` 重新枚举锁定 tree，逐�
 仓库级声明许可证本身若由 Git LFS 管理，`sha256` 继续绑定 Git pointer，
 同时必须保存 `materializedSha256` 绑定归档和 SBOM 实际采用的许可证实体字节。
 契约只允许在许可证路径同时出现在 `lfsObjects` 时存在该字段，并要求该路径
-属于 LFS 时字段必填；打包和验证不得把 pointer 摘要与实体摘要混用。
+属于 LFS 时字段必填且等于对应 LFS 对象 OID；打包和验证不得把 pointer 摘要
+与实体摘要混用。

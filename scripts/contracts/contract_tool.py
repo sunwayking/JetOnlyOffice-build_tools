@@ -507,6 +507,15 @@ def _validate_source_lock(value):
         raise ContractError(
           prefix + ".license.materializedSha256: required only for LFS license paths"
         )
+      if license_is_lfs:
+        license_lfs_object = next(
+          item for item in repository["lfsObjects"]
+          if license_record["path"] in item["paths"]
+        )
+        if license_record["materializedSha256"] != license_lfs_object["oid"]:
+          raise ContractError(
+            prefix + ".license.materializedSha256: must match the LFS object oid"
+          )
   maximum_commit_time = max(item["commitTime"] for item in repositories)
   if value["sourceDateEpoch"] != maximum_commit_time:
     raise ContractError("$.sourceDateEpoch: must equal the maximum repository commitTime")

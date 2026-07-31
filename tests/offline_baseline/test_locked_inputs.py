@@ -193,6 +193,34 @@ class LockedInputTests(unittest.TestCase):
         with locked_cache_view(lock, cache, {}, {"build"}):
           self.fail("unsafe cache view was created")
 
+  def test_cache_view_rejects_alias_in_cache_root_ancestor(self):
+    payload = b"locked bytes\n"
+    value = tool("compiler", payload, ["build"])
+    lock = {
+      "schemaVersion": 1,
+      "lockType": "toolchain",
+      "platform": "linux-amd64",
+      "sourceDateEpoch": 1,
+      "environment": {},
+      "tools": [value],
+    }
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      real_parent = root / "real-parent"
+      cache = real_parent / "cache"
+      cached = cache / "toolchain" / value["id"] / value["sha256"]
+      cached.parent.mkdir(parents=True)
+      cached.write_bytes(payload)
+      alias_parent = root / "alias-parent"
+      try:
+        alias_parent.symlink_to(real_parent, target_is_directory=True)
+      except OSError as error:
+        self.skipTest(f"directory symlinks are unavailable: {error}")
+
+      with self.assertRaisesRegex(BaselineError, "cache root must not be an alias"):
+        with locked_cache_view(lock, alias_parent / "cache", {}, {"build"}):
+          self.fail("unsafe cache view was created")
+
   @unittest.skipUnless(os.name == "nt", "junctions are Windows-specific")
   def test_toolchain_cache_rejects_junction_parent_aliases(self):
     if not hasattr(Path, "is_junction"):

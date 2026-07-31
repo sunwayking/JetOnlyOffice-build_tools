@@ -523,6 +523,10 @@ class ContractToolTests(unittest.TestCase):
       validate_contract(value, "source-lock", self.schema_dir)
 
     value["repositories"][0]["license"]["materializedSha256"] = SHA256_B
+    with self.assertRaisesRegex(ContractError, "must match the LFS object oid"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value["repositories"][0]["license"]["materializedSha256"] = SHA256_A
     validate_contract(value, "source-lock", self.schema_dir)
 
     value = source_lock()

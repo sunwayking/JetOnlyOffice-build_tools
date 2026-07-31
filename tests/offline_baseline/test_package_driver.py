@@ -685,6 +685,25 @@ class PackageDriverTests(unittest.TestCase):
           pass
       self.assertEqual(3, caught.exception.exit_code)
 
+  def test_locked_zstd_verifier_rejects_alias_in_cache_root_ancestor(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      real_parent = root / "real-parent"
+      cache = real_parent / "cache"
+      cache.mkdir(parents=True)
+      alias_parent = root / "alias-parent"
+      try:
+        alias_parent.symlink_to(real_parent, target_is_directory=True)
+      except OSError as error:
+        self.skipTest(f"directory symlinks are unavailable: {error}")
+      toolchain = locked_zstd_toolchain(b"locked zstd executable\n")
+
+      with self.assertRaisesRegex(BaselineError, "cache root must not be an alias") \
+          as caught:
+        with locked_zstd_verifier(toolchain, alias_parent / "cache"):
+          pass
+      self.assertEqual(3, caught.exception.exit_code)
+
   def test_license_archive_rejects_non_zstd_before_decompression(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)

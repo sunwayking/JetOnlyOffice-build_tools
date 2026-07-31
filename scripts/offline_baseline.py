@@ -78,6 +78,21 @@ def path_is_alias(path):
   return False
 
 
+def resolve_unaliased_root(path, description, exit_code):
+  absolute = Path(os.path.abspath(path))
+  current = absolute
+  while True:
+    if path_is_alias(current):
+      raise BaselineError(
+        f"{description} must not be an alias: {current}", exit_code
+      )
+    parent = current.parent
+    if parent == current:
+      break
+    current = parent
+  return absolute.resolve()
+
+
 def verify_unaliased_parents(path, root, description, exit_code):
   root = Path(root).resolve()
   path = Path(path)
@@ -104,7 +119,9 @@ def verify_unaliased_parents(path, root, description, exit_code):
 
 def cache_toolchain_input(tool, path, cache_root):
   path = Path(path)
-  cache_root = Path(cache_root).resolve()
+  cache_root = resolve_unaliased_root(
+    cache_root, "locked toolchain cache root", 3
+  )
   verify_unaliased_parents(path, cache_root, "locked toolchain cache", 3)
   if path_is_alias(path):
     raise BaselineError(
@@ -334,7 +351,9 @@ def bootstrap(args):
   if source_lock["sourceDateEpoch"] != toolchain_lock["sourceDateEpoch"]:
     raise BaselineError("source and toolchain sourceDateEpoch values do not match", 3)
 
-  cache_directory = Path(args.cache_directory).resolve()
+  cache_directory = resolve_unaliased_root(
+    args.cache_directory, "locked toolchain cache root", 3
+  )
   cache_directory.mkdir(parents=True, exist_ok=True)
   if not cache_directory.is_dir():
     raise BaselineError(f"locked toolchain cache root is not a directory: {cache_directory}", 3)
@@ -399,7 +418,9 @@ def bootstrap(args):
 
 
 def verify_toolchain_files(toolchain_lock, cache_directory, manifest):
-  cache_directory = Path(cache_directory).resolve()
+  cache_directory = resolve_unaliased_root(
+    cache_directory, "locked toolchain cache root", 3
+  )
   expected = []
   for tool in toolchain_lock["tools"]:
     relative_path = Path("toolchain") / tool["id"] / tool["sha256"]
@@ -455,16 +476,14 @@ def locked_zstd_verifier(toolchain_lock, cache_directory):
 
   if not cache_directory:
     raise BaselineError("locked zstd verifier cache directory is required", 3)
-  cache_input = Path(os.path.abspath(cache_directory))
-  if path_is_alias(cache_input):
-    raise BaselineError(
-      f"locked zstd verifier cache root must not be an alias: {cache_input}", 3
-    )
+  cache_input = resolve_unaliased_root(
+    cache_directory, "locked zstd verifier cache root", 3
+  )
   if not cache_input.is_dir():
     raise BaselineError(
       f"locked zstd verifier cache directory is missing: {cache_input}", 3
     )
-  cache_root = cache_input.resolve()
+  cache_root = cache_input
   source = cache_root / "toolchain" / tool["id"] / tool["sha256"]
   verify_unaliased_parents(source, cache_root, "locked zstd verifier", 3)
   if path_is_alias(source):
@@ -490,7 +509,9 @@ def locked_zstd_verifier(toolchain_lock, cache_directory):
 
 @contextmanager
 def locked_cache_view(toolchain_lock, cache_directory, bootstrap_manifest, consumers):
-  cache_directory = Path(cache_directory).resolve()
+  cache_directory = resolve_unaliased_root(
+    cache_directory, "locked toolchain cache root", 3
+  )
   with tempfile.TemporaryDirectory(prefix="jetonlyoffice-locked-cache-") as directory:
     root = Path(directory)
     selected_tools = [
