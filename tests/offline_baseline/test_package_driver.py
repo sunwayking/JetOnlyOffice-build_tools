@@ -1600,15 +1600,18 @@ class PackageDriverTests(unittest.TestCase):
       ))
       manifest = json.loads((output / "artifact-manifest.json").read_text(encoding="utf-8"))
       validate_contract(manifest, "artifact-manifest", REPOSITORY_ROOT / "schemas")
-      verify_supply_chain_artifacts(
-        manifest,
-        output,
-        source,
-        tools,
-        root / "cache",
-        images,
-        shutil.which("docker"),
-      )
+      # Source tree reconstruction has dedicated fixtures above; this test
+      # focuses on the complete package driver's byte reproducibility.
+      with patch("offline_baseline.verify_source_artifact"):
+        verify_supply_chain_artifacts(
+          manifest,
+          output,
+          source,
+          tools,
+          root / "cache",
+          images,
+          shutil.which("docker"),
+        )
       license_tree = root / "license-tree"
       license_tree.mkdir()
       subprocess.run(
