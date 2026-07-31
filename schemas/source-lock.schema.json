@@ -10,6 +10,7 @@
     "productVersion",
     "baseline",
     "sourceDateEpoch",
+    "sourceTreeManifest",
     "repositories",
     "relationships"
   ],
@@ -43,6 +44,27 @@
     "sourceDateEpoch": {
       "type": "integer",
       "minimum": 1
+    },
+    "sourceTreeManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "const": "source-tree-manifest.json"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
     },
     "repositories": {
       "type": "array",

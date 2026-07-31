@@ -1202,8 +1202,9 @@ def read_tar_member(archive, members, name, description):
 
 
 @contextmanager
-def open_license_archive(
+def open_zstd_tar_archive(
   path,
+  description,
   toolchain=None,
   cache_directory=None,
   image_lock=None,
@@ -1214,16 +1215,16 @@ def open_license_archive(
     with path.open("rb") as stream:
       magic = stream.read(4)
   except OSError as error:
-    raise BaselineError(f"license archive cannot be read: {error}", 4) from error
+    raise BaselineError(f"{description} cannot be read: {error}", 4) from error
   if magic != b"\x28\xb5\x2f\xfd":
-    raise BaselineError("license archive is not a zstd frame", 4)
+    raise BaselineError(f"{description} is not a zstd frame", 4)
   if toolchain is None:
-    raise BaselineError("license archive requires the locked zstd verifier", 4)
+    raise BaselineError(f"{description} requires the locked zstd verifier", 4)
   if image_lock is None:
-    raise BaselineError("license archive requires the locked verifier image", 3)
+    raise BaselineError(f"{description} requires the locked verifier image", 3)
   builder = locked_image(image_lock, "builder")
-  with tempfile.TemporaryDirectory(prefix="jetonlyoffice-license-verify-") as directory:
-    expanded = Path(directory) / "licenses.tar"
+  with tempfile.TemporaryDirectory(prefix="jetonlyoffice-archive-verify-") as directory:
+    expanded = Path(directory) / "expanded.tar"
     try:
       with locked_zstd_verifier(toolchain, cache_directory) as zstd:
         with expanded.open("wb") as output:
@@ -1249,12 +1250,12 @@ def open_license_archive(
             + ",dst=/verifier,readonly",
             "--mount",
             "type=bind,src=" + path.resolve().as_posix()
-            + ",dst=/input/licenses.tar.zst,readonly",
+            + ",dst=/input/archive.tar.zst,readonly",
             pinned_image_reference(builder),
             "/verifier/zstd",
             "--decompress",
             "--stdout",
-            "/input/licenses.tar.zst",
+            "/input/archive.tar.zst",
           ]
           result = subprocess.run(
             command,
@@ -1267,14 +1268,33 @@ def open_license_archive(
     if result.returncode != 0:
       detail = result.stderr.decode("utf-8", errors="replace").strip()
       raise BaselineError(
-        "license archive decompression failed" + (f": {detail}" if detail else ""),
+        f"{description} decompression failed" + (f": {detail}" if detail else ""),
         4,
       )
     try:
       with tarfile.open(expanded, "r:") as archive:
         yield archive
     except (OSError, tarfile.TarError) as error:
-      raise BaselineError(f"license archive is invalid: {error}", 4) from error
+      raise BaselineError(f"{description} is invalid: {error}", 4) from error
+
+
+@contextmanager
+def open_license_archive(
+  path,
+  toolchain=None,
+  cache_directory=None,
+  image_lock=None,
+  docker="docker",
+):
+  with open_zstd_tar_archive(
+    path,
+    "license archive",
+    toolchain,
+    cache_directory,
+    image_lock,
+    docker,
+  ) as archive:
+    yield archive
 
 
 def verify_license_artifact(
@@ -1553,6 +1573,315 @@ def verify_oci_artifact(manifest, artifact_root):
     raise BaselineError("OCI JWT entrypoint does not match the locked source", 4)
 
 
+def git_object_oid(object_type, payload):
+  header = f"{object_type} {len(payload)}\0".encode("ascii")
+  return hashlib.sha1(header + payload).hexdigest()
+
+
+def hash_source_member(archive, member, git_blob=False):
+  stream = archive.extractfile(member)
+  if stream is None:
+    raise BaselineError(
+      f"source archive member cannot be read: {member.name}", 4
+    )
+  sha256 = hashlib.sha256()
+  git_digest = hashlib.sha1()
+  if git_blob:
+    git_digest.update(f"blob {member.size}\0".encode("ascii"))
+  size = 0
+  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+    sha256.update(chunk)
+    if git_blob:
+      git_digest.update(chunk)
+    size += len(chunk)
+  return size, sha256.hexdigest(), git_digest.hexdigest() if git_blob else None
+
+
+def git_tree_oid(entries):
+  ordered = sorted(
+    entries,
+    key=lambda item: item["name"].encode("utf-8")
+    + (b"/" if item["type"] == "directory" else b"\0"),
+  )
+  payload = b"".join(
+    (
+      ("40000" if item["type"] == "directory" else item["mode"])
+      + " "
+      + item["name"]
+    ).encode("utf-8")
+    + b"\0"
+    + bytes.fromhex(item["oid"])
+    for item in ordered
+  )
+  return git_object_oid("tree", payload)
+
+
+def verify_source_tree_repository(
+  archive, members, repository, tree_repository, relationships
+):
+  identity = {
+    key: repository[key]
+    for key in ("id", "checkoutPath", "commit", "tree")
+  }
+  if any(tree_repository.get(key) != value for key, value in identity.items()):
+    raise BaselineError(
+      f"source tree manifest repository does not match {repository['id']}", 4
+    )
+  checkout = repository["checkoutPath"]
+  entries = tree_repository["entries"]
+  entry_by_path = {item["path"]: item for item in entries}
+  lfs_by_path = {
+    path: item
+    for item in repository["lfsObjects"]
+    for path in item["paths"]
+  }
+  materialized_paths = {
+    item["path"] for item in entries if "materialized" in item
+  }
+  if materialized_paths != set(lfs_by_path):
+    raise BaselineError(
+      f"source tree manifest LFS paths do not match {repository['id']}", 4
+    )
+
+  expected_gitlinks = {
+    relationship["path"]: next(
+      item["commit"]
+      for item in relationships["repositories"]
+      if item["id"] == relationship["child"]
+    )
+    for relationship in relationships["relationships"]
+    if relationship["parent"] == repository["id"]
+  }
+  actual_gitlinks = {
+    item["path"]: item["oid"]
+    for item in entries if item["type"] == "gitlink"
+  }
+  if actual_gitlinks != expected_gitlinks:
+    raise BaselineError(
+      f"source tree manifest gitlinks do not match {repository['id']}", 4
+    )
+
+  for entry in entries:
+    path = entry["path"]
+    member_name = checkout + "/" + path
+    member = members.get(member_name)
+    entry_type = entry["type"]
+    context = f"{repository['id']}:{path}"
+    if entry_type == "gitlink":
+      if member is None or not member.isdir() or member.mode != 0o755:
+        raise BaselineError(
+          f"source archive tree does not match {context}: gitlink directory",
+          4,
+        )
+      continue
+    if member is None:
+      raise BaselineError(
+        f"source archive tree does not match {context}: member is missing", 4
+      )
+    if entry_type == "directory":
+      if not member.isdir() or member.mode != 0o755:
+        raise BaselineError(
+          f"source archive tree does not match {context}: directory mode or type",
+          4,
+        )
+      continue
+    if entry_type == "symlink":
+      if not member.issym():
+        raise BaselineError(
+          f"source archive tree does not match {context}: expected symlink", 4
+        )
+      payload = os.fsencode(member.linkname)
+      if (
+        len(payload) != entry["size"]
+        or hashlib.sha256(payload).hexdigest() != entry["sha256"]
+        or git_object_oid("blob", payload) != entry["oid"]
+      ):
+        raise BaselineError(
+          f"source archive tree does not match {context}: symlink blob", 4
+        )
+      continue
+    if not member.isfile():
+      raise BaselineError(
+        f"source archive tree does not match {context}: expected regular file", 4
+      )
+    expected_mode = 0o755 if entry["mode"] == "100755" else 0o644
+    if member.mode != expected_mode:
+      raise BaselineError(
+        f"source archive tree does not match {context}: Git mode", 4
+      )
+    materialized = entry.get("materialized")
+    size, digest, blob_oid = hash_source_member(
+      archive, member, git_blob=materialized is None
+    )
+    if materialized is None:
+      expected_size = entry["size"]
+      expected_digest = entry["sha256"]
+      expected_oid = entry["oid"]
+    else:
+      lfs_object = lfs_by_path[path]
+      if materialized != {
+        "size": lfs_object["size"], "sha256": lfs_object["oid"]
+      }:
+        raise BaselineError(
+          f"source tree manifest LFS materialization does not match {context}", 4
+        )
+      expected_size = materialized["size"]
+      expected_digest = materialized["sha256"]
+      pointer = (
+        "version https://git-lfs.github.com/spec/v1\n"
+        f"oid sha256:{materialized['sha256']}\n"
+        f"size {materialized['size']}\n"
+      ).encode("ascii")
+      if (
+        len(pointer) != entry["size"]
+        or hashlib.sha256(pointer).hexdigest() != entry["sha256"]
+        or git_object_oid("blob", pointer) != entry["oid"]
+      ):
+        raise BaselineError(
+          f"source archive tree does not match {context}: LFS pointer blob", 4
+        )
+    if size != expected_size or digest != expected_digest \
+        or (materialized is None and blob_oid != expected_oid):
+      raise BaselineError(
+        f"source archive tree does not match {context}: file blob", 4
+      )
+
+  for directory in sorted(
+    (item for item in entries if item["type"] == "directory"),
+    key=lambda item: item["path"].count("/"),
+    reverse=True,
+  ):
+    children = [
+      {
+        **item,
+        "name": PurePosixPath(item["path"]).name,
+      }
+      for item in entries
+      if PurePosixPath(item["path"]).parent.as_posix() == directory["path"]
+    ]
+    if git_tree_oid(children) != directory["oid"]:
+      raise BaselineError(
+        f"source archive tree does not match {repository['id']}:{directory['path']}",
+        4,
+      )
+  root_entries = [
+    {**item, "name": PurePosixPath(item["path"]).name}
+    for item in entries
+    if PurePosixPath(item["path"]).parent == PurePosixPath(".")
+  ]
+  if git_tree_oid(root_entries) != repository["tree"]:
+    raise BaselineError(
+      f"source archive tree does not match {repository['id']}:root", 4
+    )
+
+
+def verify_source_artifact(
+  manifest,
+  artifact_root,
+  source_lock,
+  toolchain,
+  cache_directory=None,
+  image_lock=None,
+  docker="docker",
+):
+  record = one_artifact(manifest, "source")
+  path = Path(artifact_root) / record["path"]
+  with open_zstd_tar_archive(
+    path,
+    "source archive",
+    toolchain,
+    cache_directory,
+    image_lock,
+    docker,
+  ) as archive:
+    members = safe_tar_members(archive, "source archive")
+    lock_values = {
+      "sources.lock.json": source_lock,
+      "toolchain.lock.json": toolchain,
+      "images.lock.json": image_lock,
+    }
+    for name, expected in lock_values.items():
+      payload = read_tar_member(archive, members, name, "source archive lock")
+      if payload != canonical_json_bytes(expected) + b"\n":
+        raise BaselineError(
+          f"source archive lock does not match: {name}", 4
+        )
+    tree_record = source_lock["sourceTreeManifest"]
+    tree_payload = read_tar_member(
+      archive,
+      members,
+      tree_record["path"],
+      "source tree manifest",
+    )
+    if (
+      len(tree_payload) != tree_record["size"]
+      or hashlib.sha256(tree_payload).hexdigest() != tree_record["sha256"]
+    ):
+      raise BaselineError(
+        "source tree manifest does not match the source lock", 4
+      )
+    try:
+      tree_manifest = json.loads(tree_payload.decode("utf-8"))
+      validate_contract(
+        tree_manifest, "source-tree-manifest", REPOSITORY_ROOT / "schemas"
+      )
+    except (UnicodeError, json.JSONDecodeError, ContractError) as error:
+      raise BaselineError(f"source tree manifest is invalid: {error}", 4) from error
+    expected_repositories = [
+      item["id"] for item in source_lock["repositories"]
+    ]
+    if [item["id"] for item in tree_manifest["repositories"]] != expected_repositories:
+      raise BaselineError(
+        "source tree manifest repository inventory does not match the source lock",
+        4,
+      )
+    relationship_context = {
+      "repositories": source_lock["repositories"],
+      "relationships": source_lock["relationships"],
+    }
+    for repository, tree_repository in zip(
+      source_lock["repositories"], tree_manifest["repositories"]
+    ):
+      verify_source_tree_repository(
+        archive,
+        members,
+        repository,
+        tree_repository,
+        relationship_context,
+      )
+
+    expected_members = set(lock_values) | {tree_record["path"]}
+    for repository, tree_repository in zip(
+      source_lock["repositories"], tree_manifest["repositories"]
+    ):
+      checkout = PurePosixPath(repository["checkoutPath"])
+      for index in range(1, len(checkout.parts) + 1):
+        expected_members.add(PurePosixPath(*checkout.parts[:index]).as_posix())
+      for entry in tree_repository["entries"]:
+        expected_members.add((checkout / entry["path"]).as_posix())
+    if set(members) != expected_members:
+      raise BaselineError(
+        "source archive member inventory does not match the locked source tree",
+        4,
+      )
+    for name in lock_values:
+      if not members[name].isfile() or members[name].mode != 0o644:
+        raise BaselineError("source archive lock member type or mode is invalid", 4)
+    tree_member = members[tree_record["path"]]
+    if not tree_member.isfile() or tree_member.mode != 0o644:
+      raise BaselineError("source tree manifest member type or mode is invalid", 4)
+    for name in expected_members - set(lock_values) - {tree_record["path"]}:
+      if name in members and any(
+        name == repository["checkoutPath"]
+        or repository["checkoutPath"].startswith(name + "/")
+        for repository in source_lock["repositories"]
+      ):
+        if not members[name].isdir() or members[name].mode != 0o755:
+          raise BaselineError(
+            "source archive checkout directory type or mode is invalid", 4
+          )
+
+
 def verify_supply_chain_artifacts(
   manifest,
   artifact_root,
@@ -1567,6 +1896,15 @@ def verify_supply_chain_artifacts(
     "checksums", "licenses", "notice",
   ):
     one_artifact(manifest, artifact_type)
+  verify_source_artifact(
+    manifest,
+    artifact_root,
+    source_lock,
+    toolchain,
+    cache_directory,
+    image_lock,
+    docker,
+  )
   verify_checksums_artifact(manifest, artifact_root)
   extracted_licenses = verify_license_artifact(
     manifest,

@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -50,9 +51,14 @@ from offline_baseline import (  # noqa: E402
   verify_oci_artifact,
   verify_provenance_artifact,
   verify_spdx_artifact,
+  verify_source_artifact,
   verify_supply_chain_artifacts,
 )
 from contracts.contract_tool import canonical_sha256, validate_contract  # noqa: E402
+from source_resolver import (  # noqa: E402
+  bind_source_tree_manifest,
+  repository_metadata,
+)
 
 
 def source_lock():
@@ -62,6 +68,11 @@ def source_lock():
     "productVersion": "9.4.0",
     "baseline": {"repository": "documentserver", "commit": "a" * 40},
     "sourceDateEpoch": 1720000000,
+    "sourceTreeManifest": {
+      "path": "source-tree-manifest.json",
+      "size": 1,
+      "sha256": "e" * 64,
+    },
     "repositories": [{
       "id": "documentserver",
       "role": "superproject",
@@ -145,6 +156,308 @@ def verifier_image_lock():
   }
 
 
+def run_git(directory, *arguments):
+  result = subprocess.run(
+    ["git", *arguments],
+    cwd=directory,
+    capture_output=True,
+    text=True,
+    check=False,
+  )
+  if result.returncode != 0:
+    raise AssertionError(result.stderr or result.stdout)
+  return result.stdout.strip()
+
+
+def run_git_bytes(directory, *arguments):
+  result = subprocess.run(
+    ["git", *arguments],
+    cwd=directory,
+    capture_output=True,
+    check=False,
+  )
+  if result.returncode != 0:
+    raise AssertionError(result.stderr.decode("utf-8", errors="replace"))
+  return result.stdout
+
+
+def repository_input(identifier, checkout_path, commit):
+  return {
+    "id": identifier,
+    "role": "build-input",
+    "checkoutPath": checkout_path,
+    "origin": f"https://github.com/sunwayking/JetOnlyOffice-{identifier}.git",
+    "upstream": f"https://github.com/ONLYOFFICE/{identifier}.git",
+    "commit": commit,
+    "refHint": "locked test commit",
+    "projectFork": False,
+    "buildInput": True,
+    "active": True,
+    "license": {
+      "status": "declared",
+      "path": "LICENSE",
+      "spdx": "MIT",
+    },
+  }
+
+
+def source_archive_fixture(
+  root,
+  content=b"locked source\n",
+  content_mode=0o644,
+  include_content=True,
+  extra_member=None,
+):
+  checkout = root / "checkout"
+  checkout.mkdir()
+  run_git(checkout, "init")
+  run_git(checkout, "config", "user.name", "JetOnlyOffice tests")
+  run_git(checkout, "config", "user.email", "tests@jetonlyoffice.invalid")
+  (checkout / "LICENSE").write_bytes(b"test license\n")
+  (checkout / "content.txt").write_bytes(b"locked source\n")
+  run_git(checkout, "add", "LICENSE", "content.txt")
+  run_git(checkout, "commit", "-m", "locked source")
+  commit = run_git(checkout, "rev-parse", "HEAD^{commit}")
+  tree = run_git(checkout, "rev-parse", "HEAD^{tree}")
+  lock = source_lock()
+  repository = lock["repositories"][0]
+  lock["baseline"]["commit"] = commit
+  repository.update({
+    "commit": commit,
+    "tree": tree,
+    "commitTime": lock["sourceDateEpoch"],
+    "lfsObjects": [],
+    "license": {
+      "path": "LICENSE",
+      "blob": run_git(checkout, "rev-parse", "HEAD:LICENSE"),
+      "sha256": hashlib.sha256(b"test license\n").hexdigest(),
+      "spdx": "AGPL-3.0-only",
+    },
+  })
+  tree_manifest = {
+    "schemaVersion": 1,
+    "manifestType": "source-tree",
+    "repositories": [{
+      "id": repository["id"],
+      "checkoutPath": repository["checkoutPath"],
+      "commit": commit,
+      "tree": tree,
+      "entries": [
+        {
+          "path": name,
+          "type": "file",
+          "mode": "100644",
+          "oid": run_git(checkout, "rev-parse", "HEAD:" + name),
+          "size": len(payload),
+          "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+        for name, payload in (
+          ("LICENSE", b"test license\n"),
+          ("content.txt", b"locked source\n"),
+        )
+      ],
+    }],
+  }
+  tree_payload = package_driver.canonical_bytes(tree_manifest)
+  lock["sourceTreeManifest"] = {
+    "path": "source-tree-manifest.json",
+    "size": len(tree_payload),
+    "sha256": hashlib.sha256(tree_payload).hexdigest(),
+  }
+  tools = locked_zstd_toolchain(b"locked zstd executable\n")
+  images = verifier_image_lock()
+  archive_bytes = io.BytesIO()
+  with tarfile.open(fileobj=archive_bytes, mode="w") as archive:
+    for directory in ("sources", "sources/DocumentServer"):
+      member = tarfile.TarInfo(directory)
+      member.type = tarfile.DIRTYPE
+      member.mode = 0o755
+      archive.addfile(member)
+    archive_files = [
+      ("sources/DocumentServer/LICENSE", b"test license\n"),
+      ("source-tree-manifest.json", tree_payload),
+      ("sources.lock.json", package_driver.canonical_bytes(lock)),
+      ("toolchain.lock.json", package_driver.canonical_bytes(tools)),
+      ("images.lock.json", package_driver.canonical_bytes(images)),
+    ]
+    if include_content:
+      archive_files.append(("sources/DocumentServer/content.txt", content))
+    if extra_member is not None:
+      archive_files.append(extra_member)
+    for name, payload in archive_files:
+      member = tarfile.TarInfo(name)
+      member.mode = content_mode if name.endswith("/content.txt") else 0o644
+      member.size = len(payload)
+      archive.addfile(member, io.BytesIO(payload))
+  compressed = root / "jetonlyoffice-source.tar.zst"
+  compressed.write_bytes(ZSTD_MAGIC + b"fixture")
+  cached = root / "cache" / "toolchain" / "zstd" / tools["tools"][0]["sha256"]
+  cached.parent.mkdir(parents=True)
+  cached.write_bytes(b"locked zstd executable\n")
+  return compressed, archive_bytes.getvalue(), lock, tools, images
+
+
+def complex_source_archive_fixture(
+  root,
+  lfs_payload=b"materialized LFS source\n",
+  symlink_target=b"content.txt",
+  gitlink_oid=None,
+):
+  def create_repository(name):
+    checkout = root / name
+    checkout.mkdir()
+    run_git(checkout, "init")
+    run_git(checkout, "config", "user.name", "JetOnlyOffice tests")
+    run_git(checkout, "config", "user.email", "tests@jetonlyoffice.invalid")
+    (checkout / "LICENSE").write_bytes(b"MIT test license\n")
+    (checkout / "content.txt").write_bytes(b"locked content\n")
+    run_git(checkout, "add", "LICENSE", "content.txt")
+    run_git(checkout, "commit", "-m", "initial")
+    return checkout
+
+  child_checkout = create_repository("child-work")
+  child_commit = run_git(child_checkout, "rev-parse", "HEAD^{commit}")
+  child_bare = root / "child.git"
+  run_git(root, "clone", "--bare", str(child_checkout), str(child_bare))
+
+  parent_checkout = create_repository("parent-work")
+  lfs_oid = hashlib.sha256(b"materialized LFS source\n").hexdigest()
+  pointer = (
+    "version https://git-lfs.github.com/spec/v1\n"
+    f"oid sha256:{lfs_oid}\n"
+    f"size {len(b'materialized LFS source\n')}\n"
+  ).encode("ascii")
+  (parent_checkout / "asset.bin").write_bytes(pointer)
+  run_git(parent_checkout, "add", "asset.bin")
+  link_blob_source = root / "link-blob"
+  link_blob_source.write_bytes(b"content.txt")
+  link_blob = run_git(parent_checkout, "hash-object", "-w", str(link_blob_source))
+  run_git(
+    parent_checkout,
+    "update-index",
+    "--add",
+    "--cacheinfo",
+    f"120000,{link_blob},content-link",
+  )
+  run_git(
+    parent_checkout,
+    "update-index",
+    "--add",
+    "--cacheinfo",
+    f"160000,{child_commit},nested/child",
+  )
+  run_git(parent_checkout, "commit", "-m", "add complex source objects")
+  parent_commit = run_git(parent_checkout, "rev-parse", "HEAD^{commit}")
+  parent_bare = root / "parent.git"
+  run_git(root, "clone", "--bare", str(parent_checkout), str(parent_bare))
+  lfs_cache = parent_bare / "lfs" / "objects" / lfs_oid[:2] / lfs_oid[2:4] / lfs_oid
+  lfs_cache.parent.mkdir(parents=True)
+  lfs_cache.write_bytes(b"materialized LFS source\n")
+
+  child = repository_metadata(
+    repository_input("child", "sources/child", child_commit),
+    child_bare,
+    child_commit,
+  )
+  parent = repository_metadata(
+    repository_input("parent", "sources/parent", parent_commit),
+    parent_bare,
+    parent_commit,
+  )
+  lock = {
+    "schemaVersion": 1,
+    "lockType": "source",
+    "productVersion": "9.4.0",
+    "baseline": {"repository": "parent", "commit": parent_commit},
+    "sourceDateEpoch": max(child["commitTime"], parent["commitTime"]),
+    "repositories": [child, parent],
+    "relationships": [{
+      "parent": "parent",
+      "child": "child",
+      "path": "nested/child",
+      "mode": "160000",
+    }],
+  }
+  tree_payload = bind_source_tree_manifest(
+    lock, {"child": child_bare, "parent": parent_bare}
+  )
+  tree_manifest = json.loads(tree_payload)
+  if gitlink_oid is not None:
+    parent_tree = next(
+      item for item in tree_manifest["repositories"] if item["id"] == "parent"
+    )
+    next(
+      item for item in parent_tree["entries"]
+      if item["path"] == "nested/child"
+    )["oid"] = gitlink_oid
+    tree_payload = package_driver.canonical_bytes(tree_manifest)
+    lock["sourceTreeManifest"].update({
+      "size": len(tree_payload),
+      "sha256": hashlib.sha256(tree_payload).hexdigest(),
+    })
+
+  tools = locked_zstd_toolchain(b"locked zstd executable\n")
+  images = verifier_image_lock()
+  archive_bytes = io.BytesIO()
+  caches = {"child": child_bare, "parent": parent_bare}
+  with tarfile.open(fileobj=archive_bytes, mode="w") as archive:
+    directories = {"sources"}
+    for tree_repository in tree_manifest["repositories"]:
+      checkout_path = tree_repository["checkoutPath"]
+      directories.add(checkout_path)
+      for entry in tree_repository["entries"]:
+        if entry["type"] in {"directory", "gitlink"}:
+          directories.add(checkout_path + "/" + entry["path"])
+    for name in sorted(directories):
+      member = tarfile.TarInfo(name)
+      member.type = tarfile.DIRTYPE
+      member.mode = 0o755
+      archive.addfile(member)
+    for tree_repository in tree_manifest["repositories"]:
+      repository_id = tree_repository["id"]
+      checkout_path = tree_repository["checkoutPath"]
+      repository = next(item for item in lock["repositories"] if item["id"] == repository_id)
+      lfs_paths = {
+        path for item in repository["lfsObjects"] for path in item["paths"]
+      }
+      for entry in tree_repository["entries"]:
+        name = checkout_path + "/" + entry["path"]
+        if entry["type"] in {"directory", "gitlink"}:
+          continue
+        if entry["type"] == "symlink":
+          member = tarfile.TarInfo(name)
+          member.type = tarfile.SYMTYPE
+          member.mode = 0o777
+          member.linkname = os.fsdecode(symlink_target)
+          archive.addfile(member)
+          continue
+        payload = (
+          lfs_payload
+          if entry["path"] in lfs_paths
+          else run_git_bytes(caches[repository_id], "show", repository["commit"] + ":" + entry["path"])
+        )
+        member = tarfile.TarInfo(name)
+        member.mode = 0o755 if entry["mode"] == "100755" else 0o644
+        member.size = len(payload)
+        archive.addfile(member, io.BytesIO(payload))
+    for name, payload in (
+      ("source-tree-manifest.json", tree_payload),
+      ("sources.lock.json", package_driver.canonical_bytes(lock)),
+      ("toolchain.lock.json", package_driver.canonical_bytes(tools)),
+      ("images.lock.json", package_driver.canonical_bytes(images)),
+    ):
+      member = tarfile.TarInfo(name)
+      member.mode = 0o644
+      member.size = len(payload)
+      archive.addfile(member, io.BytesIO(payload))
+  compressed = root / "jetonlyoffice-complex-source.tar.zst"
+  compressed.write_bytes(ZSTD_MAGIC + b"fixture")
+  cached = root / "cache" / "toolchain" / "zstd" / tools["tools"][0]["sha256"]
+  cached.parent.mkdir(parents=True)
+  cached.write_bytes(b"locked zstd executable\n")
+  return compressed, archive_bytes.getvalue(), lock, tools, images
+
+
 def component_license():
   payload = b"component payload\n"
   license_text = b"custom component license\n"
@@ -184,6 +497,137 @@ def font_with_license_name(license_text):
 
 
 class PackageDriverTests(unittest.TestCase):
+  def test_source_archive_independently_matches_locked_git_tree(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, expanded, source, tools, images = source_archive_fixture(root)
+      manifest = {"artifacts": [{
+        "id": "source", "type": "source", "path": source_path.name,
+      }]}
+
+      def fake_run(_command, **kwargs):
+        kwargs["stdout"].write(expanded)
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        verify_source_artifact(
+          manifest, root, source, tools, root / "cache", images, "docker"
+        )
+
+  def test_source_archive_rejects_missing_extra_and_mode_drift(self):
+    cases = (
+      ({"include_content": False}, "member is missing"),
+      ({"extra_member": ("sources/DocumentServer/extra.txt", b"extra\n")},
+       "member inventory"),
+      ({"content_mode": 0o755}, "Git mode"),
+    )
+    for options, message in cases:
+      with self.subTest(message=message), tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        source_path, expanded, source, tools, images = source_archive_fixture(
+          root, **options
+        )
+        manifest = {"artifacts": [{
+          "id": "source", "type": "source", "path": source_path.name,
+        }]}
+
+        def fake_run(_command, **kwargs):
+          kwargs["stdout"].write(expanded)
+          return SimpleNamespace(returncode=0, stderr=b"")
+
+        with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+          with self.assertRaisesRegex(BaselineError, message):
+            verify_source_artifact(
+              manifest, root, source, tools, root / "cache", images, "docker"
+            )
+
+  def test_supply_chain_rejects_source_archive_tree_tampering(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, expanded, source, tools, images = source_archive_fixture(
+        root, b"tampered source\n"
+      )
+      artifacts = [
+        {"id": kind, "type": kind, "path": source_path.name}
+        for kind in (
+          "deb", "rootfs", "oci", "source", "spdx", "cyclonedx",
+          "provenance", "checksums", "licenses", "notice",
+        )
+      ]
+      manifest = {"artifacts": artifacts}
+
+      def fake_run(_command, **kwargs):
+        kwargs["stdout"].write(expanded)
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        with self.assertRaisesRegex(BaselineError, "source archive tree does not match"):
+          verify_supply_chain_artifacts(
+            manifest, root, source, tools, root / "cache", images, "docker"
+          )
+
+  def test_complex_source_archive_verifies_lfs_symlink_and_gitlink(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, expanded, source, tools, images = complex_source_archive_fixture(root)
+      manifest = {"artifacts": [{
+        "id": "source", "type": "source", "path": source_path.name,
+      }]}
+
+      def fake_run(_command, **kwargs):
+        kwargs["stdout"].write(expanded)
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        verify_source_artifact(
+          manifest, root, source, tools, root / "cache", images, "docker"
+        )
+
+  def test_complex_source_archive_rejects_lfs_materialization_tampering(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, expanded, source, tools, images = complex_source_archive_fixture(
+        root, lfs_payload=b"tampered LFS source\n"
+      )
+      manifest = {"artifacts": [{
+        "id": "source", "type": "source", "path": source_path.name,
+      }]}
+
+      def fake_run(_command, **kwargs):
+        kwargs["stdout"].write(expanded)
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        with self.assertRaisesRegex(BaselineError, "source archive tree does not match"):
+          verify_source_artifact(
+            manifest, root, source, tools, root / "cache", images, "docker"
+          )
+
+  def test_complex_source_archive_rejects_symlink_and_gitlink_drift(self):
+    cases = (
+      ({"symlink_target": b"LICENSE"}, "symlink blob"),
+      ({"gitlink_oid": "f" * 40}, "gitlinks do not match"),
+    )
+    for options, message in cases:
+      with self.subTest(message=message), tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        source_path, expanded, source, tools, images = complex_source_archive_fixture(
+          root, **options
+        )
+        manifest = {"artifacts": [{
+          "id": "source", "type": "source", "path": source_path.name,
+        }]}
+
+        def fake_run(_command, **kwargs):
+          kwargs["stdout"].write(expanded)
+          return SimpleNamespace(returncode=0, stderr=b"")
+
+        with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+          with self.assertRaisesRegex(BaselineError, message):
+            verify_source_artifact(
+              manifest, root, source, tools, root / "cache", images, "docker"
+            )
+
   def test_artifact_record_uses_normalized_relative_path(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
@@ -663,7 +1107,7 @@ class PackageDriverTests(unittest.TestCase):
           self.assertIn("manifest.json", archive.getnames())
 
       self.assertEqual(
-        ["/verifier/zstd", "--decompress", "--stdout", "/input/licenses.tar.zst"],
+        ["/verifier/zstd", "--decompress", "--stdout", "/input/archive.tar.zst"],
         commands[0][-4:],
       )
 
@@ -1115,7 +1559,7 @@ class PackageDriverTests(unittest.TestCase):
         "\tchmod 0755 fixture/DEBIAN/postinst fixture/DEBIAN/prerm\n"
         "\tprintf '{\\\"services\\\":{}}\\n' > fixture/etc/onlyoffice/documentserver/local.json\n"
         "\tprintf '[Unit]\\nDescription=DocumentServer\\n' > fixture/usr/lib/systemd/system/ds-docservice.service\n"
-        "\tcp -a ../build_tools/out/linux_64/onlyoffice/documentserver/. fixture/var/www/onlyoffice/documentserver/\n"
+        "\tcp -a --no-preserve=ownership ../build_tools/out/linux_64/onlyoffice/documentserver/. fixture/var/www/onlyoffice/documentserver/\n"
         "\tdpkg-deb --build --root-owner-group fixture deb/onlyoffice-documentserver_$(PRODUCT_VERSION)-$(BUILD_NUMBER)_amd64.deb\n",
         encoding="utf-8", newline="\n",
       )

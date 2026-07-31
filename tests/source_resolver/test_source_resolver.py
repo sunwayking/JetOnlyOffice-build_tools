@@ -23,6 +23,7 @@ from source_resolver import (  # noqa: E402
   LfsActionRefreshRequired,
   ResolutionError,
   audit_report,
+  bind_source_tree_manifest,
   build_source_lock,
   fetch_lfs_objects,
   license_inventory_report,
@@ -135,6 +136,7 @@ def create_source_lock(root, identifier="source"):
     "repositories": [record],
     "relationships": [],
   }
+  bind_source_tree_manifest(lock, {identifier: bare})
   return repository, bare, commit, lock
 
 
@@ -1108,6 +1110,7 @@ class SourceResolverTests(unittest.TestCase):
         "repositories": [record],
         "relationships": [],
       }
+      bind_source_tree_manifest(lock, {"source": bare})
       validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
       source_root = Path(directory) / "workspace"
       materialize(lock, {"source": bare}, source_root)
@@ -1174,6 +1177,7 @@ class SourceResolverTests(unittest.TestCase):
         "repositories": [record],
         "relationships": [],
       }
+      bind_source_tree_manifest(lock, {"source": bare})
       validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
       source_root = Path(directory) / "workspace"
       materialize(lock, {"source": bare}, source_root)
@@ -1259,6 +1263,103 @@ class SourceResolverTests(unittest.TestCase):
         "paths": ["asset.bin"],
       }], record["lfsObjects"])
 
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      payload = bind_source_tree_manifest(lock, {"source": bare})
+      manifest = json.loads(payload)
+      validate_contract(
+        manifest, "source-tree-manifest", REPOSITORY_ROOT / "schemas"
+      )
+      entry = next(
+        item for item in manifest["repositories"][0]["entries"]
+        if item["path"] == "asset.bin"
+      )
+      pointer = (
+        "version https://git-lfs.github.com/spec/v1\n"
+        f"oid sha256:{oid}\n"
+        f"size {len(content)}\n"
+      ).encode("ascii")
+      self.assertEqual(run_git(bare, "rev-parse", commit + ":asset.bin"), entry["oid"])
+      self.assertEqual(hashlib.sha256(pointer).hexdigest(), entry["sha256"])
+      self.assertEqual(
+        {"size": len(content), "sha256": oid}, entry["materialized"]
+      )
+      self.assertEqual(len(payload), lock["sourceTreeManifest"]["size"])
+      self.assertEqual(
+        hashlib.sha256(payload).hexdigest(),
+        lock["sourceTreeManifest"]["sha256"],
+      )
+
+  def test_source_tree_manifest_records_symlinks_and_declared_gitlinks(self):
+    with tempfile.TemporaryDirectory() as directory:
+      _, child_bare, child_commit = create_repository(directory, "child")
+      parent_checkout, _, _ = create_repository(directory, "parent")
+      target = Path(directory) / "link-target"
+      target.write_bytes(b"content.txt")
+      symlink_blob = run_git(parent_checkout, "hash-object", "-w", str(target))
+      run_git(
+        parent_checkout,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"120000,{symlink_blob},content-link",
+      )
+      run_git(
+        parent_checkout,
+        "update-index",
+        "--add",
+        "--cacheinfo",
+        f"160000,{child_commit},nested/child",
+      )
+      run_git(parent_checkout, "commit", "-m", "add source tree object types")
+      parent_commit = run_git(parent_checkout, "rev-parse", "HEAD^{commit}")
+      parent_bare = Path(directory) / "parent-final.git"
+      run_git(directory, "clone", "--bare", str(parent_checkout), str(parent_bare))
+      child = repository_metadata(
+        repository_input("child", child_commit), child_bare, child_commit
+      )
+      parent = repository_metadata(
+        repository_input("parent", parent_commit), parent_bare, parent_commit
+      )
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "parent", "commit": parent_commit},
+        "sourceDateEpoch": max(child["commitTime"], parent["commitTime"]),
+        "repositories": [child, parent],
+        "relationships": [{
+          "parent": "parent",
+          "child": "child",
+          "path": "nested/child",
+          "mode": "160000",
+        }],
+      }
+
+      payload = bind_source_tree_manifest(
+        lock, {"child": child_bare, "parent": parent_bare}
+      )
+      manifest = json.loads(payload)
+      validate_contract(
+        manifest, "source-tree-manifest", REPOSITORY_ROOT / "schemas"
+      )
+      parent_tree = next(
+        item for item in manifest["repositories"] if item["id"] == "parent"
+      )
+      by_path = {item["path"]: item for item in parent_tree["entries"]}
+      self.assertEqual("symlink", by_path["content-link"]["type"])
+      self.assertEqual("120000", by_path["content-link"]["mode"])
+      self.assertEqual(symlink_blob, by_path["content-link"]["oid"])
+      self.assertEqual("gitlink", by_path["nested/child"]["type"])
+      self.assertEqual(child_commit, by_path["nested/child"]["oid"])
+
   def test_declared_lfs_license_binds_pointer_and_materialized_bytes(self):
     with tempfile.TemporaryDirectory() as directory:
       checkout, _, _ = create_repository(directory)
@@ -1286,6 +1387,7 @@ class SourceResolverTests(unittest.TestCase):
         "repositories": [record],
         "relationships": [],
       }
+      bind_source_tree_manifest(lock, {"source": bare})
       validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
       source_root = Path(directory) / "workspace"
       materialize(lock, {"source": bare}, source_root)
@@ -1791,6 +1893,9 @@ class SourceResolverTests(unittest.TestCase):
         "repositories": [first, second],
         "relationships": [],
       }
+      bind_source_tree_manifest(
+        lock, {"first": first_bare, "second": second_bare}
+      )
       source_root = Path(directory) / "workspace"
 
       with self.assertRaises(ResolutionError):
@@ -1832,6 +1937,7 @@ class SourceResolverTests(unittest.TestCase):
         "repositories": [record],
         "relationships": [],
       }
+      bind_source_tree_manifest(lock, {"source": bare})
       validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
       source_root = Path(directory) / "workspace"
 

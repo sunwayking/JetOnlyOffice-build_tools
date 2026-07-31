@@ -18,6 +18,7 @@ from offline_baseline import (  # noqa: E402
   pinned_image_reference,
   verify as verify_offline_baseline,
 )
+from source_resolver import bind_source_tree_manifest  # noqa: E402
 SHA1_A = "a" * 40
 SHA1_B = "b" * 40
 SHA256_A = "a" * 64
@@ -33,6 +34,11 @@ def source_lock():
     "productVersion": "9.4.0",
     "baseline": {"repository": "documentserver", "commit": SHA1_A},
     "sourceDateEpoch": 200,
+    "sourceTreeManifest": {
+      "path": "source-tree-manifest.json",
+      "size": 1,
+      "sha256": SHA256_A,
+    },
     "repositories": [
       {
         "id": "documentserver",
@@ -105,7 +111,7 @@ def materialized_source_lock(root):
   run_git(checkout, "remote", "add", "origin", origin)
   run_git(checkout, "config", "lfs.url", origin + "/info/lfs")
   run_git(checkout, "checkout", "--detach", commit)
-  return {
+  lock = {
     "schemaVersion": 1,
     "lockType": "source",
     "productVersion": "9.4.0",
@@ -133,6 +139,13 @@ def materialized_source_lock(root):
     }],
     "relationships": [],
   }
+  manifest_payload = bind_source_tree_manifest(
+    lock, {"documentserver": checkout}
+  )
+  (root / "workspace" / lock["sourceTreeManifest"]["path"]).write_bytes(
+    manifest_payload
+  )
+  return lock
 
 
 def prepare_locked_inputs(root, source=None):

@@ -178,13 +178,13 @@ published, the public entrypoints must stop before producing a release
 candidate. Placeholder locks, `NOASSERTION`, upstream fallbacks, and online
 build/package retries are not supported.
 
-The current release verifier still validates the source archive through its
-artifact digest and the license/SBOM/provenance cross-checks, but does not yet
-reconstruct every repository tree from that archive to independently recompute
-all Git blob and LFS pointer bindings. Completing that ADR-0067 requirement is
-a separate release-blocking work item; a future source lock revision must add
-the immutable tree evidence or an equivalent verifiable Git bundle before a
-formal release can be declared.
+The release verifier now opens the locked source archive with the digest-bound
+zstd verifier, validates its canonical lock members and source-tree manifest,
+reconstructs every repository tree entry, and recomputes Git blob/tree OIDs,
+symlink blobs, gitlinks, modes, and both LFS pointer and materialized digests.
+Extra, missing, aliased, or mode-drifted members fail closed. The formal source
+lock and complete dependency closure are still required before these checks can
+be used for a release candidate.
 
 ## Shortest real build path after closure
 

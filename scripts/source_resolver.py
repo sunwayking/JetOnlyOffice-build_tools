@@ -59,6 +59,7 @@ REPOSITORY_KEYS = {
   "license",
 }
 WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
+SOURCE_TREE_MANIFEST_PATH = "source-tree-manifest.json"
 
 
 class ResolutionError(ValueError):
@@ -224,6 +225,12 @@ def validate_inputs(value):
     raise ResolutionError("$.repositories: build-tools must be the only self commit", 2)
   if len(checkout_paths) != len(set(checkout_paths)):
     raise ResolutionError("$.repositories: checkoutPath values must be unique", 2)
+  for index, checkout_path in enumerate(checkout_paths):
+    for other in checkout_paths[index + 1:]:
+      if checkout_path.startswith(other + "/") or other.startswith(checkout_path + "/"):
+        raise ResolutionError(
+          "$.repositories: checkoutPath values must not overlap", 2
+        )
   repository_ids = set(ids)
   if baseline["repository"] not in repository_ids:
     raise ResolutionError("$.baseline.repository: repository is not selected", 2)
@@ -1071,7 +1078,18 @@ def _parse_lfs_pointer(content, repository_id, path):
       f"{repository_id}:{path}: invalid Git LFS object size",
       3,
     )
-  return oid, int(fields["size"])
+  size = int(fields["size"])
+  canonical = (
+    "version https://git-lfs.github.com/spec/v1\n"
+    f"oid sha256:{oid}\n"
+    f"size {size}\n"
+  ).encode("ascii")
+  if content != canonical:
+    raise ResolutionError(
+      f"{repository_id}:{path}: Git LFS pointer is not canonical",
+      3,
+    )
+  return oid, size
 
 
 def lfs_objects_at_commit(repository, cache, commit):
@@ -1677,6 +1695,213 @@ def repository_metadata(repository, cache, commit):
   }
 
 
+def _git_blob_metadata(cache, object_ids, retained_object_ids):
+  records = {}
+  process = subprocess.Popen(
+    ["git", "cat-file", "--batch"],
+    cwd=cache,
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+  )
+  try:
+    for object_id in sorted(set(object_ids)):
+      process.stdin.write((object_id + "\n").encode("ascii"))
+      process.stdin.flush()
+      header = process.stdout.readline()
+      fields = header.rstrip(b"\n").split(b" ")
+      if (
+        len(fields) != 3
+        or fields[0] != object_id.encode("ascii")
+        or fields[1] != b"blob"
+        or not fields[2].isdigit()
+      ):
+        raise ResolutionError(
+          f"{cache}: invalid Git batch response for {object_id}", 3
+        )
+      size = int(fields[2])
+      digest = hashlib.sha256()
+      retained = bytearray() if object_id in retained_object_ids else None
+      remaining = size
+      while remaining:
+        chunk = process.stdout.read(min(1024 * 1024, remaining))
+        if not chunk:
+          raise ResolutionError(
+            f"{cache}: truncated Git blob {object_id}", 3
+          )
+        digest.update(chunk)
+        if retained is not None:
+          retained.extend(chunk)
+        remaining -= len(chunk)
+      if process.stdout.read(1) != b"\n":
+        raise ResolutionError(
+          f"{cache}: invalid Git batch terminator for {object_id}", 3
+        )
+      records[object_id] = {
+        "size": size,
+        "sha256": digest.hexdigest(),
+        **({"content": bytes(retained)} if retained is not None else {}),
+      }
+    process.stdin.close()
+    stderr = process.stderr.read()
+    return_code = process.wait()
+    if return_code != 0:
+      detail = stderr.decode("utf-8", errors="replace").strip()
+      raise ResolutionError(detail or "git cat-file --batch failed", 3)
+  except (OSError, BrokenPipeError) as error:
+    process.kill()
+    process.wait()
+    raise ResolutionError(f"{cache}: cannot read Git objects: {error}", 3) from error
+  except Exception:
+    process.kill()
+    process.wait()
+    raise
+  finally:
+    if process.stdin and not process.stdin.closed:
+      process.stdin.close()
+    if process.stdout:
+      process.stdout.close()
+    if process.stderr:
+      process.stderr.close()
+  return records
+
+
+def repository_tree_manifest(repository, cache):
+  commit = repository["commit"]
+  output = _run_git_bytes(
+    ["ls-tree", "-r", "-t", "-z", "--full-tree", commit],
+    cwd=cache,
+  )
+  raw_entries = []
+  blob_ids = []
+  for raw_entry in output.split(b"\0"):
+    if not raw_entry:
+      continue
+    metadata, separator, raw_path = raw_entry.partition(b"\t")
+    fields = metadata.split(b" ")
+    if not separator or len(fields) != 3:
+      raise ResolutionError(
+        f"{repository['id']}: malformed Git tree entry", 3
+      )
+    try:
+      mode, object_type, object_id = (
+        field.decode("ascii") for field in fields
+      )
+      path = raw_path.decode("utf-8")
+    except UnicodeDecodeError as error:
+      raise ResolutionError(
+        f"{repository['id']}: Git tree entry is not UTF-8", 3
+      ) from error
+    _validate_relative_path(path, f"{repository['id']}.sourceTree.path")
+    expected_type = {
+      "040000": "tree",
+      "100644": "blob",
+      "100755": "blob",
+      "120000": "blob",
+      "160000": "commit",
+    }.get(mode)
+    if expected_type is None or object_type != expected_type \
+        or not SHA1_PATTERN.fullmatch(object_id):
+      raise ResolutionError(
+        f"{repository['id']}:{path}: unsupported Git tree entry", 3
+      )
+    raw_entries.append((path, mode, object_id))
+    if object_type == "blob":
+      blob_ids.append(object_id)
+
+  lfs_by_path = {
+    path: lfs_object
+    for lfs_object in repository["lfsObjects"]
+    for path in lfs_object["paths"]
+  }
+  blob_by_path = {
+    path: object_id
+    for path, mode, object_id in raw_entries
+    if mode in {"100644", "100755", "120000"}
+  }
+  missing_lfs_paths = sorted(set(lfs_by_path) - set(blob_by_path))
+  if missing_lfs_paths:
+    raise ResolutionError(
+      f"{repository['id']}: LFS paths are absent from the Git tree: "
+      + ", ".join(missing_lfs_paths),
+      3,
+    )
+  retained = {blob_by_path[path] for path in lfs_by_path}
+  blob_records = _git_blob_metadata(cache, blob_ids, retained)
+  entries = []
+  for path, mode, object_id in raw_entries:
+    if mode == "040000":
+      record = {
+        "path": path, "type": "directory", "mode": mode, "oid": object_id,
+      }
+    elif mode == "160000":
+      record = {
+        "path": path, "type": "gitlink", "mode": mode, "oid": object_id,
+      }
+    else:
+      blob = blob_records[object_id]
+      record = {
+        "path": path,
+        "type": "symlink" if mode == "120000" else "file",
+        "mode": mode,
+        "oid": object_id,
+        "size": blob["size"],
+        "sha256": blob["sha256"],
+      }
+      if path in lfs_by_path:
+        if mode not in {"100644", "100755"}:
+          raise ResolutionError(
+            f"{repository['id']}:{path}: LFS pointer must be a regular file",
+            3,
+          )
+        lfs_object = lfs_by_path[path]
+        pointer = _parse_lfs_pointer(
+          blob["content"], repository["id"], path
+        )
+        if pointer != (lfs_object["oid"], lfs_object["size"]):
+          raise ResolutionError(
+            f"{repository['id']}:{path}: LFS pointer does not match the lock",
+            3,
+          )
+        record["materialized"] = {
+          "size": lfs_object["size"],
+          "sha256": lfs_object["oid"],
+        }
+    entries.append(record)
+  return {
+    "id": repository["id"],
+    "checkoutPath": repository["checkoutPath"],
+    "commit": commit,
+    "tree": repository["tree"],
+    "entries": sorted(entries, key=lambda item: item["path"]),
+  }
+
+
+def source_tree_manifest(repositories, caches):
+  return {
+    "schemaVersion": 1,
+    "manifestType": "source-tree",
+    "repositories": [
+      repository_tree_manifest(repository, caches[repository["id"]])
+      for repository in sorted(repositories, key=lambda item: item["id"])
+    ],
+  }
+
+
+def source_tree_manifest_payload(repositories, caches):
+  return canonical_json_bytes(source_tree_manifest(repositories, caches)) + b"\n"
+
+
+def bind_source_tree_manifest(lock, caches):
+  payload = source_tree_manifest_payload(lock["repositories"], caches)
+  lock["sourceTreeManifest"] = {
+    "path": SOURCE_TREE_MANIFEST_PATH,
+    "size": len(payload),
+    "sha256": hashlib.sha256(payload).hexdigest(),
+  }
+  return payload
+
+
 def _declared_license_metadata(license_record, cache, commit, lfs_objects):
   license_path = license_record["path"]
   context = f"{license_path}:license"
@@ -1896,7 +2121,7 @@ def build_source_lock(inputs, cache_directory, self_root):
   verify_selections(inputs, caches, commits)
   verify_relationships(inputs, caches, commits)
   baseline = inputs["baseline"]
-  return {
+  lock = {
     "schemaVersion": 1,
     "lockType": "source",
     "productVersion": inputs["productVersion"],
@@ -1904,7 +2129,9 @@ def build_source_lock(inputs, cache_directory, self_root):
     "sourceDateEpoch": max(record["commitTime"] for record in records),
     "repositories": records,
     "relationships": [dict(relationship) for relationship in inputs["relationships"]],
-  }, caches
+  }
+  bind_source_tree_manifest(lock, caches)
+  return lock, caches
 
 
 def caches_from_lock(lock, cache_directory):
@@ -1940,6 +2167,28 @@ def caches_from_lock(lock, cache_directory):
 
 
 def _materialize_into(lock, caches, source_directory):
+  for repository in lock["repositories"]:
+    cache = caches.get(repository["id"])
+    if cache is None or not Path(cache).is_dir():
+      raise ResolutionError(
+        f"{repository['id']}: source cache is missing", 3
+      )
+  manifest_payload = source_tree_manifest_payload(lock["repositories"], caches)
+  manifest_record = lock["sourceTreeManifest"]
+  if (
+    len(manifest_payload) != manifest_record["size"]
+    or hashlib.sha256(manifest_payload).hexdigest() != manifest_record["sha256"]
+  ):
+    raise ResolutionError(
+      "materialized source tree manifest does not match the source lock", 3
+    )
+  manifest_path = _resolve_within(
+    source_directory,
+    manifest_record["path"],
+    "sourceTreeManifest.path",
+  )
+  manifest_path.parent.mkdir(parents=True, exist_ok=True)
+  manifest_path.write_bytes(manifest_payload)
   for repository in lock["repositories"]:
     destination = _resolve_within(
       source_directory,
@@ -2022,6 +2271,12 @@ def verify_workspace_inventory(lock, source_directory):
     for parts in expected
     for index in range(1, len(parts))
   }
+  manifest_parts = PurePosixPath(lock["sourceTreeManifest"]["path"]).parts
+  manifest_ancestors = {
+    manifest_parts[:index]
+    for index in range(1, len(manifest_parts))
+  }
+  ancestors.update(manifest_ancestors)
 
   def verify_directory(directory, prefix=()):
     try:
@@ -2035,6 +2290,12 @@ def verify_workspace_inventory(lock, source_directory):
       relative = prefix + (entry.name,)
       path = Path(entry.path)
       is_junction = getattr(path, "is_junction", lambda: False)()
+      if relative == manifest_parts:
+        if entry.is_symlink() or is_junction or not entry.is_file(follow_symlinks=False):
+          raise ResolutionError(
+            f"{source_directory}: source tree manifest is not a regular file"
+          )
+        continue
       if relative in expected:
         if entry.is_symlink() or is_junction or not entry.is_dir(follow_symlinks=False):
           raise ResolutionError(
@@ -2074,6 +2335,21 @@ def verify_git_index_flags(checkout):
 def verify_materialized(lock, source_directory):
   source_directory = Path(source_directory).resolve()
   verify_workspace_inventory(lock, source_directory)
+  manifest_record = lock["sourceTreeManifest"]
+  manifest_path = _resolve_within(
+    source_directory,
+    manifest_record["path"],
+    "sourceTreeManifest.path",
+  )
+  manifest_missing = not manifest_path.is_file()
+  if not manifest_missing and (
+    manifest_path.stat().st_size != manifest_record["size"]
+    or _sha256_file(manifest_path) != manifest_record["sha256"]
+  ):
+    raise ResolutionError(
+      "materialized source tree manifest does not match the source lock"
+    )
+  checkout_caches = {}
   for repository in lock["repositories"]:
     checkout = _resolve_within(
       source_directory,
@@ -2119,6 +2395,16 @@ def verify_materialized(lock, source_directory):
       cwd=checkout,
     ):
       raise ResolutionError(f"{checkout}: checkout is dirty")
+    checkout_caches[repository["id"]] = checkout
+  if manifest_missing:
+    raise ResolutionError("materialized source tree manifest is missing")
+  expected_manifest = source_tree_manifest_payload(
+    lock["repositories"], checkout_caches
+  )
+  if manifest_path.read_bytes() != expected_manifest:
+    raise ResolutionError(
+      "materialized source tree manifest does not match the Git checkouts"
+    )
 
 
 def main(argv=None):

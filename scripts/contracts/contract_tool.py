@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 CONTRACT_SCHEMAS = {
   "source-lock": "source-lock.schema.json",
+  "source-tree-manifest": "source-tree-manifest.schema.json",
   "source-license-audit": "source-license-audit.schema.json",
   "source-lfs-audit": "source-lfs-audit.schema.json",
   "source-selection-audit": "source-selection-audit.schema.json",
@@ -420,6 +421,12 @@ def _validate_source_lock(value):
   checkout_paths = [item["checkoutPath"] for item in repositories]
   if len(checkout_paths) != len(set(checkout_paths)):
     raise ContractError("$.repositories: checkoutPath values must be unique")
+  for index, path in enumerate(checkout_paths):
+    for other in checkout_paths[index + 1:]:
+      if path.startswith(other + "/") or other.startswith(path + "/"):
+        raise ContractError(
+          "$.repositories: checkoutPath values must not overlap"
+        )
   for index, repository in enumerate(repositories):
     prefix = f"$.repositories[{index}]"
     _validate_relative_path(repository["checkoutPath"], prefix + ".checkoutPath")
@@ -538,6 +545,46 @@ def _validate_source_lock(value):
     if relationship["child"] not in repository_ids:
       raise ContractError(prefix + ".child: repository is not locked")
     _validate_relative_path(relationship["path"], prefix + ".path")
+
+
+def _validate_source_tree_manifest(value):
+  repositories = value["repositories"]
+  _validate_sorted_unique(
+    repositories, lambda item: item["id"], "$.repositories"
+  )
+  checkout_paths = [item["checkoutPath"] for item in repositories]
+  if len(checkout_paths) != len(set(checkout_paths)):
+    raise ContractError(
+      "$.repositories: checkoutPath values must be unique"
+    )
+  for repository_index, repository in enumerate(repositories):
+    prefix = f"$.repositories[{repository_index}]"
+    _validate_relative_path(
+      repository["checkoutPath"], prefix + ".checkoutPath"
+    )
+    entries = repository["entries"]
+    _validate_sorted_unique(
+      entries, lambda item: item["path"], prefix + ".entries"
+    )
+    entry_by_path = {item["path"]: item for item in entries}
+    for entry_index, entry in enumerate(entries):
+      entry_prefix = f"{prefix}.entries[{entry_index}]"
+      _validate_relative_path(entry["path"], entry_prefix + ".path")
+      parent = posixpath.dirname(entry["path"])
+      if parent and (
+        parent not in entry_by_path
+        or entry_by_path[parent]["type"] != "directory"
+      ):
+        raise ContractError(
+          entry_prefix + ".path: parent directory entry is missing"
+        )
+      parts = entry["path"].split("/")
+      for part_index in range(1, len(parts)):
+        ancestor = "/".join(parts[:part_index])
+        if entry_by_path[ancestor]["type"] == "gitlink":
+          raise ContractError(
+            entry_prefix + ".path: entry is nested below a gitlink"
+          )
 
 
 def _validate_toolchain_lock(value):
@@ -1220,6 +1267,7 @@ def _validate_source_selection_audit(value):
 
 SEMANTIC_VALIDATORS = {
   "source-lock": _validate_source_lock,
+  "source-tree-manifest": _validate_source_tree_manifest,
   "source-license-audit": _validate_source_license_audit,
   "source-lfs-audit": _validate_source_lfs_audit,
   "source-selection-audit": _validate_source_selection_audit,

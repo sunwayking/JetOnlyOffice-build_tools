@@ -85,6 +85,11 @@ def source_lock():
       "commit": SHA1_A,
     },
     "sourceDateEpoch": 200,
+    "sourceTreeManifest": {
+      "path": "source-tree-manifest.json",
+      "size": 1,
+      "sha256": SHA256_A,
+    },
     "repositories": [
       {
         "id": "documentserver",
@@ -124,6 +129,29 @@ def source_lock():
         "path": "sdkjs",
         "mode": "160000",
       }
+    ],
+  }
+
+
+def source_tree_manifest():
+  return {
+    "schemaVersion": 1,
+    "manifestType": "source-tree",
+    "repositories": [
+      {
+        "id": "documentserver",
+        "checkoutPath": "sources/DocumentServer",
+        "commit": SHA1_A,
+        "tree": SHA1_B,
+        "entries": [],
+      },
+      {
+        "id": "sdkjs",
+        "checkoutPath": "sources/sdkjs",
+        "commit": SHA1_B,
+        "tree": SHA1_A,
+        "entries": [],
+      },
     ],
   }
 
@@ -426,6 +454,7 @@ def source_selection_audit():
 
 VALID_CONTRACTS = {
   "source-lock": source_lock,
+  "source-tree-manifest": source_tree_manifest,
   "toolchain-lock": toolchain_lock,
   "image-lock": image_lock,
   "build-manifest": build_manifest,

@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jetonlyoffice.dev/schemas/source-tree-manifest.schema.json",
+  "title": "JetOnlyOffice source tree manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "manifestType",
+    "repositories"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "manifestType": {
+      "const": "source-tree"
+    },
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "checkoutPath",
+          "commit",
+          "tree",
+          "entries"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/repositoryId"
+          },
+          "checkoutPath": {
+            "$ref": "common.schema.json#/$defs/relativePath"
+          },
+          "commit": {
+            "$ref": "common.schema.json#/$defs/sha1"
+          },
+          "tree": {
+            "$ref": "common.schema.json#/$defs/sha1"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/directoryEntry"
+                },
+                {
+                  "$ref": "#/$defs/fileEntry"
+                },
+                {
+                  "$ref": "#/$defs/symlinkEntry"
+                },
+                {
+                  "$ref": "#/$defs/gitlinkEntry"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "baseEntry": {
+      "type": "object",
+      "required": [
+        "path",
+        "type",
+        "mode",
+        "oid"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "common.schema.json#/$defs/relativePath"
+        },
+        "type": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "oid": {
+          "$ref": "common.schema.json#/$defs/sha1"
+        }
+      }
+    },
+    "directoryEntry": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/baseEntry"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "type",
+            "mode",
+            "oid"
+          ],
+          "properties": {
+            "path": {
+              "$ref": "common.schema.json#/$defs/relativePath"
+            },
+            "type": {
+              "const": "directory"
+            },
+            "mode": {
+              "const": "040000"
+            },
+            "oid": {
+              "$ref": "common.schema.json#/$defs/sha1"
+            }
+          }
+        }
+      ]
+    },
+    "fileEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "type",
+        "mode",
+        "oid",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "common.schema.json#/$defs/relativePath"
+        },
+        "type": {
+          "const": "file"
+        },
+        "mode": {
+          "enum": [
+            "100644",
+            "100755"
+          ]
+        },
+        "oid": {
+          "$ref": "common.schema.json#/$defs/sha1"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        },
+        "materialized": {
+          "$ref": "#/$defs/materialized"
+        }
+      }
+    },
+    "symlinkEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "type",
+        "mode",
+        "oid",
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "common.schema.json#/$defs/relativePath"
+        },
+        "type": {
+          "const": "symlink"
+        },
+        "mode": {
+          "const": "120000"
+        },
+        "oid": {
+          "$ref": "common.schema.json#/$defs/sha1"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "gitlinkEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "type",
+        "mode",
+        "oid"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "common.schema.json#/$defs/relativePath"
+        },
+        "type": {
+          "const": "gitlink"
+        },
+        "mode": {
+          "const": "160000"
+        },
+        "oid": {
+          "$ref": "common.schema.json#/$defs/sha1"
+        }
+      }
+    },
+    "materialized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "size",
+        "sha256"
+      ],
+      "properties": {
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "common.schema.json#/$defs/sha256"
+        }
+      }
+    }
+  }
+}
