@@ -76,6 +76,8 @@ class ContainerMaterializationTests(unittest.TestCase):
       "--tmpfs",
       "/tmp:rw,nosuid,nodev",
     ]
+    if user is None and hasattr(os, "getuid") and hasattr(os, "getgid"):
+      user = f"{os.getuid()}:{os.getgid()}"
     if user:
       arguments += ["--user", user]
     arguments += [
@@ -255,6 +257,9 @@ class ContainerMaterializationTests(unittest.TestCase):
         )
       output = self.prepare_container_directory(root / "output")
       work = self.prepare_container_directory(root / "work")
+      docker_user = []
+      if hasattr(os, "getuid") and hasattr(os, "getgid"):
+        docker_user = ["--user", f"{os.getuid()}:{os.getgid()}"]
       locks = root / "locks"
       locks.mkdir()
       for name in ("sources.lock.json", "toolchain.lock.json", "images.lock.json"):
@@ -263,6 +268,7 @@ class ContainerMaterializationTests(unittest.TestCase):
         [
           shutil.which("docker"),
           "run",
+          *docker_user,
           "--rm",
           "--pull",
           "never",
@@ -319,6 +325,7 @@ class ContainerMaterializationTests(unittest.TestCase):
       self.assertEqual(0, result.returncode, diagnostics)
       self.assertEqual(
         [
+          "/jetonlyoffice/container/prepare-source-archive.py --source /work/sources --manifest /work/sources/source-tree-manifest.json",
           "configure.py --update 0 --branch detached --clean 1 --module server --platform linux_64 --sysroot 0",
           "make.py",
           "/jetonlyoffice/container/write-build-manifest.py",

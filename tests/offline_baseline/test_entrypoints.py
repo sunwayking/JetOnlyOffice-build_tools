@@ -453,7 +453,8 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
           encoding="ascii",
         )
       else:
-        fake_python = root / "python"
+        # verify.ps1 probes python3 before python on POSIX runners.
+        fake_python = root / "python3"
         fake_python.write_text(
           "#!/bin/sh\n"
           "if test \"$1\" = -c; then exit 0; fi\n"

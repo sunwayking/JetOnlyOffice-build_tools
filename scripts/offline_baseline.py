@@ -236,6 +236,13 @@ def pinned_image_reference(image):
   return repository + "@" + image["digest"]
 
 
+def docker_user_args():
+  """Keep bind-mounted build outputs owned by the invoking POSIX user."""
+  if hasattr(os, "getuid") and hasattr(os, "getgid"):
+    return ["--user", f"{os.getuid()}:{os.getgid()}"]
+  return []
+
+
 def verify_local_image(docker, image):
   pinned = pinned_image_reference(image)
   output = run_external(
@@ -496,9 +503,10 @@ def locked_zstd_verifier(toolchain_lock, cache_directory):
     raise BaselineError("locked zstd verifier digest does not match toolchain lock", 3)
 
   with tempfile.TemporaryDirectory(prefix="jetonlyoffice-zstd-verify-") as directory:
+    Path(directory).chmod(0o755)
     executable = Path(directory) / "zstd"
     shutil.copyfile(source, executable)
-    executable.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    executable.chmod(0o755)
     if (
       executable.stat().st_size != tool["size"]
       or sha256_file(executable) != tool["sha256"]
@@ -697,6 +705,7 @@ def build(args):
     command = [
       args.docker,
       "run",
+      *docker_user_args(),
       "--rm",
       "--pull",
       "never",
@@ -1231,6 +1240,7 @@ def open_zstd_tar_archive(
           command = [
             docker,
             "run",
+            *docker_user_args(),
             "--rm",
             "--pull",
             "never",
@@ -2089,6 +2099,7 @@ def package(args):
     command = [
       args.docker,
       "run",
+      *docker_user_args(),
       "--rm",
       "--pull",
       "never",
