@@ -515,6 +515,21 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "normalized and relative"):
       validate_contract(value, "source-lock", self.schema_dir)
 
+    value = source_lock()
+    value["repositories"][0]["lfsObjects"] = [
+      {"oid": SHA256_A, "size": 1, "paths": ["LICENSE"]},
+    ]
+    with self.assertRaisesRegex(ContractError, "materializedSha256"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value["repositories"][0]["license"]["materializedSha256"] = SHA256_B
+    validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["license"]["materializedSha256"] = SHA256_B
+    with self.assertRaisesRegex(ContractError, "materializedSha256"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
   def test_source_lock_accepts_component_scoped_license_evidence(self):
     value = source_lock()
     value["repositories"][0]["license"] = component_license_record()
@@ -687,6 +702,10 @@ class ContractToolTests(unittest.TestCase):
         ContractError, "reviewed SPDX expression"
       ):
         validate_contract(value, "toolchain-lock", self.schema_dir)
+    value = toolchain_lock()
+    value["tools"][0]["license"] = "LicenseRef-Unbundled-Tool-License"
+    with self.assertRaisesRegex(ContractError, "custom license evidence is unsupported"):
+      validate_contract(value, "toolchain-lock", self.schema_dir)
 
   def test_toolchain_lock_requires_sorted_complete_consumer_coverage(self):
     value = toolchain_lock()

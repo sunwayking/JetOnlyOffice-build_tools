@@ -8,6 +8,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -46,12 +47,13 @@ def load_contract(path, contract, description, schema_dir):
 
 def preflight_bootstrap(args):
   load_contract(args.source_lock, "source-lock", "locked source input", args.schema_dir)
-  load_contract(
+  toolchain = load_contract(
     args.toolchain_lock,
     "toolchain-lock",
     "locked toolchain input",
     args.schema_dir,
   )
+  locked_zstd_tool(toolchain)
   load_contract(args.image_lock, "image-lock", "locked image input", args.schema_dir)
 
 
@@ -68,7 +70,12 @@ def path_is_alias(path):
   if path.is_symlink():
     return True
   is_junction = getattr(path, "is_junction", None)
-  return bool(is_junction and is_junction())
+  if is_junction and is_junction():
+    return True
+  if os.name == "nt" and path.exists():
+    attributes = getattr(path.lstat(), "st_file_attributes", 0)
+    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+  return False
 
 
 def verify_unaliased_parents(path, root, description, exit_code):
@@ -414,6 +421,71 @@ def verify_toolchain_files(toolchain_lock, cache_directory, manifest):
     })
   if manifest["toolchainFiles"] != expected:
     raise BaselineError("bootstrap toolchain cache inventory does not match the lock", 3)
+
+
+def locked_zstd_tool(toolchain_lock):
+  candidates = [
+    tool for tool in toolchain_lock["tools"]
+    if tool["id"] == "zstd"
+  ]
+  if len(candidates) != 1:
+    raise BaselineError(
+      "toolchain lock must contain exactly one zstd verifier", 2
+    )
+  tool = candidates[0]
+  materialization = tool["materialization"]
+  declared_mode = int(materialization.get("mode", "0000"), 8)
+  if (
+    tool["platform"] != toolchain_lock["platform"]
+    or "package" not in tool["consumers"]
+    or materialization["root"] != "toolchain"
+    or materialization["type"] != "file"
+    or PurePosixPath(materialization["destination"]).name != "zstd"
+    or declared_mode & 0o111 == 0
+  ):
+    raise BaselineError(
+      "locked zstd verifier must be an executable package-consumer file", 2
+    )
+  return tool
+
+
+@contextmanager
+def locked_zstd_verifier(toolchain_lock, cache_directory):
+  tool = locked_zstd_tool(toolchain_lock)
+
+  if not cache_directory:
+    raise BaselineError("locked zstd verifier cache directory is required", 3)
+  cache_input = Path(os.path.abspath(cache_directory))
+  if path_is_alias(cache_input):
+    raise BaselineError(
+      f"locked zstd verifier cache root must not be an alias: {cache_input}", 3
+    )
+  if not cache_input.is_dir():
+    raise BaselineError(
+      f"locked zstd verifier cache directory is missing: {cache_input}", 3
+    )
+  cache_root = cache_input.resolve()
+  source = cache_root / "toolchain" / tool["id"] / tool["sha256"]
+  verify_unaliased_parents(source, cache_root, "locked zstd verifier", 3)
+  if path_is_alias(source):
+    raise BaselineError(
+      f"locked zstd verifier must not be a symbolic link or junction: {source}", 3
+    )
+  if not source.is_file():
+    raise BaselineError(f"locked zstd verifier is missing: {source}", 3)
+  if source.stat().st_size != tool["size"] or sha256_file(source) != tool["sha256"]:
+    raise BaselineError("locked zstd verifier digest does not match toolchain lock", 3)
+
+  with tempfile.TemporaryDirectory(prefix="jetonlyoffice-zstd-verify-") as directory:
+    executable = Path(directory) / "zstd"
+    shutil.copyfile(source, executable)
+    executable.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    if (
+      executable.stat().st_size != tool["size"]
+      or sha256_file(executable) != tool["sha256"]
+    ):
+      raise BaselineError("materialized zstd verifier digest does not match", 4)
+    yield executable
 
 
 @contextmanager
@@ -799,6 +871,8 @@ def sbom_identifier(prefix, value):
 def locked_license_units(source_lock, toolchain):
   units = []
   for repository in source_lock["repositories"]:
+    if not repository["active"] or not repository["buildInput"]:
+      continue
     license_record = repository["license"]
     if license_record.get("scope") == "component":
       for component in license_record["components"]:
@@ -867,13 +941,19 @@ def verify_spdx_artifact(
   value = load_supply_chain_json(manifest, artifact_root, "spdx")
   if value.get("spdxVersion") != "SPDX-2.3":
     raise BaselineError("SPDX artifact is not SPDX 2.3", 4)
+  expected_namespace = (
+    "https://jetonlyoffice.dev/spdx/" + canonical_sha256(source_lock)
+  )
+  if value.get("documentNamespace") != expected_namespace:
+    raise BaselineError("SPDX source lock binding does not match", 4)
   packages = value.get("packages")
   if not isinstance(packages, list):
     raise BaselineError("SPDX artifact has no package inventory", 4)
   packages_by_id = {
     item.get("SPDXID"): item for item in packages if isinstance(item, dict)
   }
-  if len(packages_by_id) != len(packages):
+  expected_package_ids = {unit["spdxId"] for unit in locked_license_units(source_lock, toolchain)}
+  if len(packages_by_id) != len(packages) or set(packages_by_id) != expected_package_ids:
     raise BaselineError("SPDX artifact has duplicate or invalid package ids", 4)
   units = locked_license_units(source_lock, toolchain)
   for unit in units:
@@ -897,8 +977,9 @@ def verify_spdx_artifact(
         f"SPDX artifact license evidence does not match {unit['name']}", 4
       )
   described = value.get("documentDescribes", [])
-  if any(unit["spdxId"] not in described for unit in units):
-    raise BaselineError("SPDX artifact does not describe every locked source", 4)
+  expected_described = sorted(unit["spdxId"] for unit in units)
+  if described != expected_described:
+    raise BaselineError("SPDX artifact described inventory does not match locks", 4)
   required_references = sorted({
     identifier
     for unit in units
@@ -920,9 +1001,9 @@ def verify_spdx_artifact(
     raise BaselineError("SPDX artifact is missing extracted license text", 4)
   if set(extracted_by_id) != set(required_references):
     raise BaselineError("SPDX extracted license inventory does not match locks", 4)
-  if expected_extracted_licenses is not None and any(
-    extracted_by_id.get(identifier) != text
-    for identifier, text in expected_extracted_licenses.items()
+  if (
+    expected_extracted_licenses is not None
+    and extracted_by_id != expected_extracted_licenses
   ):
     raise BaselineError("SPDX extracted license text does not match license bundle", 4)
 
@@ -937,8 +1018,22 @@ def verify_cyclonedx_artifact(manifest, artifact_root, source_lock, toolchain):
   components_by_ref = {
     item.get("bom-ref"): item for item in components if isinstance(item, dict)
   }
-  if len(components_by_ref) != len(components):
+  expected_component_refs = {
+    unit["bomRef"] for unit in locked_license_units(source_lock, toolchain)
+  }
+  if (
+    len(components_by_ref) != len(components)
+    or set(components_by_ref) != expected_component_refs
+  ):
     raise BaselineError("CycloneDX artifact has duplicate or invalid bom-ref values", 4)
+  source_lock_property = [
+    item.get("value")
+    for item in value.get("metadata", {}).get("properties", [])
+    if isinstance(item, dict)
+    and item.get("name") == "jetonlyoffice.sourceLockSha256"
+  ]
+  if source_lock_property != [canonical_sha256(source_lock)]:
+    raise BaselineError("CycloneDX source lock binding does not match", 4)
   for unit in locked_license_units(source_lock, toolchain):
     component = components_by_ref.get(unit["bomRef"])
     if component is None:
@@ -992,7 +1087,9 @@ def verify_checksums_artifact(manifest, artifact_root):
     raise BaselineError("checksums artifact does not bind the artifact manifest", 4)
 
 
-def verify_provenance_artifact(manifest, artifact_root, source_lock, toolchain):
+def verify_provenance_artifact(
+  manifest, artifact_root, source_lock, toolchain, image_lock
+):
   record = one_artifact(manifest, "provenance")
   try:
     value = load_json(Path(artifact_root) / record["path"])
@@ -1012,15 +1109,44 @@ def verify_provenance_artifact(manifest, artifact_root, source_lock, toolchain):
     raise BaselineError("provenance artifact is not SLSA provenance v1", 4)
   if value.get("subject") != expected_subject:
     raise BaselineError("provenance artifact subjects do not match release carriers", 4)
-  external = value.get("predicate", {}).get("buildDefinition", {}).get(
-    "externalParameters", {}
-  )
-  if external.get("sourceLockSha256") != canonical_sha256(source_lock):
-    raise BaselineError("provenance artifact source lock binding does not match", 4)
-  if external.get("toolchainLockSha256") != canonical_sha256(toolchain):
-    raise BaselineError("provenance artifact toolchain lock binding does not match", 4)
-  if external.get("network") != "none":
-    raise BaselineError("provenance artifact does not attest an offline build", 4)
+  predicate = value.get("predicate", {})
+  build_definition = predicate.get("buildDefinition", {})
+  if build_definition.get("buildType") != "https://jetonlyoffice.dev/build/offline-v1":
+    raise BaselineError("provenance artifact build type does not match", 4)
+  external = build_definition.get("externalParameters", {})
+  expected_external = {
+    "sourceLockSha256": canonical_sha256(source_lock),
+    "toolchainLockSha256": canonical_sha256(toolchain),
+    "imageLockSha256": canonical_sha256(image_lock),
+    "sourceDateEpoch": source_lock["sourceDateEpoch"],
+    "network": "none",
+  }
+  if external != expected_external:
+    mismatched_fields = [
+      field for field, expected in expected_external.items()
+      if external.get(field) != expected
+    ]
+    if mismatched_fields:
+      raise BaselineError(
+        f"provenance artifact {mismatched_fields[0]} does not match", 4
+      )
+    raise BaselineError(
+      "provenance artifact external parameters contain unlocked fields", 4
+    )
+  builder = locked_image(image_lock, "builder")
+  expected_builder = "jetonlyoffice://builder@" + builder["digest"]
+  if predicate.get("runDetails", {}).get("builder", {}).get("id") != expected_builder:
+    raise BaselineError("provenance artifact builder identity does not match", 4)
+  resolved_dependencies = build_definition.get("resolvedDependencies")
+  expected_dependencies = [
+    {"uri": repository["origin"], "digest": {"gitCommit": repository["commit"]}}
+    for repository in source_lock["repositories"]
+    if repository["active"] and repository["buildInput"]
+  ]
+  if resolved_dependencies != expected_dependencies:
+    raise BaselineError(
+      "provenance artifact resolved dependencies do not match build inputs", 4
+    )
 
 
 def safe_tar_members(archive, description):
@@ -1055,49 +1181,98 @@ def read_tar_member(archive, members, name, description):
 
 
 @contextmanager
-def open_license_archive(path):
+def open_license_archive(
+  path,
+  toolchain=None,
+  cache_directory=None,
+  image_lock=None,
+  docker="docker",
+):
+  path = Path(path)
   try:
-    archive = tarfile.open(path, "r:*")
-  except tarfile.ReadError as direct_error:
-    zstd = shutil.which("zstd")
-    if zstd is None:
+    with path.open("rb") as stream:
+      magic = stream.read(4)
+  except OSError as error:
+    raise BaselineError(f"license archive cannot be read: {error}", 4) from error
+  if magic != b"\x28\xb5\x2f\xfd":
+    raise BaselineError("license archive is not a zstd frame", 4)
+  if toolchain is None:
+    raise BaselineError("license archive requires the locked zstd verifier", 4)
+  if image_lock is None:
+    raise BaselineError("license archive requires the locked verifier image", 3)
+  builder = locked_image(image_lock, "builder")
+  with tempfile.TemporaryDirectory(prefix="jetonlyoffice-license-verify-") as directory:
+    expanded = Path(directory) / "licenses.tar"
+    try:
+      with locked_zstd_verifier(toolchain, cache_directory) as zstd:
+        with expanded.open("wb") as output:
+          command = [
+            docker,
+            "run",
+            "--rm",
+            "--pull",
+            "never",
+            "--network",
+            "none",
+            "--platform",
+            "linux/amd64",
+            "--read-only",
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges",
+            "--tmpfs",
+            "/tmp:rw,nosuid,nodev",
+            "--mount",
+            "type=bind,src=" + zstd.parent.as_posix()
+            + ",dst=/verifier,readonly",
+            "--mount",
+            "type=bind,src=" + path.resolve().as_posix()
+            + ",dst=/input/licenses.tar.zst,readonly",
+            pinned_image_reference(builder),
+            "/verifier/zstd",
+            "--decompress",
+            "--stdout",
+            "/input/licenses.tar.zst",
+          ]
+          result = subprocess.run(
+            command,
+            stdout=output,
+            stderr=subprocess.PIPE,
+            check=False,
+          )
+    except OSError as error:
+      raise BaselineError(f"locked zstd verifier failed: {error}", 3) from error
+    if result.returncode != 0:
+      detail = result.stderr.decode("utf-8", errors="replace").strip()
       raise BaselineError(
-        "license archive requires the locked zstd verifier", 4
-      ) from direct_error
-    with tempfile.TemporaryDirectory(prefix="jetonlyoffice-license-verify-") as directory:
-      expanded = Path(directory) / "licenses.tar"
-      with expanded.open("wb") as output:
-        result = subprocess.run(
-          [zstd, "--decompress", "--stdout", str(path)],
-          stdout=output,
-          stderr=subprocess.PIPE,
-          check=False,
-        )
-      if result.returncode != 0:
-        detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise BaselineError(
-          "license archive decompression failed" + (f": {detail}" if detail else ""),
-          4,
-        )
-      try:
-        with tarfile.open(expanded, "r:") as archive:
-          yield archive
-      except (OSError, tarfile.TarError) as error:
-        raise BaselineError(f"license archive is invalid: {error}", 4) from error
-    return
-  try:
-    with archive:
-      yield archive
-  except (OSError, tarfile.TarError) as error:
-    raise BaselineError(f"license archive is invalid: {error}", 4) from error
+        "license archive decompression failed" + (f": {detail}" if detail else ""),
+        4,
+      )
+    try:
+      with tarfile.open(expanded, "r:") as archive:
+        yield archive
+    except (OSError, tarfile.TarError) as error:
+      raise BaselineError(f"license archive is invalid: {error}", 4) from error
 
 
-def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
+def verify_license_artifact(
+  manifest,
+  artifact_root,
+  source_lock,
+  toolchain,
+  cache_directory=None,
+  image_lock=None,
+  docker="docker",
+):
   record = one_artifact(manifest, "licenses")
   path = Path(artifact_root) / record["path"]
   extracted_materials = {}
-  with open_license_archive(path) as archive:
+  with open_license_archive(
+    path, toolchain, cache_directory, image_lock, docker
+  ) as archive:
     members = safe_tar_members(archive, "license archive")
+    expected_files = {"manifest.json"}
     manifest_bytes = read_tar_member(
       archive, members, "manifest.json", "license archive"
     )
@@ -1107,16 +1282,22 @@ def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
       raise BaselineError(f"license archive manifest is invalid: {error}", 4) from error
     if manifest_bytes != canonical_json_bytes(license_manifest) + b"\n":
       raise BaselineError("license archive manifest is not canonical", 4)
+    if license_manifest.get("sourceLockSha256") != canonical_sha256(source_lock):
+      raise BaselineError("license archive source lock binding does not match", 4)
     repository_records = license_manifest.get("repositories")
     if not isinstance(repository_records, list):
       raise BaselineError("license archive has no repository inventory", 4)
     by_id = {
       item.get("id"): item for item in repository_records if isinstance(item, dict)
     }
-    expected_ids = [item["id"] for item in source_lock["repositories"]]
+    locked_repositories = [
+      item for item in source_lock["repositories"]
+      if item["active"] and item["buildInput"]
+    ]
+    expected_ids = sorted(item["id"] for item in locked_repositories)
     if sorted(by_id) != expected_ids or len(by_id) != len(repository_records):
       raise BaselineError("license archive repository inventory does not match source lock", 4)
-    for repository in source_lock["repositories"]:
+    for repository in locked_repositories:
       bundled = by_id[repository["id"]]
       if (
         bundled.get("commit") != repository["commit"]
@@ -1186,6 +1367,7 @@ def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
             evidence_path = actual.get("licensePath")
             if not isinstance(evidence_path, str):
               raise BaselineError("license archive evidence path is missing", 4)
+            expected_files.add(evidence_path)
             evidence_bytes = read_tar_member(
               archive, members, evidence_path, "license archive evidence"
             )
@@ -1202,7 +1384,9 @@ def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
       else:
         if (
           bundled.get("spdx") != license_record["spdx"]
-          or bundled.get("licenseSha256") != license_record["sha256"]
+          or bundled.get("licenseSha256") != license_record.get(
+            "materializedSha256", license_record["sha256"]
+          )
         ):
           raise BaselineError(
             f"license archive declaration does not match {repository['id']}", 4
@@ -1210,11 +1394,23 @@ def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
         license_path = bundled.get("licensePath")
         if not isinstance(license_path, str):
           raise BaselineError("license archive repository license path is missing", 4)
+        expected_files.add(license_path)
         license_bytes = read_tar_member(
           archive, members, license_path, "repository license"
         )
-        if hashlib.sha256(license_bytes).hexdigest() != license_record["sha256"]:
+        expected_digest = license_record.get(
+          "materializedSha256", license_record["sha256"]
+        )
+        if hashlib.sha256(license_bytes).hexdigest() != expected_digest:
           raise BaselineError("license archive repository license digest does not match", 4)
+        for identifier in license_references(license_record["spdx"]):
+          try:
+            license_text = license_bytes.decode("utf-8")
+          except UnicodeDecodeError as error:
+            raise BaselineError(
+              f"{identifier} license evidence is not UTF-8: {error}", 4
+            ) from error
+          extracted_materials.setdefault(identifier, set()).add(license_text)
     bundled_tools = license_manifest.get("tools")
     if not isinstance(bundled_tools, list):
       raise BaselineError("license archive has no toolchain inventory", 4)
@@ -1231,6 +1427,20 @@ def verify_license_artifact(manifest, artifact_root, source_lock, toolchain):
     ]
     if bundled_tools != expected_tools:
       raise BaselineError("license archive toolchain inventory does not match lock", 4)
+    expected_members = set(expected_files)
+    for file_path in expected_files:
+      parent = PurePosixPath(file_path).parent
+      while parent != PurePosixPath("."):
+        expected_members.add(parent.as_posix())
+        parent = parent.parent
+    if set(members) != expected_members:
+      raise BaselineError(
+        "license archive member inventory does not match manifest", 4
+      )
+    if any(not members[name].isfile() for name in expected_files) or any(
+      not members[name].isdir() for name in expected_members - expected_files
+    ):
+      raise BaselineError("license archive contains unsupported member types", 4)
   return {
     identifier: "\n\n".join(sorted(materials))
     for identifier, materials in sorted(extracted_materials.items())
@@ -1322,7 +1532,15 @@ def verify_oci_artifact(manifest, artifact_root):
     raise BaselineError("OCI JWT entrypoint does not match the locked source", 4)
 
 
-def verify_supply_chain_artifacts(manifest, artifact_root, source_lock, toolchain):
+def verify_supply_chain_artifacts(
+  manifest,
+  artifact_root,
+  source_lock,
+  toolchain,
+  cache_directory=None,
+  image_lock=None,
+  docker="docker",
+):
   for artifact_type in (
     "deb", "rootfs", "oci", "source", "spdx", "cyclonedx", "provenance",
     "checksums", "licenses", "notice",
@@ -1330,13 +1548,21 @@ def verify_supply_chain_artifacts(manifest, artifact_root, source_lock, toolchai
     one_artifact(manifest, artifact_type)
   verify_checksums_artifact(manifest, artifact_root)
   extracted_licenses = verify_license_artifact(
-    manifest, artifact_root, source_lock, toolchain
+    manifest,
+    artifact_root,
+    source_lock,
+    toolchain,
+    cache_directory,
+    image_lock,
+    docker,
   )
   verify_spdx_artifact(
     manifest, artifact_root, source_lock, toolchain, extracted_licenses
   )
   verify_cyclonedx_artifact(manifest, artifact_root, source_lock, toolchain)
-  verify_provenance_artifact(manifest, artifact_root, source_lock, toolchain)
+  verify_provenance_artifact(
+    manifest, artifact_root, source_lock, toolchain, image_lock
+  )
   verify_oci_artifact(manifest, artifact_root)
 
 
@@ -1617,6 +1843,9 @@ def verify(args):
     "locked toolchain input",
     args.schema_dir,
   )
+  image_lock = load_contract(
+    args.image_lock, "image-lock", "locked image input", args.schema_dir
+  )
   if artifact_manifest["sourceLockSha256"] != canonical_sha256(source_lock):
     raise BaselineError("artifact manifest source lock does not match the lock", 3)
   artifact_directory = Path(args.artifact_directory).resolve()
@@ -1665,11 +1894,26 @@ def verify(args):
       f"REPRODUCIBILITY_MISMATCH: {types} differ; diffoscope evidence: {summary}", 4
     )
 
+  locked_zstd_tool(toolchain)
+  verifier_image = locked_image(image_lock, "builder")
+  verify_local_image(args.docker, verifier_image)
   verify_supply_chain_artifacts(
-    artifact_manifest, artifact_directory, source_lock, toolchain
+    artifact_manifest,
+    artifact_directory,
+    source_lock,
+    toolchain,
+    getattr(args, "cache_directory", None),
+    image_lock,
+    args.docker,
   )
   verify_supply_chain_artifacts(
-    reference_manifest, args.reference_artifact_directory, source_lock, toolchain
+    reference_manifest,
+    args.reference_artifact_directory,
+    source_lock,
+    toolchain,
+    getattr(args, "cache_directory", None),
+    image_lock,
+    args.docker,
   )
 
   oci = next(item for item in artifact_manifest["artifacts"] if item["type"] == "oci")
@@ -1755,12 +1999,15 @@ def main(argv=None):
   verify_parser.add_argument("--reference-artifact-manifest", required=True)
   verify_parser.add_argument("--source-lock", required=True)
   verify_parser.add_argument("--toolchain-lock", required=True)
+  verify_parser.add_argument("--image-lock", required=True)
+  verify_parser.add_argument("--cache-directory", required=True)
   verify_parser.add_argument("--artifact-directory", required=True)
   verify_parser.add_argument("--reference-artifact-directory", required=True)
   verify_parser.add_argument("--release-policy", required=True)
   verify_parser.add_argument("--gate-result-directory", required=True)
   verify_parser.add_argument("--run-id", required=True)
   verify_parser.add_argument("--image")
+  verify_parser.add_argument("--docker", default="docker")
   verify_parser.add_argument("--diffoscope", default="diffoscope")
   verify_parser.add_argument("--diffoscope-directory")
   verify_parser.add_argument("--schema-dir", required=True)

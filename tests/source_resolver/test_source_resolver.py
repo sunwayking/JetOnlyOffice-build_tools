@@ -154,8 +154,9 @@ def font_with_license_name(license_text):
 
 def add_lfs_object(root, checkout, name="asset.bin", content=b"locked lfs content\n"):
   oid = hashlib.sha256(content).hexdigest()
+  pattern = Path(name).name
   (checkout / ".gitattributes").write_text(
-    "*.bin filter=lfs diff=lfs merge=lfs -text\n",
+    f"{pattern} filter=lfs diff=lfs merge=lfs -text\n",
     encoding="utf-8",
     newline="\n",
   )
@@ -1257,6 +1258,38 @@ class SourceResolverTests(unittest.TestCase):
         "size": len(content),
         "paths": ["asset.bin"],
       }], record["lfsObjects"])
+
+  def test_declared_lfs_license_binds_pointer_and_materialized_bytes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      license_bytes = b"materialized LFS license text\n"
+      bare, commit, oid, _ = add_lfs_object(
+        directory, checkout, name="LICENSE", content=license_bytes
+      )
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      license_record = record["license"]
+      self.assertEqual(oid, record["lfsObjects"][0]["oid"])
+      self.assertNotEqual(
+        license_record["sha256"], license_record["materializedSha256"]
+      )
+      self.assertEqual(
+        hashlib.sha256(license_bytes).hexdigest(),
+        license_record["materializedSha256"],
+      )
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      source_root = Path(directory) / "workspace"
+      materialize(lock, {"source": bare}, source_root)
+      verify_materialized(lock, source_root)
 
   def test_lfs_fetch_uses_anonymous_project_mirror_batch(self):
     repository = repository_input("source")

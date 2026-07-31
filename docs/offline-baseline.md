@@ -70,10 +70,11 @@ component independently and includes `hasExtractedLicensingInfos` for every
 custom `LicenseRef-*`; CycloneDX preserves the same component expression,
 payload paths, and immutable evidence references. `verify.ps1` reopens the
 license archive, checks its repository and toolchain inventories against both
-locks, and cross-checks its extracted text against both SBOMs rather than
-accepting artifact presence alone. Git LFS evidence binds the pointer bytes in
-Git and extracts embedded font or archive terms only from the separately
-digest-verified LFS object.
+locks, rejects every undeclared file, directory, or special archive member, and
+cross-checks its extracted text against both SBOMs rather than accepting
+artifact presence alone. Git LFS evidence binds the pointer bytes in Git and
+extracts embedded font or archive terms only from the separately digest-verified
+LFS object.
 
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any
@@ -115,6 +116,28 @@ contract. Missing evidence returns exit code 3. A failed or incomplete
 blocking gate writes `release-evidence.json` with outcome `BLOCKED` and returns
 exit code 4.
 
+The license bundle, SPDX, CycloneDX, and SLSA provenance enumerate only source
+repositories marked both `active` and `buildInput`; reference-only repositories
+cannot appear as release dependencies. Provenance verification recomputes the
+source, toolchain, and image lock digests and also binds the source date epoch,
+offline build type, exact repository dependency inventory, and digest-locked
+builder identity.
+
+Every `.tar.zst` license archive is verified with only the `zstd` executable
+declared as a `package` consumer in the toolchain lock. The executable is
+resolved from `-CacheDirectory`, checked
+against the locked size and SHA-256, copied to an isolated temporary directory,
+and checked again. `verify.ps1` then runs that Linux executable inside the
+digest-locked builder image with `--network none`, `--pull never`, a read-only
+root filesystem, and read-only mounts. It never executes the Linux verifier on
+the Windows host and never falls back to a `zstd` found on the host `PATH`.
+Plain tar or other compression formats are rejected before decompression. The
+stable verifier inputs therefore include `-ImageLockPath`, `-CacheDirectory`,
+and `-DockerExecutable` in addition to the source and toolchain locks.
+Bootstrap preflight rejects the toolchain lock unless it contains exactly one
+Linux `zstd` record materialized as an executable `toolchain` file whose
+destination basename is `zstd`.
+
 ## Current blocking state
 
 This branch does not contain or generate a formal `locks/sources.lock.json`.
@@ -154,6 +177,14 @@ prerequisites. Until those inputs and the formal source lock are reviewed and
 published, the public entrypoints must stop before producing a release
 candidate. Placeholder locks, `NOASSERTION`, upstream fallbacks, and online
 build/package retries are not supported.
+
+The current release verifier still validates the source archive through its
+artifact digest and the license/SBOM/provenance cross-checks, but does not yet
+reconstruct every repository tree from that archive to independently recompute
+all Git blob and LFS pointer bindings. Completing that ADR-0067 requirement is
+a separate release-blocking work item; a future source lock revision must add
+the immutable tree evidence or an equivalent verifiable Git bundle before a
+formal release can be declared.
 
 ## Shortest real build path after closure
 

@@ -104,12 +104,16 @@ DocumentServer 不只是 `web-apps` 和 `sdkjs`。它还通过子模块关联 `c
 接口：
 
 ```powershell
-.\scripts\verify.ps1 -Image <immutable-image-digest>
+.\scripts\verify.ps1 `
+  -Image <immutable-image-digest> `
+  -ReferenceArtifactManifestPath <independent-build-manifest>
 ```
 
 职责：
 
 - 校验镜像内版本、文件摘要与 source lock 的对应关系。
+- 通过锁定的 Ubuntu builder 镜像执行缓存中摘要锁定的 Linux 验证工具，
+  不在 Windows 宿主执行 Linux 二进制，也不读取宿主 `PATH` 的替代工具。
 - 执行 DocumentServer 健康检查、JWT、WebSocket、callback/save 和版本链测试。
 - 执行文档、电子表格、演示文稿和 PDF 的 Desktop 与 Mobile 矩阵。
 - 输出机器可读结果；任何必需 gate 缺失时不得报告通过。

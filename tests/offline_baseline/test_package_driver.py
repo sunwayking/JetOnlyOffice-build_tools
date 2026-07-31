@@ -22,6 +22,7 @@ RUNTIME_IMAGE = (
   "ubuntu:24.04@sha256:4fbb8e6a8395de5a7550b33509421a2ba"
   "fbc0aab6c06ba2cef9ebffbc7092d90"
 )
+ZSTD_MAGIC = b"\x28\xb5\x2f\xfd"
 
 
 def docker_has_runtime_image():
@@ -41,9 +42,13 @@ specification.loader.exec_module(package_driver)
 sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
 from offline_baseline import (  # noqa: E402
   BaselineError,
+  locked_zstd_verifier,
+  open_license_archive,
+  pinned_image_reference,
   verify_cyclonedx_artifact,
   verify_license_artifact,
   verify_oci_artifact,
+  verify_provenance_artifact,
   verify_spdx_artifact,
   verify_supply_chain_artifacts,
 )
@@ -89,6 +94,53 @@ def toolchain_lock():
       "id": "zstd", "name": "zstd", "version": "1.5.6",
       "sourceUrl": "https://packages.example.test/zstd.deb",
       "license": "BSD-3-Clause",
+    }],
+  }
+
+
+def locked_zstd_toolchain(payload):
+  digest = hashlib.sha256(payload).hexdigest()
+  return {
+    "schemaVersion": 1,
+    "lockType": "toolchain",
+    "platform": "linux-amd64",
+    "sourceDateEpoch": 1720000000,
+    "environment": {},
+    "tools": [{
+      "id": "zstd",
+      "name": "zstd",
+      "version": "1.5.6",
+      "kind": "binary",
+      "platform": "linux-amd64",
+      "sourceUrl": "https://packages.example.test/zstd",
+      "sha256": digest,
+      "size": len(payload),
+      "mediaType": "application/octet-stream",
+      "consumers": ["package"],
+      "license": "BSD-3-Clause",
+      "materialization": {
+        "root": "toolchain",
+        "type": "file",
+        "destination": "usr/bin/zstd",
+        "mode": "0755",
+      },
+    }],
+  }
+
+
+def verifier_image_lock():
+  return {
+    "schemaVersion": 1,
+    "lockType": "image",
+    "platform": "linux-amd64",
+    "images": [{
+      "id": "builder",
+      "role": "builder",
+      "reference": "ubuntu:24.04",
+      "digest": "sha256:" + "1" * 64,
+      "configDigest": "sha256:" + "2" * 64,
+      "platform": "linux/amd64",
+      "sourceUrl": "https://hub.docker.com/_/ubuntu",
     }],
   }
 
@@ -200,6 +252,59 @@ class PackageDriverTests(unittest.TestCase):
           Path(directory) / "release.spdx.json",
         )
 
+  def test_sboms_exclude_inactive_and_non_build_repositories(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source = source_lock()
+      inactive = json.loads(json.dumps(source["repositories"][0]))
+      inactive.update({
+        "id": "inactive-reference",
+        "checkoutPath": "sources/inactive-reference",
+        "active": False,
+        "buildInput": True,
+      })
+      non_build = json.loads(json.dumps(source["repositories"][0]))
+      non_build.update({
+        "id": "non-build-reference",
+        "checkoutPath": "sources/non-build-reference",
+        "active": True,
+        "buildInput": False,
+      })
+      source["repositories"] += [inactive, non_build]
+      source_digest = canonical_sha256(source)
+      spdx = root / "release.spdx.json"
+      cdx = root / "release.cdx.json"
+
+      package_driver.make_sbom(
+        "spdx", source, toolchain_lock(), [], source_digest, spdx
+      )
+      package_driver.make_sbom(
+        "cyclonedx", source, toolchain_lock(), [], source_digest, cdx
+      )
+
+      spdx_value = json.loads(spdx.read_text(encoding="utf-8"))
+      self.assertEqual(
+        {"SPDXRef-documentserver", "SPDXRef-tool-zstd"},
+        {item["SPDXID"] for item in spdx_value["packages"]},
+      )
+      cdx_value = json.loads(cdx.read_text(encoding="utf-8"))
+      self.assertEqual(
+        {"repo:documentserver", "tool:zstd"},
+        {item["bom-ref"] for item in cdx_value["components"]},
+      )
+      verify_spdx_artifact(
+        {"artifacts": [{"type": "spdx", "path": spdx.name}]},
+        root,
+        source,
+        toolchain_lock(),
+      )
+      verify_cyclonedx_artifact(
+        {"artifacts": [{"type": "cyclonedx", "path": cdx.name}]},
+        root,
+        source,
+        toolchain_lock(),
+      )
+
   def test_sboms_preserve_component_licenses_and_custom_license_text(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
@@ -260,15 +365,31 @@ class PackageDriverTests(unittest.TestCase):
       verify_spdx_artifact(spdx_manifest, root, source, toolchain_lock())
       verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
 
+      cdx_value["metadata"]["properties"][0]["value"] = "0" * 64
+      cdx.write_bytes(package_driver.canonical_bytes(cdx_value))
+      with self.assertRaisesRegex(BaselineError, "source lock binding"):
+        verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
+      cdx_value["metadata"]["properties"][0]["value"] = source_digest
+      cdx.write_bytes(package_driver.canonical_bytes(cdx_value))
+
       original_packages = list(spdx_value["packages"])
       spdx_value["packages"] = [
         item for item in original_packages
         if item["SPDXID"] != "SPDXRef-tool-zstd"
       ]
       spdx.write_bytes(package_driver.canonical_bytes(spdx_value))
-      with self.assertRaisesRegex(BaselineError, "missing zstd"):
+      with self.assertRaisesRegex(BaselineError, "package ids"):
         verify_spdx_artifact(spdx_manifest, root, source, toolchain_lock())
-      spdx_value["packages"] = original_packages
+      spdx_value["packages"] = list(original_packages)
+
+      spdx_value["packages"].append({
+        "SPDXID": "SPDXRef-unlocked",
+        "name": "unlocked",
+      })
+      spdx.write_bytes(package_driver.canonical_bytes(spdx_value))
+      with self.assertRaisesRegex(BaselineError, "package ids"):
+        verify_spdx_artifact(spdx_manifest, root, source, toolchain_lock())
+      spdx_value["packages"] = list(original_packages)
 
       del spdx_value["hasExtractedLicensingInfos"]
       spdx.write_bytes(package_driver.canonical_bytes(spdx_value))
@@ -281,9 +402,18 @@ class PackageDriverTests(unittest.TestCase):
         if item["bom-ref"] != "tool:zstd"
       ]
       cdx.write_bytes(package_driver.canonical_bytes(cdx_value))
-      with self.assertRaisesRegex(BaselineError, "missing zstd"):
+      with self.assertRaisesRegex(BaselineError, "bom-ref values"):
         verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
-      cdx_value["components"] = original_components
+      cdx_value["components"] = list(original_components)
+
+      cdx_value["components"].append({
+        "bom-ref": "tool:unlocked",
+        "name": "unlocked",
+      })
+      cdx.write_bytes(package_driver.canonical_bytes(cdx_value))
+      with self.assertRaisesRegex(BaselineError, "bom-ref values"):
+        verify_cyclonedx_artifact(cdx_manifest, root, source, toolchain_lock())
+      cdx_value["components"] = list(original_components)
 
       component["properties"] = [
         item for item in component["properties"]
@@ -304,15 +434,29 @@ class PackageDriverTests(unittest.TestCase):
       (checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
       source = source_lock()
       source["repositories"][0]["license"] = license_record
+      excluded = json.loads(json.dumps(source["repositories"][0]))
+      excluded.update({
+        "id": "optional-reference",
+        "checkoutPath": "sources/optional-reference",
+        "active": False,
+        "buildInput": False,
+      })
+      source["repositories"].append(excluded)
       work = root / "work"
       notice = root / "NOTICE.txt"
+      zstd_payload = b"locked zstd executable\n"
+      tools = locked_zstd_toolchain(zstd_payload)
+      zstd_tool = tools["tools"][0]
+      cached_zstd = root / "toolchain" / "zstd" / zstd_tool["sha256"]
+      cached_zstd.parent.mkdir(parents=True)
+      cached_zstd.write_bytes(zstd_payload)
 
       with patch.object(package_driver, "tar_directory"):
         extracted = package_driver.make_license_artifacts(
           source_tree,
           source,
-          toolchain_lock(),
-          "f" * 64,
+          tools,
+          canonical_sha256(source),
           work,
           root / "licenses.tar.zst",
           notice,
@@ -342,12 +486,53 @@ class PackageDriverTests(unittest.TestCase):
       with tarfile.open(archive, "w") as output:
         for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
           output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+      compressed = root / "licenses.tar.zst"
+      compressed.write_bytes(ZSTD_MAGIC + b"locked payload")
       license_manifest = {"artifacts": [{
-        "id": "jetonlyoffice-licenses", "type": "licenses", "path": archive.name,
+        "id": "jetonlyoffice-licenses", "type": "licenses", "path": compressed.name,
       }]}
+
+      def verify_archive():
+        def fake_run(command, **kwargs):
+          verifier_mount = next(
+            item for item in command
+            if item.startswith("type=bind,src=")
+            and item.endswith(",dst=/verifier,readonly")
+          )
+          verifier_root = Path(
+            verifier_mount.removeprefix("type=bind,src=").removesuffix(
+              ",dst=/verifier,readonly"
+            )
+          )
+          self.assertEqual(zstd_payload, (verifier_root / "zstd").read_bytes())
+          kwargs["stdout"].write(archive.read_bytes())
+          return SimpleNamespace(returncode=0, stderr=b"")
+
+        with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+          return verify_license_artifact(
+            license_manifest,
+            root,
+            source,
+            tools,
+            root,
+            verifier_image_lock(),
+            "docker",
+          )
+
       self.assertEqual({
         "LicenseRef-Unicode-Fonts-for-Ancient-Scripts": license_text.decode("utf-8")
-      }, verify_license_artifact(license_manifest, root, source, toolchain_lock()))
+      }, verify_archive())
+
+      manifest["sourceLockSha256"] = "0" * 64
+      (bundle_root / "manifest.json").write_bytes(
+        package_driver.canonical_bytes(manifest)
+      )
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+      with self.assertRaisesRegex(BaselineError, "source lock binding"):
+        verify_archive()
+      manifest["sourceLockSha256"] = canonical_sha256(source)
 
       manifest["tools"] = []
       (bundle_root / "manifest.json").write_bytes(
@@ -357,14 +542,15 @@ class PackageDriverTests(unittest.TestCase):
         for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
           output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
       with self.assertRaisesRegex(BaselineError, "toolchain inventory"):
-        verify_license_artifact(license_manifest, root, source, toolchain_lock())
+        verify_archive()
 
       manifest["tools"] = [{
-        "id": "zstd",
-        "name": "zstd",
-        "version": "1.5.6",
-        "license": "BSD-3-Clause",
-        "sourceUrl": "https://packages.example.test/zstd.deb",
+        "id": zstd_tool["id"],
+        "name": zstd_tool["name"],
+        "version": zstd_tool["version"],
+        "license": zstd_tool["license"],
+        "sourceUrl": zstd_tool["sourceUrl"],
+        "sha256": zstd_tool["sha256"],
       }]
       (bundle_root / "manifest.json").write_bytes(
         package_driver.canonical_bytes(manifest)
@@ -375,7 +561,280 @@ class PackageDriverTests(unittest.TestCase):
         for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
           output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
       with self.assertRaisesRegex(BaselineError, "evidence digest"):
-        verify_license_artifact(license_manifest, root, source, toolchain_lock())
+        verify_archive()
+
+      evidence.write_bytes(license_text)
+      unexpected = bundle_root / "unexpected.txt"
+      unexpected.write_text("unlocked material\n", encoding="utf-8")
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+      with self.assertRaisesRegex(BaselineError, "member inventory"):
+        verify_archive()
+      unexpected.unlink()
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
+        symbolic_link = tarfile.TarInfo("unexpected-link")
+        symbolic_link.type = tarfile.SYMTYPE
+        symbolic_link.linkname = "manifest.json"
+        output.addfile(symbolic_link)
+      with self.assertRaisesRegex(BaselineError, "member inventory"):
+        verify_archive()
+
+  def test_locked_zstd_verifier_uses_only_digest_bound_cache_bytes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      payload = b"locked zstd executable\n"
+      toolchain = locked_zstd_toolchain(payload)
+      tool = toolchain["tools"][0]
+      cached = root / "toolchain" / "zstd" / tool["sha256"]
+      cached.parent.mkdir(parents=True)
+      cached.write_bytes(payload)
+
+      with locked_zstd_verifier(toolchain, root) as executable:
+        self.assertNotEqual(cached, executable)
+        self.assertEqual(payload, executable.read_bytes())
+        self.assertEqual(tool["sha256"], hashlib.sha256(executable.read_bytes()).hexdigest())
+
+      cached.write_bytes(b"tampered zstd executable\n")
+      with self.assertRaisesRegex(BaselineError, "digest does not match") as caught:
+        with locked_zstd_verifier(toolchain, root):
+          pass
+      self.assertEqual(3, caught.exception.exit_code)
+
+      cached.unlink()
+      with self.assertRaisesRegex(BaselineError, "is missing") as caught:
+        with locked_zstd_verifier(toolchain, root):
+          pass
+      self.assertEqual(3, caught.exception.exit_code)
+
+      toolchain["tools"][0]["materialization"]["type"] = "deb"
+      with self.assertRaisesRegex(BaselineError, "executable") as caught:
+        with locked_zstd_verifier(toolchain, root):
+          pass
+      self.assertEqual(2, caught.exception.exit_code)
+
+  def test_license_archive_fallback_invokes_locked_zstd_copy(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      payload = b"locked zstd executable\n"
+      toolchain = locked_zstd_toolchain(payload)
+      tool = toolchain["tools"][0]
+      cached = root / "toolchain" / "zstd" / tool["sha256"]
+      cached.parent.mkdir(parents=True)
+      cached.write_bytes(payload)
+      compressed = root / "licenses.tar.zst"
+      compressed.write_bytes(ZSTD_MAGIC + b"not directly readable as tar")
+      expanded = root / "licenses.tar"
+      with tarfile.open(expanded, "w") as archive:
+        manifest = root / "manifest.json"
+        manifest.write_text("{}\n", encoding="ascii")
+        archive.add(manifest, arcname="manifest.json")
+      expanded_bytes = expanded.read_bytes()
+      commands = []
+
+      def fake_run(command, **kwargs):
+        commands.append(command)
+        self.assertEqual("docker", command[0])
+        self.assertEqual("never", command[command.index("--pull") + 1])
+        self.assertEqual("none", command[command.index("--network") + 1])
+        self.assertEqual("linux/amd64", command[command.index("--platform") + 1])
+        self.assertIn("--read-only", command)
+        self.assertIn("no-new-privileges", command)
+        self.assertIn(
+          pinned_image_reference(verifier_image_lock()["images"][0]), command
+        )
+        verifier_mount = next(
+          item for item in command
+          if item.startswith("type=bind,src=") and item.endswith(",dst=/verifier,readonly")
+        )
+        verifier_root = Path(
+          verifier_mount.removeprefix("type=bind,src=").removesuffix(",dst=/verifier,readonly")
+        )
+        self.assertEqual(payload, (verifier_root / "zstd").read_bytes())
+        kwargs["stdout"].write(expanded_bytes)
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        with open_license_archive(
+          compressed, toolchain, root, verifier_image_lock(), "docker"
+        ) as archive:
+          self.assertIn("manifest.json", archive.getnames())
+
+      self.assertEqual(
+        ["/verifier/zstd", "--decompress", "--stdout", "/input/licenses.tar.zst"],
+        commands[0][-4:],
+      )
+
+  def test_locked_zstd_verifier_rejects_aliased_cache_root(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      cache = root / "cache"
+      cache.mkdir()
+      alias = root / "cache-alias"
+      try:
+        alias.symlink_to(cache, target_is_directory=True)
+      except OSError as error:
+        self.skipTest(f"directory symlinks are unavailable: {error}")
+      toolchain = locked_zstd_toolchain(b"locked zstd executable\n")
+
+      with self.assertRaisesRegex(BaselineError, "cache root must not be an alias") \
+          as caught:
+        with locked_zstd_verifier(toolchain, alias):
+          pass
+      self.assertEqual(3, caught.exception.exit_code)
+
+  def test_license_archive_rejects_non_zstd_before_decompression(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      payload = b"locked zstd executable\n"
+      toolchain = locked_zstd_toolchain(payload)
+      tool = toolchain["tools"][0]
+      cached = root / "toolchain" / "zstd" / tool["sha256"]
+      cached.parent.mkdir(parents=True)
+      cached.write_bytes(payload)
+      archive_path = root / "licenses.tar.zst"
+      with tarfile.open(archive_path, "w") as archive:
+        manifest = root / "manifest.json"
+        manifest.write_text("{}\n", encoding="ascii")
+        archive.add(manifest, arcname="manifest.json")
+
+      with patch(
+        "offline_baseline.subprocess.run",
+        side_effect=AssertionError("decompressor must not run"),
+      ):
+        with self.assertRaisesRegex(BaselineError, "zstd"):
+          with open_license_archive(archive_path, toolchain, root):
+            pass
+
+  def test_license_archive_verifies_declared_lfs_materialized_digest(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      license_text = b"materialized LFS license\n"
+      source = source_lock()
+      source["repositories"][0]["license"]["materializedSha256"] = hashlib.sha256(
+        license_text
+      ).hexdigest()
+      source["repositories"][0]["license"]["spdx"] = "LicenseRef-LFS-License"
+      payload = b"locked zstd executable\n"
+      toolchain = locked_zstd_toolchain(payload)
+      tool = toolchain["tools"][0]
+      cached = root / "toolchain" / "zstd" / tool["sha256"]
+      cached.parent.mkdir(parents=True)
+      cached.write_bytes(payload)
+
+      bundle = root / "bundle"
+      bundled_license = bundle / "repositories" / "documentserver" / "LICENSE"
+      bundled_license.parent.mkdir(parents=True)
+      bundled_license.write_bytes(license_text)
+      manifest = {
+        "schemaVersion": 1,
+        "sourceLockSha256": canonical_sha256(source),
+        "repositories": [{
+          "id": "documentserver",
+          "commit": source["repositories"][0]["commit"],
+          "origin": source["repositories"][0]["origin"],
+          "spdx": "LicenseRef-LFS-License",
+          "licenseSha256": hashlib.sha256(license_text).hexdigest(),
+          "licensePath": bundled_license.relative_to(bundle).as_posix(),
+        }],
+        "tools": [{
+          "id": tool["id"],
+          "name": tool["name"],
+          "version": tool["version"],
+          "license": tool["license"],
+          "sourceUrl": tool["sourceUrl"],
+          "sha256": tool["sha256"],
+        }],
+      }
+      (bundle / "manifest.json").write_bytes(package_driver.canonical_bytes(manifest))
+      expanded = root / "licenses.tar"
+      with tarfile.open(expanded, "w") as archive:
+        for path in sorted(bundle.rglob("*"), key=lambda item: item.as_posix()):
+          archive.add(path, arcname=path.relative_to(bundle).as_posix(), recursive=False)
+      compressed = root / "licenses.tar.zst"
+      compressed.write_bytes(ZSTD_MAGIC + b"locked payload")
+      artifact_manifest = {"artifacts": [{
+        "id": "jetonlyoffice-licenses",
+        "type": "licenses",
+        "path": compressed.name,
+      }]}
+
+      def fake_run(command, **kwargs):
+        verifier_mount = next(
+          item for item in command
+          if item.startswith("type=bind,src=")
+          and item.endswith(",dst=/verifier,readonly")
+        )
+        verifier_root = Path(
+          verifier_mount.removeprefix("type=bind,src=").removesuffix(
+            ",dst=/verifier,readonly"
+          )
+        )
+        self.assertEqual(payload, (verifier_root / "zstd").read_bytes())
+        kwargs["stdout"].write(expanded.read_bytes())
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        self.assertEqual(
+          {"LicenseRef-LFS-License": license_text.decode("utf-8")},
+          verify_license_artifact(
+            artifact_manifest,
+            root,
+            source,
+            toolchain,
+            root,
+            verifier_image_lock(),
+            "docker",
+          ),
+        )
+
+  def test_license_bundle_uses_declared_lfs_materialized_digest(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_tree = root / "source"
+      checkout = source_tree / "sources" / "DocumentServer"
+      checkout.mkdir(parents=True)
+      license_text = b"materialized LFS license\n"
+      (checkout / "LICENSE").write_bytes(license_text)
+      source = source_lock()
+      source["repositories"][0]["license"]["materializedSha256"] = hashlib.sha256(
+        license_text
+      ).hexdigest()
+      source["repositories"][0]["license"]["spdx"] = "LicenseRef-LFS-License"
+      with patch.object(package_driver, "tar_directory"):
+        extracted = package_driver.make_license_artifacts(
+          source_tree,
+          source,
+          toolchain_lock(),
+          "f" * 64,
+          root / "work",
+          root / "licenses.tar.zst",
+          root / "NOTICE.txt",
+          source["sourceDateEpoch"],
+        )
+      self.assertEqual(
+        {"LicenseRef-LFS-License": license_text.decode("utf-8")},
+        extracted,
+      )
+      spdx = root / "release.spdx.json"
+      package_driver.make_sbom(
+        "spdx",
+        source,
+        toolchain_lock(),
+        [],
+        canonical_sha256(source),
+        spdx,
+        extracted,
+      )
+      verify_spdx_artifact(
+        {"artifacts": [{"type": "spdx", "path": spdx.name}]},
+        root,
+        source,
+        toolchain_lock(),
+        extracted,
+      )
 
   def test_component_license_bundle_extracts_font_and_zip_evidence(self):
     with tempfile.TemporaryDirectory() as directory:
@@ -422,12 +881,30 @@ class PackageDriverTests(unittest.TestCase):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
       source = source_lock()
+      inactive = json.loads(json.dumps(source["repositories"][0]))
+      inactive.update({
+        "id": "inactive-reference",
+        "origin": "https://example.test/inactive.git",
+        "active": False,
+      })
+      non_build = json.loads(json.dumps(source["repositories"][0]))
+      non_build.update({
+        "id": "non-build-reference",
+        "origin": "https://example.test/non-build.git",
+        "buildInput": False,
+      })
+      source["repositories"] += [inactive, non_build]
+      tools = toolchain_lock()
+      images = json.loads(
+        (REPOSITORY_ROOT / "locks" / "images.lock.json").read_text(encoding="utf-8")
+      )
+      builder = next(item for item in images["images"] if item["role"] == "builder")
       build = {
-        "sourceLockSha256": "a" * 64,
-        "toolchainLockSha256": "b" * 64,
-        "imageLockSha256": "c" * 64,
+        "sourceLockSha256": canonical_sha256(source),
+        "toolchainLockSha256": canonical_sha256(tools),
+        "imageLockSha256": canonical_sha256(images),
         "sourceDateEpoch": 1720000000,
-        "builderImageDigest": "sha256:" + "d" * 64,
+        "builderImageDigest": builder["digest"],
         "buildId": "jetonlyoffice-9.4.0-linux-amd64",
       }
       records = [
@@ -444,10 +921,66 @@ class PackageDriverTests(unittest.TestCase):
       self.assertEqual(["jetonlyoffice-deb", "jetonlyoffice-oci", "jetonlyoffice-rootfs"],
                        [item["name"] for item in value["subject"]])
       self.assertEqual("none", value["predicate"]["buildDefinition"]["externalParameters"]["network"])
+      self.assertEqual(
+        [{
+          "uri": source["repositories"][0]["origin"],
+          "digest": {"gitCommit": source["repositories"][0]["commit"]},
+        }],
+        value["predicate"]["buildDefinition"]["resolvedDependencies"],
+      )
+      manifest = {
+        "artifacts": [
+          {"id": record["id"], "type": artifact_type, "sha256": record["sha256"]}
+          for record, artifact_type in zip(records[:3], ("deb", "oci", "rootfs"))
+        ] + [{
+          "id": "jetonlyoffice-provenance",
+          "type": "provenance",
+          "path": output.name,
+          "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+        }],
+      }
+      verify_provenance_artifact(manifest, root, source, tools, images)
+      tampered = json.loads(json.dumps(value))
+      tampered["predicate"]["buildDefinition"]["resolvedDependencies"].append({
+        "uri": inactive["origin"],
+        "digest": {"gitCommit": inactive["commit"]},
+      })
+      output.write_text(json.dumps(tampered), encoding="utf-8")
+      with self.assertRaisesRegex(BaselineError, "resolved dependencies"):
+        verify_provenance_artifact(manifest, root, source, tools, images)
+      for field, replacement in (
+        ("imageLockSha256", "f" * 64),
+        ("sourceDateEpoch", 1),
+      ):
+        tampered = json.loads(json.dumps(value))
+        tampered["predicate"]["buildDefinition"]["externalParameters"][field] = replacement
+        output.write_text(json.dumps(tampered), encoding="utf-8")
+        with self.assertRaisesRegex(BaselineError, field):
+          verify_provenance_artifact(manifest, root, source, tools, images)
+      tampered = json.loads(json.dumps(value))
+      tampered["predicate"]["buildDefinition"]["externalParameters"][
+        "unexpectedInput"
+      ] = "unlocked"
+      output.write_text(json.dumps(tampered), encoding="utf-8")
+      with self.assertRaisesRegex(BaselineError, "external parameters"):
+        verify_provenance_artifact(manifest, root, source, tools, images)
+      for path, replacement, message in (
+        (("predicate", "buildDefinition", "buildType"), "https://example.test/build", "build type"),
+        (("predicate", "runDetails", "builder", "id"), "example://builder", "builder identity"),
+      ):
+        tampered = json.loads(json.dumps(value))
+        target = tampered
+        for key in path[:-1]:
+          target = target[key]
+        target[path[-1]] = replacement
+        output.write_text(json.dumps(tampered), encoding="utf-8")
+        with self.assertRaisesRegex(BaselineError, message):
+          verify_provenance_artifact(manifest, root, source, tools, images)
 
   @unittest.skipUnless(
     sys.platform.startswith("linux")
-    and all(shutil.which(command) for command in ("dpkg-deb", "tar", "zstd")),
+    and all(shutil.which(command) for command in ("dpkg-deb", "tar", "zstd"))
+    and docker_has_runtime_image(),
     "Linux deterministic packaging tools are unavailable",
   )
   def test_full_package_driver_is_binary_reproducible(self):
@@ -495,15 +1028,15 @@ class PackageDriverTests(unittest.TestCase):
     docker_input["license"]["sha256"] = hashlib.sha256(
       b"docker license\n"
     ).hexdigest()
-    tools = toolchain_lock()
+    zstd_payload = Path(shutil.which("zstd")).read_bytes()
+    tools = locked_zstd_toolchain(zstd_payload)
     tools["sourceDateEpoch"] = epoch
-    images = {
-      "schemaVersion": 1, "lockType": "image", "platform": "linux-amd64",
-      "images": [{"id": "runtime", "role": "runtime", "reference": "ubuntu:24.04",
-                  "digest": "sha256:" + "5" * 64,
-                  "configDigest": "sha256:" + "6" * 64,
-                  "platform": "linux/amd64", "sourceUrl": "https://hub.docker.com/_/ubuntu"}],
-    }
+    images = json.loads(
+      (REPOSITORY_ROOT / "locks" / "images.lock.json").read_text(encoding="utf-8")
+    )
+    builder_image = next(
+      item for item in images["images"] if item["role"] == "builder"
+    )
     build = {
       "schemaVersion": 1, "manifestType": "build",
       "buildId": "jetonlyoffice-9.4.0-linux-amd64",
@@ -511,7 +1044,7 @@ class PackageDriverTests(unittest.TestCase):
       "sourceLockSha256": canonical_sha256(source),
       "toolchainLockSha256": canonical_sha256(tools),
       "imageLockSha256": canonical_sha256(images),
-      "builderImageDigest": "sha256:" + "7" * 64,
+      "builderImageDigest": builder_image["digest"],
       "sourceDateEpoch": epoch,
     }
 
@@ -591,6 +1124,10 @@ class PackageDriverTests(unittest.TestCase):
       source_path.write_bytes(package_driver.canonical_bytes(source))
       toolchain_path.write_bytes(package_driver.canonical_bytes(tools))
       image_path.write_bytes(package_driver.canonical_bytes(images))
+      zstd_tool = tools["tools"][0]
+      cached_zstd = root / "cache" / "toolchain" / "zstd" / zstd_tool["sha256"]
+      cached_zstd.parent.mkdir(parents=True)
+      cached_zstd.write_bytes(zstd_payload)
       package_driver.package(SimpleNamespace(
         build_manifest=build_path, source_lock=source_path,
         toolchain_lock=toolchain_path, image_lock=image_path,
@@ -600,7 +1137,15 @@ class PackageDriverTests(unittest.TestCase):
       ))
       manifest = json.loads((output / "artifact-manifest.json").read_text(encoding="utf-8"))
       validate_contract(manifest, "artifact-manifest", REPOSITORY_ROOT / "schemas")
-      verify_supply_chain_artifacts(manifest, output, source, tools)
+      verify_supply_chain_artifacts(
+        manifest,
+        output,
+        source,
+        tools,
+        root / "cache",
+        images,
+        shutil.which("docker"),
+      )
       license_tree = root / "license-tree"
       license_tree.mkdir()
       subprocess.run(

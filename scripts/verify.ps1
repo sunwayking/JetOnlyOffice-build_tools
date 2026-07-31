@@ -2,6 +2,8 @@
 param(
     [string]$SourceLockPath = (Join-Path $PSScriptRoot "..\locks\sources.lock.json"),
     [string]$ToolchainLockPath = (Join-Path $PSScriptRoot "..\locks\toolchain.lock.json"),
+    [string]$ImageLockPath = (Join-Path $PSScriptRoot "..\locks\images.lock.json"),
+    [string]$CacheDirectory = (Join-Path $PSScriptRoot "..\cache"),
     [string]$ArtifactManifestPath = (Join-Path $PSScriptRoot "..\artifacts\artifact-manifest.json"),
     [string]$ReferenceArtifactManifestPath = (Join-Path $PSScriptRoot "..\artifacts-reference\artifact-manifest.json"),
     [string]$ArtifactDirectory = (Join-Path $PSScriptRoot "..\artifacts"),
@@ -11,6 +13,7 @@ param(
     [string]$RepositoryRoot = (Join-Path $PSScriptRoot ".."),
     [string]$RunId = "verify-local",
     [string]$Image,
+    [string]$DockerExecutable = "docker",
     [string]$DiffoscopeExecutable = "diffoscope",
     [string]$DiffoscopeDirectory = (Join-Path $PSScriptRoot "..\artifacts\diffoscope"),
     [string]$OutputPath = (Join-Path $PSScriptRoot "..\artifacts\release-evidence.json")
@@ -45,6 +48,8 @@ $arguments = @(
     "--reference-artifact-manifest", $ReferenceArtifactManifestPath,
     "--source-lock", $SourceLockPath,
     "--toolchain-lock", $ToolchainLockPath,
+    "--image-lock", $ImageLockPath,
+    "--cache-directory", $CacheDirectory,
     "--artifact-directory", $ArtifactDirectory,
     "--reference-artifact-directory", $ReferenceArtifactDirectory,
     "--release-policy", $ReleasePolicyPath,
@@ -53,6 +58,7 @@ $arguments = @(
     "--diffoscope", $DiffoscopeExecutable,
     "--diffoscope-directory", $DiffoscopeDirectory,
     "--run-id", $RunId,
+    "--docker", $DockerExecutable,
     "--schema-dir", (Join-Path $PSScriptRoot "..\schemas"),
     "--output", $OutputPath
 )

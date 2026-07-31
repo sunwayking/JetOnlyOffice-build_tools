@@ -354,6 +354,8 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
       write_json(source_path, source)
       toolchain_path = root / "locks" / "toolchain.lock.json"
       write_json(toolchain_path, toolchain_lock())
+      image_lock_path = root / "locks" / "images.lock.json"
+      write_json(image_lock_path, image_lock())
 
       artifact_directory = root / "artifacts"
       reference_directory = root / "reference" / "artifacts"
@@ -391,6 +393,9 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
         reference_artifact_manifest=str(reference_manifest_path),
         source_lock=str(source_path),
         toolchain_lock=str(toolchain_path),
+        image_lock=str(image_lock_path),
+        cache_directory=str(root / "cache"),
+        docker="docker",
         artifact_directory=str(artifact_directory),
         reference_artifact_directory=str(reference_directory),
         release_policy=str(policy_path),
@@ -407,7 +412,11 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
         return_value={"outcome": "PASS"},
       ) as aggregate, patch(
         "offline_baseline.verify_supply_chain_artifacts",
-      ) as verify_supply_chain:
+      ) as verify_supply_chain, patch(
+        "offline_baseline.verify_local_image",
+      ), patch(
+        "offline_baseline.locked_zstd_tool",
+      ):
         verify_offline_baseline(args)
 
       self.assertEqual(2, verify_supply_chain.call_count)
@@ -417,6 +426,56 @@ class OfflineBaselineVerificationUnitTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
 class OfflineBaselineEntrypointTests(unittest.TestCase):
+  def test_verify_forwards_locked_verifier_inputs(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      command_log = root / "python-arguments.txt"
+      if os.name == "nt":
+        fake_python = root / "python.cmd"
+        fake_python.write_text(
+          "@echo off\r\n"
+          "if \"%~1\"==\"-c\" exit /b 0\r\n"
+          f"echo %* > \"{command_log}\"\r\n"
+          "exit /b 0\r\n",
+          encoding="ascii",
+        )
+      else:
+        fake_python = root / "python"
+        fake_python.write_text(
+          "#!/bin/sh\n"
+          "if test \"$1\" = -c; then exit 0; fi\n"
+          f"printf '%s\\n' \"$@\" > \"{command_log}\"\n",
+          encoding="ascii",
+        )
+        fake_python.chmod(0o755)
+      cache = root / "locked-cache"
+      image_lock_path = root / "locks" / "images.lock.json"
+      docker = root / "locked-docker"
+      environment = dict(os.environ)
+      environment["PATH"] = str(root) + os.pathsep + environment.get("PATH", "")
+      result = subprocess.run(
+        [
+          "pwsh", "-NoProfile", "-File",
+          str(REPOSITORY_ROOT / "scripts" / "verify.ps1"),
+          "-CacheDirectory", str(cache),
+          "-ImageLockPath", str(image_lock_path),
+          "-DockerExecutable", str(docker),
+        ],
+        env=environment,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+      self.assertEqual(0, result.returncode, result.stderr)
+      arguments = command_log.read_text(encoding="ascii")
+      self.assertIn("--cache-directory", arguments)
+      self.assertIn(str(cache), arguments)
+      self.assertIn("--image-lock", arguments)
+      self.assertIn(str(image_lock_path), arguments)
+      self.assertIn("--docker", arguments)
+      self.assertIn(str(docker), arguments)
+
   def test_verify_rejects_primary_artifacts_reused_as_independent_build(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)
@@ -1200,6 +1259,35 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
       self.assertEqual(3, result.returncode, result.stderr)
       self.assertIn("locked toolchain download failed", result.stderr)
       self.assertFalse(output.exists())
+
+  def test_preflight_requires_locked_zstd_verifier(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_lock_path = root / "locks" / "sources.lock.json"
+      toolchain_lock_path = root / "locks" / "toolchain.lock.json"
+      image_lock_path = root / "locks" / "images.lock.json"
+      write_json(source_lock_path, contract_source_lock())
+      write_json(toolchain_lock_path, toolchain_lock())
+      write_json(image_lock_path, image_lock())
+
+      result = subprocess.run(
+        [
+          sys.executable,
+          str(REPOSITORY_ROOT / "scripts" / "offline_baseline.py"),
+          "preflight-bootstrap",
+          "--source-lock", str(source_lock_path),
+          "--toolchain-lock", str(toolchain_lock_path),
+          "--image-lock", str(image_lock_path),
+          "--schema-dir", str(REPOSITORY_ROOT / "schemas"),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+      )
+
+      self.assertEqual(2, result.returncode, result.stderr)
+      self.assertIn("exactly one zstd verifier", result.stderr)
 
   def test_bootstrap_requires_all_lock_contracts_before_resolving_sources(self):
     with tempfile.TemporaryDirectory() as directory:

@@ -1677,16 +1677,23 @@ def repository_metadata(repository, cache, commit):
   }
 
 
-def _declared_license_metadata(license_record, cache, commit):
+def _declared_license_metadata(license_record, cache, commit, lfs_objects):
   license_path = license_record["path"]
-  blob = _locked_git_blob(cache, commit, license_path, f"{license_path}:license")
+  context = f"{license_path}:license"
+  blob = _locked_git_blob(cache, commit, license_path, context)
   content = _run_git_bytes(["cat-file", "blob", blob], cwd=cache)
-  return {
+  metadata = {
     "path": license_path,
     "blob": blob,
     "sha256": hashlib.sha256(content).hexdigest(),
     "spdx": license_record["spdx"],
   }
+  materialized = _materialized_lfs_content(
+    cache, license_path, content, lfs_objects, context
+  )
+  if materialized != content:
+    metadata["materializedSha256"] = hashlib.sha256(materialized).hexdigest()
+  return metadata
 
 
 def _component_license_metadata(repository, cache, commit, lfs_objects):
@@ -1794,7 +1801,7 @@ def repository_license_metadata(repository, cache, commit, lfs_objects=None):
     lfs_objects = lfs_objects_at_commit(repository, cache, commit)
   status = license_record.get("status")
   if status == "declared":
-    return _declared_license_metadata(license_record, cache, commit)
+    return _declared_license_metadata(license_record, cache, commit, lfs_objects)
   if status == "component-scoped":
     return _component_license_metadata(repository, cache, commit, lfs_objects)
   if status == "missing":
@@ -1804,7 +1811,7 @@ def repository_license_metadata(repository, cache, commit, lfs_objects=None):
       license_record, cache, commit, lfs_objects
     )
   if status is None and "path" in license_record:
-    return _declared_license_metadata(license_record, cache, commit)
+    return _declared_license_metadata(license_record, cache, commit, lfs_objects)
   raise ResolutionError(f"{repository['id']}: unsupported license metadata", 3)
 
 

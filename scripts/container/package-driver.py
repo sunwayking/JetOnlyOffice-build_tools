@@ -697,7 +697,8 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
   ]
   extracted_materials = {}
   for repository in sorted(
-    source_lock["repositories"],
+    (item for item in source_lock["repositories"]
+     if item["active"] and item["buildInput"]),
     key=lambda item: item["id"],
   ):
     checkout = locked_repository(source_tree, source_lock, repository["id"])
@@ -754,7 +755,10 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
       )
       require_file(license_source, f"{repository['id']} license")
       actual_digest = sha256_file(license_source)
-      if actual_digest != repository["license"]["sha256"]:
+      expected_digest = repository["license"].get(
+        "materializedSha256", repository["license"]["sha256"]
+      )
+      if actual_digest != expected_digest:
         fail(f"{repository['id']} license digest does not match source lock")
       destination = license_root / "repositories" / repository["id"] \
         / Path(repository["license"]["path"]).name
@@ -769,6 +773,12 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
         "licensePath": destination.relative_to(license_root).as_posix(),
         "licenseSha256": actual_digest,
       })
+      for identifier in license_references(repository["license"]["spdx"]):
+        try:
+          text = destination.read_bytes().decode("utf-8")
+        except UnicodeDecodeError as error:
+          fail(f"{identifier} license evidence is not UTF-8: {error}")
+        extracted_materials.setdefault(identifier, set()).add(text)
       notice_lines.append(
         f"- {repository['id']} | {repository['license']['spdx']} | "
         f"{repository['origin']} | {repository['commit']}"
@@ -805,6 +815,8 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
 
 def source_license_units(source_lock):
   for repository in source_lock["repositories"]:
+    if not repository["active"] or not repository["buildInput"]:
+      continue
     if repository["license"].get("scope") == "component":
       for component in repository["license"]["components"]:
         evidence_references = [
@@ -938,8 +950,11 @@ def make_provenance(source_lock, build_manifest, carriers, artifact_records, out
                  "sourceDateEpoch": build_manifest["sourceDateEpoch"],
                  "network": "none",
                },
-               "resolvedDependencies": [{"uri": repo["origin"], "digest": {"gitCommit": repo["commit"]}}
-                                        for repo in source_lock["repositories"]],
+               "resolvedDependencies": [
+                 {"uri": repo["origin"], "digest": {"gitCommit": repo["commit"]}}
+                 for repo in source_lock["repositories"]
+                 if repo["active"] and repo["buildInput"]
+               ],
              },
              "runDetails": {"builder": {"id": "jetonlyoffice://builder@" + build_manifest["builderImageDigest"]},
                             "metadata": {"invocationId": build_manifest["buildId"]}},

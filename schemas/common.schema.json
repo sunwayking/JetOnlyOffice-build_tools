@@ -91,6 +91,9 @@
         "sha256": {
           "$ref": "#/$defs/sha256"
         },
+        "materializedSha256": {
+          "$ref": "#/$defs/sha256"
+        },
         "spdx": {
           "type": "string",
           "minLength": 1

@@ -500,6 +500,13 @@ def _validate_source_lock(value):
       lfs_paths.extend(lfs_object["paths"])
     if len(lfs_paths) != len(set(lfs_paths)):
       raise ContractError(prefix + ".lfsObjects: paths must be unique across objects")
+    if license_record.get("scope") != "component":
+      license_is_lfs = license_record["path"] in lfs_paths
+      has_materialized_digest = "materializedSha256" in license_record
+      if license_is_lfs != has_materialized_digest:
+        raise ContractError(
+          prefix + ".license.materializedSha256: required only for LFS license paths"
+        )
   maximum_commit_time = max(item["commitTime"] for item in repositories)
   if value["sourceDateEpoch"] != maximum_commit_time:
     raise ContractError("$.sourceDateEpoch: must equal the maximum repository commitTime")
@@ -538,6 +545,10 @@ def _validate_toolchain_lock(value):
     ):
       raise ContractError(
         prefix + ".license: must contain a reviewed SPDX expression"
+      )
+    if re.search(r"(?:^|[^A-Za-z0-9.-])LicenseRef-[A-Za-z0-9.-]+", license_expression):
+      raise ContractError(
+        prefix + ".license: custom license evidence is unsupported for tool inputs"
       )
     if tool["consumers"] != sorted(set(tool["consumers"])):
       raise ContractError(

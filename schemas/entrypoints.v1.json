@@ -51,7 +51,14 @@
       "path": "scripts/verify.ps1",
       "networkPolicy": "none",
       "inputs": [
-        "artifacts/artifact-manifest.json"
+        "artifacts-reference/artifact-manifest.json",
+        "artifacts/artifact-manifest.json",
+        "artifacts/gate-results",
+        "artifacts/release-policy.json",
+        "cache/toolchain",
+        "locks/images.lock.json",
+        "locks/sources.lock.json",
+        "locks/toolchain.lock.json"
       ],
       "outputs": [
         "artifacts/release-evidence.json"
