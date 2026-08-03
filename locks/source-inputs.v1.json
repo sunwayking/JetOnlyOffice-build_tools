@@ -1586,7 +1586,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Thirty-four language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Thirty-five language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "da_DK",
@@ -1629,17 +1629,6 @@
               {
                 "path": "hr_HR/README_hyph_hr_HR.txt",
                 "sha256": "2ba15b47f64eba01489d2962a8c04c6e457a33bba418d6384bda30dfe9e23b65"
-              }
-            ]
-          },
-          {
-            "id": "id_ID",
-            "code": "MISSING_EVIDENCE",
-            "reason": "The locked README grants MPL 2.0 or LGPL 3.0 only for the spelling dictionary and affix payloads; no locked evidence binds the hyphenation payload to a license.",
-            "evidence": [
-              {
-                "path": "id_ID/README_id_ID.txt",
-                "sha256": "97674850d680be39c9ad5ba245fc2f4e479c291823ddbddee88143d0e1642f3a"
               }
             ]
           },
@@ -2226,6 +2215,60 @@
             ]
           },
           {
+            "id": "id_ID",
+            "spdx": "LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "id_ID/hyph_id_ID.dic",
+                "repository": "license-evidence",
+                "referencePath": "id_ID/hyph_id_ID.dic",
+                "locator": "id_ID/LICENSE-dict",
+                "sha256": "97628afebc60f026f5c2b25d7491c46a5c4ee61f693e7cfa07fbd2c03605979b"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "id_ID/hyph_id_ID.dic",
+                "repository": "license-evidence",
+                "referencePath": "id_ID/hyph_id_ID.dic",
+                "locator": "id_ID/description.xml",
+                "sha256": "2b11e5a84b0f48fa79698149bb22827ca72eac4902dfa3390c444c735f10b16f"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "id_ID/id_ID.aff",
+                "repository": "license-evidence",
+                "referencePath": "id_ID/id_ID.aff",
+                "locator": "id_ID/LICENSE-dict",
+                "sha256": "97628afebc60f026f5c2b25d7491c46a5c4ee61f693e7cfa07fbd2c03605979b"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "id_ID/id_ID.aff",
+                "repository": "license-evidence",
+                "referencePath": "id_ID/id_ID.aff",
+                "locator": "id_ID/README_id_ID.txt",
+                "sha256": "97674850d680be39c9ad5ba245fc2f4e479c291823ddbddee88143d0e1642f3a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "id_ID/id_ID.dic",
+                "repository": "license-evidence",
+                "referencePath": "id_ID/id_ID.dic",
+                "locator": "id_ID/LICENSE-dict",
+                "sha256": "97628afebc60f026f5c2b25d7491c46a5c4ee61f693e7cfa07fbd2c03605979b"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "id_ID/id_ID.dic",
+                "repository": "license-evidence",
+                "referencePath": "id_ID/id_ID.dic",
+                "locator": "id_ID/README_id_ID.txt",
+                "sha256": "97674850d680be39c9ad5ba245fc2f4e479c291823ddbddee88143d0e1642f3a"
+              }
+            ]
+          },
+          {
             "id": "kk_KZ",
             "spdx": "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
             "evidence": [
@@ -2628,7 +2671,6 @@
           "el_GR",
           "en_AU",
           "hr_HR",
-          "id_ID",
           "it_IT",
           "mn_MN",
           "pl_PL",
@@ -2817,11 +2859,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "003822edfcf75fd5420d033fbc3af319406eae78",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 5",
+      "commit": "6ce8d05159fc5baa86a26ec9804af1b9428a477e",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 6",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.5"
+        "ref": "refs/tags/v9.4.0-evidence.6"
       },
       "projectFork": false,
       "buildInput": true,
@@ -2836,6 +2878,7 @@
         "patterns": [
           "**/*.tex",
           "**/*.txt",
+          "**/*.xml",
           "**/COPYING*",
           "**/COPYRIGHT",
           "**/LICENSE*"
@@ -3036,6 +3079,48 @@
                 "path": "fonts-gujr-extra/padmaa.ttf",
                 "locator": "fonts-gujr-extra/LICENSE",
                 "sha256": "3bb9e458484c1403105e72e6653fd5af0dffa91bdc60042bd395584b77f7bd60"
+              }
+            ]
+          },
+          {
+            "id": "id_ID",
+            "spdx": "LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "id_ID/hyph_id_ID.dic",
+                "locator": "id_ID/LICENSE-dict",
+                "sha256": "97628afebc60f026f5c2b25d7491c46a5c4ee61f693e7cfa07fbd2c03605979b"
+              },
+              {
+                "type": "git-blob",
+                "path": "id_ID/hyph_id_ID.dic",
+                "locator": "id_ID/description.xml",
+                "sha256": "2b11e5a84b0f48fa79698149bb22827ca72eac4902dfa3390c444c735f10b16f"
+              },
+              {
+                "type": "git-blob",
+                "path": "id_ID/id_ID.aff",
+                "locator": "id_ID/LICENSE-dict",
+                "sha256": "97628afebc60f026f5c2b25d7491c46a5c4ee61f693e7cfa07fbd2c03605979b"
+              },
+              {
+                "type": "git-blob",
+                "path": "id_ID/id_ID.aff",
+                "locator": "id_ID/README_id_ID.txt",
+                "sha256": "97674850d680be39c9ad5ba245fc2f4e479c291823ddbddee88143d0e1642f3a"
+              },
+              {
+                "type": "git-blob",
+                "path": "id_ID/id_ID.dic",
+                "locator": "id_ID/LICENSE-dict",
+                "sha256": "97628afebc60f026f5c2b25d7491c46a5c4ee61f693e7cfa07fbd2c03605979b"
+              },
+              {
+                "type": "git-blob",
+                "path": "id_ID/id_ID.dic",
+                "locator": "id_ID/README_id_ID.txt",
+                "sha256": "97674850d680be39c9ad5ba245fc2f4e479c291823ddbddee88143d0e1642f3a"
               }
             ]
           },

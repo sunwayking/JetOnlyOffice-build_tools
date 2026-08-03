@@ -118,11 +118,11 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Thirty-four dictionary language packs are mapped payload by payload to exact
+Thirty-five dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `de_AT`, `de_CH`, `de_DE`,
 `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`, `hu_HU`,
-`kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`,
+`id_ID`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`,
 `oc_FR`, `ro_RO`, `sk_SK`, `sl_SI`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`,
 `tr_TR`, and `vi_VN`.
 Embedded grants are accepted only when the
@@ -148,6 +148,11 @@ reproduced by a deterministic ISO-8859-13-to-BOM-UTF-8 conversion. `sl_SI`
 binds its spelling and hyphenation payloads to the versioned LGPL 2.1 notices,
 the original LPPL 1.0 source, and the canonical LPPL text. The locked Slovenian
 bytes are reproduced by a deterministic ISO-8859-2-to-UTF-8 conversion.
+`id_ID` binds all three payloads to the immutable LibreOffice extension source.
+Its extension metadata covers spelling, hyphenation, and thesaurus content, and
+the dictionary license is the complete LGPL 3.0 text. Deterministic
+ISO-8859-1-to-UTF-8 conversion reproduces the locked spelling, affix, and
+hyphenation bytes.
 `gl_ES` and both Serbian variants bind their payloads to
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
@@ -160,10 +165,10 @@ modified redistribution and later offers redistribution or modification under
 LPPL 1.3 or later. The locked blockers also cover `da_DK`, `el_GR`, `hr_HR`,
 `it_IT`, and `pt_BR`, whose notices omit a license version; `pl_PL`
 and `uk_UA`, whose multi-license notices are not version-specific; `pt_PT`,
-whose notices conflict; `en_AU` and `id_ID`, whose locked evidence does not
-cover every payload; and both Uzbek variants, whose READMEs identify
-an upstream origin without granting a license. The remaining
-fifteen language packs stay incomplete; thirteen have candidate text
+whose notices conflict; `en_AU`, whose locked evidence does not establish a
+versioned SPDX expression; and both Uzbek variants, whose READMEs identify an
+upstream origin without granting a license. The remaining
+fourteen language packs stay incomplete; twelve have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 

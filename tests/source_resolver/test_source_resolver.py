@@ -561,7 +561,7 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ",
         "da_DK", "el_GR", "en_AU",
-        "hr_HR", "id_ID", "it_IT",
+        "hr_HR", "it_IT",
         "mn_MN", "pl_PL", "pt_BR", "pt_PT",
         "ru_RU", "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
@@ -627,12 +627,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.5",
+        "ref": "refs/tags/v9.4.0-evidence.6",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "003822edfcf75fd5420d033fbc3af319406eae78",
+      "6ce8d05159fc5baa86a26ec9804af1b9428a477e",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -642,7 +642,8 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "**/*.tex", "**/*.txt", "**/COPYING*", "**/COPYRIGHT", "**/LICENSE*"
+        "**/*.tex", "**/*.txt", "**/*.xml", "**/COPYING*",
+        "**/COPYRIGHT", "**/LICENSE*"
       ],
       evidence_repository["license"]["patterns"],
     )
@@ -654,6 +655,7 @@ class SourceResolverTests(unittest.TestCase):
         "en_GB",
         "fonts-beng-extra",
         "fonts-gujr-extra",
+        "id_ID",
         "kacst",
         "kacst-one",
         "kk_KZ",
@@ -735,6 +737,26 @@ class SourceResolverTests(unittest.TestCase):
       [
         (record["path"], record["locator"], record["sha256"])
         for record in evidence_lt_lt["evidence"]
+      ],
+    )
+    evidence_id_id = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "id_ID"
+    )
+    self.assertEqual("LGPL-3.0-only", evidence_id_id["spdx"])
+    self.assertEqual(
+      [
+        ("id_ID/hyph_id_ID.dic", "id_ID/LICENSE-dict"),
+        ("id_ID/hyph_id_ID.dic", "id_ID/description.xml"),
+        ("id_ID/id_ID.aff", "id_ID/LICENSE-dict"),
+        ("id_ID/id_ID.aff", "id_ID/README_id_ID.txt"),
+        ("id_ID/id_ID.dic", "id_ID/LICENSE-dict"),
+        ("id_ID/id_ID.dic", "id_ID/README_id_ID.txt"),
+      ],
+      [
+        (record["path"], record["locator"])
+        for record in evidence_id_id["evidence"]
       ],
     )
     evidence_sl_si = next(
@@ -980,6 +1002,15 @@ class SourceResolverTests(unittest.TestCase):
         {"hu_HU/README_hu_HU.txt", "hu_HU/hyph_hu_HU.dic"},
         3,
       ),
+      "id_ID": (
+        "LGPL-3.0-only",
+        {
+          "id_ID/LICENSE-dict",
+          "id_ID/README_id_ID.txt",
+          "id_ID/description.xml",
+        },
+        6,
+      ),
       "ko_KR": (
         "GPL-3.0-or-later AND (GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1)",
         {"ko_KR/ko_KR.aff", "ko_KR/ko_KR_LICENSE.txt"},
@@ -1044,10 +1075,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      15, len(dictionaries["license"]["unresolvedComponents"])
+      14, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
-      "de_AT", "de_CH", "de_DE", "en_GB", "kk_KZ", "lt_LT", "sl_SI"
+      "de_AT", "de_CH", "de_DE", "en_GB", "id_ID", "kk_KZ", "lt_LT",
+      "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1073,7 +1105,6 @@ class SourceResolverTests(unittest.TestCase):
       "el_GR": ("AMBIGUOUS_VERSION", ["el_GR/README_hyph_el_GR.txt"]),
       "en_AU": ("MISSING_EVIDENCE", ["en_AU/README_en_AU.txt"]),
       "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
-      "id_ID": ("MISSING_EVIDENCE", ["id_ID/README_id_ID.txt"]),
       "it_IT": ("AMBIGUOUS_VERSION", ["it_IT/README_hyph_it_IT.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),

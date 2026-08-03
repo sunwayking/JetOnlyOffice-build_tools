@@ -157,11 +157,11 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-Thirty-seven font components and thirty-four dictionary packs now have
+Thirty-seven font components and thirty-five dictionary packs now have
 payload-complete, machine-verified primary evidence. The remaining blockers
 are the selected CEF, Python, and Qt payloads; two font components; and
-fifteen dictionary packs enumerated in
-`locks/source-inputs.v1.json`, for twenty unresolved components in total.
+fourteen dictionary packs enumerated in
+`locks/source-inputs.v1.json`, for nineteen unresolved components in total.
 The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
 V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
 behavior tests bind those exclusions to the published entrypoint and upstream
