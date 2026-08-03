@@ -80,6 +80,11 @@ license mapping. The formal lock records both repositories' commits and trees,
 the consuming and reference payload blobs and SHA-256 values, and the evidence
 blob and SHA-256. Package, SBOM, and provenance verification resolve only the
 materialized locked checkout; they never fetch evidence during an offline step.
+When a component expression contains multiple `LicenseRef-*` identifiers, every
+evidence record carries a sorted `licenseRefs` binding, including an empty list
+for evidence that belongs only to a standard SPDX license. The resolver,
+packager, and verifier reject missing, unknown, or uncovered custom-license
+bindings instead of copying every evidence text into every LicenseRef.
 `resolve-sources.ps1 -Command LicenseAudit` reads the locked Git objects from
 the local cache, records every matched payload plus candidate or verified
 evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
@@ -111,16 +116,20 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Twenty-three dictionary language packs are mapped payload by payload to exact
+Twenty-seven dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree: `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`,
-`cs_CZ`, `en_CA`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `hu_HU`, `ko_KR`,
-`lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `ro_RO`,
-`sk_SK`, `sv_SE`, `tr_TR`, and `vi_VN`. Embedded grants are accepted only when the
+`cs_CZ`, `en_CA`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`,
+`hu_HU`, `ko_KR`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`,
+`ro_RO`, `sk_SK`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, and `vi_VN`.
+Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
 the complete compound SCOWL, Ispell, WordNet, VarCon, UKACD, and public-domain
 terms for both the dictionary and affix payloads; no external license text is
-substituted for that blob.
+substituted for that blob. `en_US` records its independently licensed spelling,
+hyphenation, and WordNet thesaurus payloads as a compound expression. `gl_ES`
+and both Serbian variants bind their payloads to exact in-tree GPL 3.0 and LGPL
+3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
@@ -128,12 +137,14 @@ also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
-LPPL 1.3 or later. The locked blockers also cover `el_GR` and `pt_BR`, whose
-notices omit a license version; `kk_KZ`, whose grant lists GPL, LGPL, and MPL
-without establishing an alternative choice; `lt_LT`, whose referenced
-`COPYING` file is absent; and both Uzbek variants, whose READMEs identify an
-upstream origin without granting a license. The remaining
-twenty-six language packs stay incomplete; twenty-four have candidate text
+LPPL 1.3 or later. The locked blockers also cover `da_DK`, `el_GR`, `hr_HR`,
+`it_IT`, `pt_BR`, and `sl_SI`, whose notices omit a license version; `kk_KZ`,
+whose grant does not establish an alternative choice; `pl_PL` and `uk_UA`,
+whose multi-license notices are not version-specific; `pt_PT`, whose notices
+conflict; `en_AU`, `id_ID`, and `lt_LT`, whose locked evidence does not cover
+every payload; and both Uzbek variants, whose READMEs identify an upstream
+origin without granting a license. The remaining
+twenty-two language packs stay incomplete; twenty have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 

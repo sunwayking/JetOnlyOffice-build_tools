@@ -52,9 +52,47 @@
         "patterns": [
           "**/COPYING*",
           "**/LICENSE*",
-          "**/NOTICE*"
+          "**/NOTICE*",
+          "cef/5414/linux_64/cef_binary.7z",
+          "python/python3.tar.gz",
+          "qt/qt_binary_5.9.9_gcc_64.7z"
         ],
         "reason": "The upstream repository contains no repository license. This release inventory is restricted to the exact linux_64 server payload candidates: Android is unreachable for the selected platform, sysroot is disabled by --sysroot 0, the Windows Mobile GLEW path returns immediately on Linux, and the locked Python is materialized without the upstream extraction helper. The selected CEF, Python archive, and Qt archive still lack a complete reviewed inventory.",
+        "blockingReviews": [
+          {
+            "id": "cef",
+            "code": "INCOMPLETE_SCOPE",
+            "reason": "The locked CEF distribution contains Chromium, CEF, V8, ICU, Vulkan, SwiftShader, and related runtime payloads but no license, notice, or complete third-party inventory.",
+            "evidence": [
+              {
+                "path": "cef/5414/linux_64/cef_binary.7z",
+                "sha256": "dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145"
+              }
+            ]
+          },
+          {
+            "id": "python",
+            "code": "INCOMPLETE_SCOPE",
+            "reason": "The locked Python bundle includes CPython, pip, setuptools, wheel, and vendored packages without a complete versioned package-to-license inventory for every shipped payload.",
+            "evidence": [
+              {
+                "path": "python/python3.tar.gz",
+                "sha256": "c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360"
+              }
+            ]
+          },
+          {
+            "id": "qt",
+            "code": "INCOMPLETE_SCOPE",
+            "reason": "The locked Qt binary bundle contains multiple Qt modules and third-party runtime payloads but no license files or complete binary-to-source license inventory.",
+            "evidence": [
+              {
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "sha256": "2602239b1040af3ff1ee889b77740ef2c5f80a5eebb8630acf4d1d1dea900415"
+              }
+            ]
+          }
+        ],
         "unresolvedComponents": [
           "cef",
           "python",
@@ -1548,16 +1586,71 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Twenty-three language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Twenty-seven language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
+          {
+            "id": "da_DK",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The spelling README names exact GPL 2.0, LGPL 2.1, and MPL 1.1 terms, but the locked hyphenation README states only GNU LGPL without identifying a version.",
+            "evidence": [
+              {
+                "path": "da_DK/README_hyph_da_DK.txt",
+                "sha256": "600759b9f68b57a8432b9647bb132bb00a91953cf52b35c5daf65b7956b06501"
+              }
+            ]
+          },
           {
             "id": "el_GR",
             "code": "AMBIGUOUS_VERSION",
-            "reason": "The locked hyphenation README names LGPL without identifying a license version.",
+            "reason": "The spelling payloads are tri-licensed under MPL 1.1, GPL 2.0 or later, or LGPL 2.1 or later, but the locked hyphenation README states only LGPL without a version.",
             "evidence": [
               {
                 "path": "el_GR/README_hyph_el_GR.txt",
                 "sha256": "0b3e117f4ab079e7cbcdd7f4645f9a4f193ae123e6c781928597b27d22706aa7"
+              }
+            ]
+          },
+          {
+            "id": "en_AU",
+            "code": "MISSING_EVIDENCE",
+            "reason": "The locked README licenses the SCOWL spelling dictionary, but no locked or authoritative upstream evidence binds the hyphenation payload to a license. The standalone GPL 2.0 text and WordNet license do not establish that binding.",
+            "evidence": [
+              {
+                "path": "en_AU/README_en_AU.txt",
+                "sha256": "f0897dcfdf058bcfc93fbc8e7e1b5da4c27ae9e175ee3a9242e887f02eb84a8b"
+              }
+            ]
+          },
+          {
+            "id": "hr_HR",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The locked hyphenation README states only GNU LGPL without identifying a version; the separate spelling README does not license the hyphenation payload.",
+            "evidence": [
+              {
+                "path": "hr_HR/README_hyph_hr_HR.txt",
+                "sha256": "2ba15b47f64eba01489d2962a8c04c6e457a33bba418d6384bda30dfe9e23b65"
+              }
+            ]
+          },
+          {
+            "id": "id_ID",
+            "code": "MISSING_EVIDENCE",
+            "reason": "The locked README grants MPL 2.0 or LGPL 3.0 only for the spelling dictionary and affix payloads; no locked evidence binds the hyphenation payload to a license.",
+            "evidence": [
+              {
+                "path": "id_ID/README_id_ID.txt",
+                "sha256": "97674850d680be39c9ad5ba245fc2f4e479c291823ddbddee88143d0e1642f3a"
+              }
+            ]
+          },
+          {
+            "id": "it_IT",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The spelling payloads identify GPL 3.0 or later, but the locked hyphenation README states only LGPL without identifying a version.",
+            "evidence": [
+              {
+                "path": "it_IT/README_hyph_it_IT.txt",
+                "sha256": "e6f356c3c49bc6016b6a635c20b468468eef6d011953a7051bbdfd56e17f0d3b"
               }
             ]
           },
@@ -1595,6 +1688,17 @@
             ]
           },
           {
+            "id": "pl_PL",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The locked spelling notice lists GPL, LGPL, MPL, and Creative Commons ShareAlike without identifying versions for the first three licenses or establishing an unambiguous alternative expression.",
+            "evidence": [
+              {
+                "path": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              }
+            ]
+          },
+          {
             "id": "pt_BR",
             "code": "AMBIGUOUS_VERSION",
             "reason": "The locked hyphenation README names LGPLv3 together with Mozilla Public License terms but does not identify the MPL version.",
@@ -1602,6 +1706,47 @@
               {
                 "path": "pt_BR/README_hyph_pt_BR.txt",
                 "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
+              }
+            ]
+          },
+          {
+            "id": "pt_PT",
+            "code": "CONFLICTING_TERMS",
+            "reason": "The locked spelling notices conflict between GPL/LGPL/MPL and GPL/BSD terms, while the hyphenation notice names GNU GPL without a version; the complete language-pack expression is therefore not unambiguous.",
+            "evidence": [
+              {
+                "path": "pt_PT/LICENSES.txt",
+                "sha256": "d2c1cfe2e2dd81c651aec3fda5d1b4b4e7679b9e04f8cdc37586e521837384d1"
+              },
+              {
+                "path": "pt_PT/README_hyph_pt_PT.txt",
+                "sha256": "62f19b9d8b42f2b0ff165ab434f40cfb4210a464f0662c31f6f99d77d0306e06"
+              },
+              {
+                "path": "pt_PT/README_pt_PT.txt",
+                "sha256": "7eeba93bcda56daec9c4847d08e0147ab6c8238c7b3883a7fcca6b5ada02f1d7"
+              }
+            ]
+          },
+          {
+            "id": "sl_SI",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The locked hyphenation README invokes LPPL without identifying a version while also describing GPL and LGPL choices, so the complete language-pack expression is not unambiguous.",
+            "evidence": [
+              {
+                "path": "sl_SI/README_hyph_sl_SI.txt",
+                "sha256": "76e518bc5426ac5e3954f5168e7737a549ad7a3b6d3f81d6fd4473a1679940da"
+              }
+            ]
+          },
+          {
+            "id": "uk_UA",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The locked thesaurus README names GPL, LGPL, and MPL without identifying versions or whether the terms are alternatives, so the complete language-pack expression is not unambiguous.",
+            "evidence": [
+              {
+                "path": "uk_UA/README_th_uk_UA.txt",
+                "sha256": "0bdf88e5e72fce65882a94e59ad45816b76329c8b5d76292389f7e0e121c280b"
               }
             ]
           },
@@ -1762,6 +1907,53 @@
             ]
           },
           {
+            "id": "en_US",
+            "spdx": "LicenseRef-SCOWL-2020-12-07 AND LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "en_US/en_US.aff",
+                "locator": "en_US/README_en_US.txt",
+                "licenseRefs": [
+                  "LicenseRef-SCOWL-2020-12-07"
+                ],
+                "sha256": "168b4c01cb841f766a72f310b065c04d09cff46376c37a81d799593ce751c371"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_US/en_US.dic",
+                "locator": "en_US/README_en_US.txt",
+                "licenseRefs": [
+                  "LicenseRef-SCOWL-2020-12-07"
+                ],
+                "sha256": "168b4c01cb841f766a72f310b065c04d09cff46376c37a81d799593ce751c371"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_US/en_US_thes.dat",
+                "locator": "en_US/WordNet_license.txt",
+                "licenseRefs": [],
+                "sha256": "23dbc4f3ea771304e5ab3e5709843813d2619f3c0cfc81229b53fcdb9985f29a"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_US/en_US_thes.idx",
+                "locator": "en_US/WordNet_license.txt",
+                "licenseRefs": [],
+                "sha256": "23dbc4f3ea771304e5ab3e5709843813d2619f3c0cfc81229b53fcdb9985f29a"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_US/hyph_en_US.dic",
+                "locator": "en_US/README_hyph_en_US.txt",
+                "licenseRefs": [
+                  "LicenseRef-Hyphen-en-US-2011-10-07"
+                ],
+                "sha256": "9bcae072bff45cc0333d6b3c508c92d85b9065fc861c743c1506b303eba3f4a1"
+              }
+            ]
+          },
+          {
             "id": "en_ZA",
             "spdx": "LGPL-2.1-only",
             "evidence": [
@@ -1842,6 +2034,30 @@
                 "path": "fr_FR/hyph_fr_FR.dic",
                 "locator": "fr_FR/README_hyph_fr_FR.txt",
                 "sha256": "6951d9806c65c7f757d303061ca49cd7a1ddeddc552147f5c29de6540821f2cf"
+              }
+            ]
+          },
+          {
+            "id": "gl_ES",
+            "spdx": "GPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "gl_ES/gl_ES.aff",
+                "locator": "gl_ES/GPLv3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+              },
+              {
+                "type": "git-blob",
+                "path": "gl_ES/gl_ES.dic",
+                "locator": "gl_ES/GPLv3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+              },
+              {
+                "type": "git-blob",
+                "path": "gl_ES/hyph_gl_ES.dic",
+                "locator": "gl_ES/README_hyph_gl_ES.txt",
+                "sha256": "2830f43a0a7e503765d59cc553a32bf1d342fee4e5dd7f0f19136b07e63e371b"
               }
             ]
           },
@@ -2068,6 +2284,54 @@
             ]
           },
           {
+            "id": "sr_Cyrl_RS",
+            "spdx": "LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "sr_Cyrl_RS/hyph_sr_Cyrl_RS.dic",
+                "locator": "sr_Cyrl_RS/Readme_sr_Cyrl_RS.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              },
+              {
+                "type": "git-blob",
+                "path": "sr_Cyrl_RS/sr_Cyrl_RS.aff",
+                "locator": "sr_Cyrl_RS/Readme_sr_Cyrl_RS.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              },
+              {
+                "type": "git-blob",
+                "path": "sr_Cyrl_RS/sr_Cyrl_RS.dic",
+                "locator": "sr_Cyrl_RS/Readme_sr_Cyrl_RS.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              }
+            ]
+          },
+          {
+            "id": "sr_Latn_RS",
+            "spdx": "LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "sr_Latn_RS/hyph_sr_Latn_RS.dic",
+                "locator": "sr_Latn_RS/Readme_sr_Latn_RS.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              },
+              {
+                "type": "git-blob",
+                "path": "sr_Latn_RS/sr_Latn_RS.aff",
+                "locator": "sr_Latn_RS/Readme_sr_Latn_RS.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              },
+              {
+                "type": "git-blob",
+                "path": "sr_Latn_RS/sr_Latn_RS.dic",
+                "locator": "sr_Latn_RS/Readme_sr_Latn_RS.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              }
+            ]
+          },
+          {
             "id": "sv_SE",
             "spdx": "LGPL-3.0-only",
             "evidence": [
@@ -2137,8 +2401,6 @@
           "el_GR",
           "en_AU",
           "en_GB",
-          "en_US",
-          "gl_ES",
           "hr_HR",
           "id_ID",
           "it_IT",
@@ -2150,8 +2412,6 @@
           "pt_PT",
           "ru_RU",
           "sl_SI",
-          "sr_Cyrl_RS",
-          "sr_Latn_RS",
           "uk_UA",
           "uz_Cyrl_UZ",
           "uz_Latn_UZ"

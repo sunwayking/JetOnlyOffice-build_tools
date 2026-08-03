@@ -139,6 +139,13 @@
             },
             "evidenceBlob": {
               "$ref": "#/$defs/sha1"
+            },
+            "licenseRefs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^LicenseRef-[A-Za-z0-9.-]+$"
+              }
             }
           }
         },
@@ -191,6 +198,13 @@
             },
             "evidenceSha256": {
               "$ref": "#/$defs/sha256"
+            },
+            "licenseRefs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^LicenseRef-[A-Za-z0-9.-]+$"
+              }
             }
           }
         }

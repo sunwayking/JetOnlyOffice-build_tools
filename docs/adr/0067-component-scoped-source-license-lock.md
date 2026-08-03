@@ -11,6 +11,12 @@ component id 和 SPDX 映射一份逐字节一致的 reference payload。source 
 blob/SHA-256；打包阶段只能从已 materialize 的锁定 checkout 提取许可证。
 同仓引用、未锁定镜像、非逐字节匹配和映射漂移均失败关闭。
 
+一个组件表达式包含多个 `LicenseRef-*` 时，每条 evidence 必须用排序后的
+`licenseRefs` 明确声明其授权文本归属于哪些自定义许可证；标准 SPDX 许可证证据
+使用空数组。Resolver 要求表达式中的每个 LicenseRef 至少被一条 evidence 覆盖，
+打包器和验证器只把该条 evidence 的文本写入这些标识，禁止把组件全部证据复制给
+每个 LicenseRef。
+
 仓库级声明许可证本身若由 Git LFS 管理，`sha256` 继续绑定 Git pointer，
 同时必须保存 `materializedSha256` 绑定归档和 SBOM 实际采用的许可证实体字节。
 契约只允许在许可证路径同时出现在 `lfsObjects` 时存在该字段，并要求该路径

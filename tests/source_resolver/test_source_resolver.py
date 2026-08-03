@@ -532,11 +532,10 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-        "en_GB", "en_US", "gl_ES",
+        "en_GB",
         "hr_HR", "id_ID", "it_IT", "kk_KZ",
         "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
-        "ru_RU", "sl_SI", "sr_Cyrl_RS", "sr_Latn_RS",
-        "uk_UA", "uz_Cyrl_UZ",
+        "ru_RU", "sl_SI", "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
       ],
       next(
@@ -562,6 +561,33 @@ class SourceResolverTests(unittest.TestCase):
       ],
       build_tools_data["license"]["payloadPatterns"],
     )
+    build_tools_blockers = {
+      review["id"]: review
+      for review in build_tools_data["license"]["blockingReviews"]
+    }
+    expected_build_tools_blockers = {
+      "cef": (
+        "cef/5414/linux_64/cef_binary.7z",
+        "dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145",
+      ),
+      "python": (
+        "python/python3.tar.gz",
+        "c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360",
+      ),
+      "qt": (
+        "qt/qt_binary_5.9.9_gcc_64.7z",
+        "2602239b1040af3ff1ee889b77740ef2c5f80a5eebb8630acf4d1d1dea900415",
+      ),
+    }
+    self.assertEqual(
+      sorted(expected_build_tools_blockers), sorted(build_tools_blockers)
+    )
+    for component_id, (path, sha256) in expected_build_tools_blockers.items():
+      review = build_tools_blockers[component_id]
+      self.assertEqual("INCOMPLETE_SCOPE", review["code"])
+      self.assertEqual(
+        [{"path": path, "sha256": sha256}], review["evidence"]
+      )
     self.assertEqual(
       ["ASC.ttf", "liberation"],
       next(
@@ -719,11 +745,24 @@ class SourceResolverTests(unittest.TestCase):
       "en_CA": (
         "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
       ),
+      "en_US": (
+        "LicenseRef-SCOWL-2020-12-07 AND "
+        "LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet",
+        {
+          "en_US/README_en_US.txt",
+          "en_US/README_hyph_en_US.txt",
+          "en_US/WordNet_license.txt",
+        },
+        5,
+      ),
       "eu_ES": ("GPL-2.0-only", {"eu_ES/Reamde_eu_ES.txt"}, 2),
       "fr_FR": (
         "MPL-2.0 AND MIT AND LGPL-2.1-or-later",
         {"fr_FR/README_hyph_fr_FR.txt", "fr_FR/fr_FR_README.txt"},
         3,
+      ),
+      "gl_ES": (
+        "GPL-3.0-only", {"gl_ES/GPLv3.txt", "gl_ES/README_hyph_gl_ES.txt"}, 3
       ),
       "hu_HU": (
         "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
@@ -740,6 +779,12 @@ class SourceResolverTests(unittest.TestCase):
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
       "ro_RO": ("GPL-2.0-only", {"ro_RO/ro_RO_Romanian.txt"}, 3),
+      "sr_Cyrl_RS": (
+        "LGPL-3.0-only", {"sr_Cyrl_RS/Readme_sr_Cyrl_RS.txt"}, 3
+      ),
+      "sr_Latn_RS": (
+        "LGPL-3.0-only", {"sr_Latn_RS/Readme_sr_Latn_RS.txt"}, 3
+      ),
     }
     for component_id, (spdx, locators, evidence_count) in (
       expected_dictionary_licenses.items()
@@ -751,6 +796,19 @@ class SourceResolverTests(unittest.TestCase):
         locators,
         {record["locator"] for record in component["evidence"]},
       )
+    self.assertEqual(
+      [
+        ["LicenseRef-SCOWL-2020-12-07"],
+        ["LicenseRef-SCOWL-2020-12-07"],
+        [],
+        [],
+        ["LicenseRef-Hyphen-en-US-2011-10-07"],
+      ],
+      [
+        record["licenseRefs"]
+        for record in reviewed_dictionaries["en_US"]["evidence"]
+      ],
+    )
     self.assertIn(
       "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
     )
@@ -766,19 +824,35 @@ class SourceResolverTests(unittest.TestCase):
       for review in dictionaries["license"]["blockingReviews"]
     }
     expected_blocking_reviews = {
-      "el_GR": ("AMBIGUOUS_VERSION", "el_GR/README_hyph_el_GR.txt"),
-      "kk_KZ": ("AMBIGUOUS_CHOICE", "kk_KZ/README_kk_KZ.txt"),
-      "lt_LT": ("MISSING_EVIDENCE", "lt_LT/lt_LT_Lithuanian.txt"),
-      "mn_MN": ("CONFLICTING_TERMS", "mn_MN/Readme_mn_MN.txt"),
-      "pt_BR": ("AMBIGUOUS_VERSION", "pt_BR/README_hyph_pt_BR.txt"),
-      "uz_Cyrl_UZ": ("MISSING_EVIDENCE", "uz_Cyrl_UZ/README.md"),
-      "uz_Latn_UZ": ("MISSING_EVIDENCE", "uz_Latn_UZ/README.md"),
+      "da_DK": ("AMBIGUOUS_VERSION", ["da_DK/README_hyph_da_DK.txt"]),
+      "el_GR": ("AMBIGUOUS_VERSION", ["el_GR/README_hyph_el_GR.txt"]),
+      "en_AU": ("MISSING_EVIDENCE", ["en_AU/README_en_AU.txt"]),
+      "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
+      "id_ID": ("MISSING_EVIDENCE", ["id_ID/README_id_ID.txt"]),
+      "it_IT": ("AMBIGUOUS_VERSION", ["it_IT/README_hyph_it_IT.txt"]),
+      "kk_KZ": ("AMBIGUOUS_CHOICE", ["kk_KZ/README_kk_KZ.txt"]),
+      "lt_LT": ("MISSING_EVIDENCE", ["lt_LT/lt_LT_Lithuanian.txt"]),
+      "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
+      "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
+      "pt_BR": ("AMBIGUOUS_VERSION", ["pt_BR/README_hyph_pt_BR.txt"]),
+      "pt_PT": (
+        "CONFLICTING_TERMS",
+        [
+          "pt_PT/LICENSES.txt",
+          "pt_PT/README_hyph_pt_PT.txt",
+          "pt_PT/README_pt_PT.txt",
+        ],
+      ),
+      "sl_SI": ("AMBIGUOUS_VERSION", ["sl_SI/README_hyph_sl_SI.txt"]),
+      "uk_UA": ("AMBIGUOUS_VERSION", ["uk_UA/README_th_uk_UA.txt"]),
+      "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
+      "uz_Latn_UZ": ("MISSING_EVIDENCE", ["uz_Latn_UZ/README.md"]),
     }
     self.assertEqual(sorted(expected_blocking_reviews), sorted(blocking_reviews))
-    for component_id, (code, evidence_path) in expected_blocking_reviews.items():
+    for component_id, (code, evidence_paths) in expected_blocking_reviews.items():
       self.assertEqual(code, blocking_reviews[component_id]["code"])
       self.assertEqual(
-        [evidence_path],
+        evidence_paths,
         [
           record["path"]
           for record in blocking_reviews[component_id]["evidence"]
@@ -864,6 +938,144 @@ class SourceResolverTests(unittest.TestCase):
     value["repositories"][1]["license"]["unresolvedComponents"] = ["z", "a"]
     with self.assertRaisesRegex(ResolutionError, "sorted unique strings"):
       validate_inputs(value)
+
+  def test_multiple_custom_licenses_require_explicit_evidence_bindings(self):
+    value = json.loads(
+      (REPOSITORY_ROOT / "locks" / "source-inputs.v1.json").read_text(
+        encoding="utf-8"
+      )
+    )
+    dictionaries = next(
+      repository for repository in value["repositories"]
+      if repository["id"] == "dictionaries"
+    )
+    en_us = next(
+      component for component in dictionaries["license"]["reviewedComponents"]
+      if component["id"] == "en_US"
+    )
+
+    del en_us["evidence"][0]["licenseRefs"]
+    with self.assertRaisesRegex(ResolutionError, "required when an expression has multiple"):
+      validate_inputs(value)
+
+    value = json.loads(
+      (REPOSITORY_ROOT / "locks" / "source-inputs.v1.json").read_text(
+        encoding="utf-8"
+      )
+    )
+    dictionaries = next(
+      repository for repository in value["repositories"]
+      if repository["id"] == "dictionaries"
+    )
+    en_us = next(
+      component for component in dictionaries["license"]["reviewedComponents"]
+      if component["id"] == "en_US"
+    )
+    en_us["evidence"][-1]["licenseRefs"] = []
+    with self.assertRaisesRegex(ResolutionError, "every LicenseRef identifier needs evidence"):
+      validate_inputs(value)
+
+  def test_multiple_custom_license_bindings_survive_inventory_and_source_lock(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      component = checkout / "dictionary"
+      component.mkdir()
+      payloads = {
+        "hyphen.bin": b"hyphen payload\n",
+        "scowl.bin": b"scowl payload\n",
+        "thesaurus.bin": b"wordnet payload\n",
+      }
+      license_texts = {
+        "hyphen.txt": b"hyphen terms\n",
+        "SCOWL.txt": b"SCOWL terms\n",
+        "WordNet.txt": b"WordNet terms\n",
+      }
+      for name, content in {**payloads, **license_texts}.items():
+        (component / name).write_bytes(content)
+      run_git(checkout, "add", "dictionary")
+      run_git(checkout, "commit", "-m", "add compound-license fixture")
+      commit = run_git(checkout, "rev-parse", "HEAD^{commit}")
+      bare = Path(directory) / "inventory.git"
+      run_git(directory, "clone", "--bare", str(checkout), str(bare))
+
+      scowl_ref = "LicenseRef-SCOWL-2020-12-07"
+      hyphen_ref = "LicenseRef-Hyphen-en-US-2011-10-07"
+      repository = repository_input("dictionaries", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.bin"],
+        "patterns": ["**/*.txt"],
+        "reason": "All compound-license evidence has been reviewed.",
+        "reviewedComponents": [{
+          "id": "dictionary",
+          "spdx": f"{scowl_ref} AND {hyphen_ref} AND WordNet",
+          "evidence": [
+            {
+              "type": "git-blob",
+              "path": "dictionary/hyphen.bin",
+              "locator": "dictionary/hyphen.txt",
+              "licenseRefs": [hyphen_ref],
+              "sha256": hashlib.sha256(license_texts["hyphen.txt"]).hexdigest(),
+            },
+            {
+              "type": "git-blob",
+              "path": "dictionary/scowl.bin",
+              "locator": "dictionary/SCOWL.txt",
+              "licenseRefs": [scowl_ref],
+              "sha256": hashlib.sha256(license_texts["SCOWL.txt"]).hexdigest(),
+            },
+            {
+              "type": "git-blob",
+              "path": "dictionary/thesaurus.bin",
+              "locator": "dictionary/WordNet.txt",
+              "licenseRefs": [],
+              "sha256": hashlib.sha256(license_texts["WordNet.txt"]).hexdigest(),
+            },
+          ],
+        }],
+        "unresolvedComponents": [],
+      }
+
+      inventory = repository_license_inventory(repository, bare, commit)
+      expected_bindings = [[hyphen_ref], [scowl_ref], []]
+      self.assertEqual(
+        expected_bindings,
+        [
+          evidence["licenseRefs"]
+          for evidence in inventory["components"][0]["license"]["evidence"]
+        ],
+      )
+      validate_contract(
+        {
+          "schemaVersion": 1,
+          "auditType": "source-license-inventory",
+          "productVersion": "9.4.0",
+          "status": "passed",
+          "repositories": [inventory],
+        },
+        "source-license-audit",
+        REPOSITORY_ROOT / "schemas",
+      )
+
+      record = repository_metadata(repository, bare, commit)
+      self.assertEqual(
+        expected_bindings,
+        [
+          evidence["licenseRefs"]
+          for evidence in record["license"]["components"][0]["license"]["evidence"]
+        ],
+      )
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "dictionaries", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      bind_source_tree_manifest(lock, {"dictionaries": bare})
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
 
   def test_blocking_license_reviews_are_locked_and_stay_unresolved(self):
     value = source_inputs()

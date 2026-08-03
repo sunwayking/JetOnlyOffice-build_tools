@@ -976,6 +976,7 @@ class PackageDriverTests(unittest.TestCase):
           output.add(path, arcname=path.relative_to(bundle_root).as_posix(), recursive=False)
       with self.assertRaisesRegex(BaselineError, "source lock binding"):
         verify_archive()
+
       manifest["sourceLockSha256"] = canonical_sha256(source)
 
       manifest["tools"] = []
@@ -1025,6 +1026,172 @@ class PackageDriverTests(unittest.TestCase):
         output.addfile(symbolic_link)
       with self.assertRaisesRegex(BaselineError, "member inventory"):
         verify_archive()
+
+  def test_license_bundle_keeps_multiple_custom_license_texts_distinct(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_tree = root / "source"
+      checkout = source_tree / "sources" / "DocumentServer"
+      (checkout / "fonts").mkdir(parents=True)
+      payloads = {
+        "fonts/scowl.bin": b"scowl payload\n",
+        "fonts/thesaurus.bin": b"wordnet payload\n",
+        "fonts/hyphen.bin": b"hyphen payload\n",
+      }
+      licenses = {
+        "fonts/SCOWL.txt": b"SCOWL terms\n",
+        "fonts/WordNet.txt": b"WordNet terms\n",
+        "fonts/hyphen.txt": b"hyphen terms\n",
+      }
+      for path, payload in {**payloads, **licenses}.items():
+        destination = checkout / path
+        destination.write_bytes(payload)
+
+      scowl_ref = "LicenseRef-SCOWL-2020-12-07"
+      hyphen_ref = "LicenseRef-Hyphen-en-US-2011-10-07"
+      evidence = [
+        {
+          "type": "git-blob",
+          "path": "fonts/hyphen.bin",
+          "blob": "a" * 40,
+          "sha256": hashlib.sha256(payloads["fonts/hyphen.bin"]).hexdigest(),
+          "locator": "fonts/hyphen.txt",
+          "evidenceBlob": "d" * 40,
+          "evidenceSha256": hashlib.sha256(
+            licenses["fonts/hyphen.txt"]
+          ).hexdigest(),
+          "licenseRefs": [hyphen_ref],
+        },
+        {
+          "type": "git-blob",
+          "path": "fonts/scowl.bin",
+          "blob": "b" * 40,
+          "sha256": hashlib.sha256(payloads["fonts/scowl.bin"]).hexdigest(),
+          "locator": "fonts/SCOWL.txt",
+          "evidenceBlob": "e" * 40,
+          "evidenceSha256": hashlib.sha256(
+            licenses["fonts/SCOWL.txt"]
+          ).hexdigest(),
+          "licenseRefs": [scowl_ref],
+        },
+        {
+          "type": "git-blob",
+          "path": "fonts/thesaurus.bin",
+          "blob": "c" * 40,
+          "sha256": hashlib.sha256(
+            payloads["fonts/thesaurus.bin"]
+          ).hexdigest(),
+          "locator": "fonts/WordNet.txt",
+          "evidenceBlob": "f" * 40,
+          "evidenceSha256": hashlib.sha256(
+            licenses["fonts/WordNet.txt"]
+          ).hexdigest(),
+          "licenseRefs": [],
+        },
+      ]
+      source = source_lock()
+      source["repositories"][0]["license"] = {
+        "scope": "component",
+        "payloadPatterns": ["**/*.bin"],
+        "components": [{
+          "id": "fonts",
+          "payloadPaths": sorted(payloads),
+          "license": {
+            "spdx": f"{scowl_ref} AND {hyphen_ref} AND WordNet",
+            "evidence": evidence,
+          },
+        }],
+      }
+      work = root / "work"
+      notice = root / "NOTICE.txt"
+      zstd_payload = b"locked zstd executable\n"
+      tools = locked_zstd_toolchain(zstd_payload)
+      zstd_tool = tools["tools"][0]
+      cached_zstd = root / "toolchain" / "zstd" / zstd_tool["sha256"]
+      cached_zstd.parent.mkdir(parents=True)
+      cached_zstd.write_bytes(zstd_payload)
+
+      with patch.object(package_driver, "tar_directory"):
+        extracted = package_driver.make_license_artifacts(
+          source_tree,
+          source,
+          tools,
+          canonical_sha256(source),
+          work,
+          root / "licenses.tar.zst",
+          notice,
+          source["sourceDateEpoch"],
+        )
+
+      self.assertEqual({
+        hyphen_ref: licenses["fonts/hyphen.txt"].decode("utf-8"),
+        scowl_ref: licenses["fonts/SCOWL.txt"].decode("utf-8"),
+      }, extracted)
+
+      spdx_path = root / "spdx.json"
+      package_driver.make_sbom(
+        "spdx",
+        source,
+        tools,
+        [],
+        canonical_sha256(source),
+        spdx_path,
+        extracted,
+      )
+      spdx = json.loads(spdx_path.read_text(encoding="utf-8"))
+      self.assertEqual(
+        [
+          {"licenseId": hyphen_ref, "extractedText": "hyphen terms\n"},
+          {"licenseId": scowl_ref, "extractedText": "SCOWL terms\n"},
+        ],
+        spdx["hasExtractedLicensingInfos"],
+      )
+
+      bundle_root = work / "license-bundle"
+      archive = root / "licenses.tar"
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(
+            path,
+            arcname=path.relative_to(bundle_root).as_posix(),
+            recursive=False,
+          )
+      compressed = root / "licenses.tar.zst"
+      compressed.write_bytes(ZSTD_MAGIC + b"locked payload")
+      license_manifest = {"artifacts": [{
+        "id": "jetonlyoffice-licenses",
+        "type": "licenses",
+        "path": compressed.name,
+      }]}
+
+      def fake_run(command, **kwargs):
+        verifier_mount = next(
+          item for item in command
+          if item.startswith("type=bind,src=")
+          and item.endswith(",dst=/verifier,readonly")
+        )
+        verifier_root = Path(
+          verifier_mount.removeprefix("type=bind,src=").removesuffix(
+            ",dst=/verifier,readonly"
+          )
+        )
+        self.assertEqual(zstd_payload, (verifier_root / "zstd").read_bytes())
+        kwargs["stdout"].write(archive.read_bytes())
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        self.assertEqual(
+          extracted,
+          verify_license_artifact(
+            license_manifest,
+            root,
+            source,
+            tools,
+            root,
+            verifier_image_lock(),
+            "docker",
+          ),
+        )
 
   def test_locked_zstd_verifier_uses_only_digest_bound_cache_bytes(self):
     with tempfile.TemporaryDirectory() as directory:

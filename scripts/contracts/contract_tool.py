@@ -59,6 +59,7 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "GPL-2.0-or-later OR LGPL-2.1-or-later",
   "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
   "GPL-2.0-or-later WITH Font-exception-2.0",
+  "GPL-3.0-only",
   "GPL-3.0-or-later AND (GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1)",
   "GPL-3.0-or-later OR LGPL-3.0-or-later OR MPL-1.1",
   "GPL-3.0-or-later WITH Font-exception-2.0",
@@ -68,6 +69,7 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "LGPL-2.1-or-later",
   "LGPL-3.0-only",
   "LicenseRef-SCOWL-2020-12-07",
+  "LicenseRef-SCOWL-2020-12-07 AND LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet",
   "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
   "MIT",
   "MPL-2.0",
@@ -431,6 +433,36 @@ def _component_evidence_key(item):
   )
 
 
+def _license_references(expression):
+  return sorted(set(re.findall(r"LicenseRef-[A-Za-z0-9.-]+", expression)))
+
+
+def _validate_component_license_reference_bindings(license_record, path):
+  references = _license_references(license_record["spdx"])
+  bound_references = set()
+  for index, evidence in enumerate(license_record["evidence"]):
+    evidence_path = f"{path}.evidence[{index}]"
+    bindings = evidence.get("licenseRefs")
+    if bindings is None:
+      if len(references) > 1:
+        raise ContractError(
+          evidence_path + ".licenseRefs: required when an expression has multiple LicenseRef identifiers"
+        )
+      bindings = references
+    if bindings != sorted(set(bindings)):
+      raise ContractError(
+        evidence_path + ".licenseRefs: values must be sorted and unique"
+      )
+    unknown = sorted(set(bindings) - set(references))
+    if unknown:
+      raise ContractError(
+        evidence_path + ".licenseRefs: identifiers are not present in the SPDX expression"
+      )
+    bound_references.update(bindings)
+  if bound_references != set(references):
+    raise ContractError(path + ".evidence: every LicenseRef identifier needs evidence")
+
+
 def _validate_component_evidence_record(
   evidence_record,
   path,
@@ -567,6 +599,7 @@ def _validate_source_lock(value):
               and item["evidenceSha256"] == evidence_record["evidenceSha256"]
               and item["blob"] == evidence_record["referenceBlob"]
               and item["evidenceBlob"] == evidence_record["evidenceBlob"]
+              and item.get("licenseRefs") == evidence_record.get("licenseRefs")
             ]
             if len(matching_reference) != 1:
               raise ContractError(
@@ -595,6 +628,9 @@ def _validate_source_lock(value):
                 evidence_prefix + ": referenced payload digest does not match"
               )
           evidence_paths.append(evidence_record["path"])
+        _validate_component_license_reference_bindings(
+          component_license, component_prefix + ".license"
+        )
         if evidence_paths != payload_paths:
           raise ContractError(
             component_prefix + ".license.evidence: must exactly cover payloadPaths"
@@ -1358,6 +1394,7 @@ def _validate_source_license_audit(value):
               and item["evidenceSha256"] == evidence_record["evidenceSha256"]
               and item["blob"] == evidence_record["referenceBlob"]
               and item["evidenceBlob"] == evidence_record["evidenceBlob"]
+              and item.get("licenseRefs") == evidence_record.get("licenseRefs")
             ]
             if (
               reference_component is None
@@ -1374,6 +1411,9 @@ def _validate_source_license_audit(value):
                 evidence_path + ": referenced payload digest does not match"
               )
           evidence_paths.append(evidence_record["path"])
+        _validate_component_license_reference_bindings(
+          license_record, component_path + ".license"
+        )
         if evidence_paths != component["payloadPaths"]:
           raise ContractError(
             component_path + ".license.evidence: must exactly cover component payload paths"

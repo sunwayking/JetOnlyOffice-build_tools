@@ -721,6 +721,10 @@ def license_references(expression):
   return sorted(set(re.findall(r"LicenseRef-[A-Za-z0-9.-]+", expression)))
 
 
+def evidence_license_references(expression, evidence):
+  return evidence.get("licenseRefs", license_references(expression))
+
+
 def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_digest,
                            work, archive_output, notice_output, epoch):
   license_root = Path(work) / "license-bundle"
@@ -768,7 +772,9 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
             **dict(evidence),
             "licensePath": destination.relative_to(license_root).as_posix(),
           })
-          for identifier in license_references(component["license"]["spdx"]):
+          for identifier in evidence_license_references(
+            component["license"]["spdx"], evidence
+          ):
             try:
               text = material.decode("utf-8")
             except UnicodeDecodeError as error:

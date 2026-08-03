@@ -977,6 +977,10 @@ def license_references(expression):
   return sorted(set(re.findall(r"LicenseRef-[A-Za-z0-9.-]+", expression)))
 
 
+def evidence_license_references(expression, evidence):
+  return evidence.get("licenseRefs", license_references(expression))
+
+
 def load_supply_chain_json(manifest, artifact_root, artifact_type):
   record = one_artifact(manifest, artifact_type)
   try:
@@ -1444,7 +1448,9 @@ def verify_license_artifact(
             )
             if hashlib.sha256(evidence_bytes).hexdigest() != expected["evidenceSha256"]:
               raise BaselineError("license archive evidence digest does not match", 4)
-            for identifier in license_references(component["license"]["spdx"]):
+            for identifier in evidence_license_references(
+              component["license"]["spdx"], expected
+            ):
               try:
                 evidence_text = evidence_bytes.decode("utf-8")
               except UnicodeDecodeError as error:

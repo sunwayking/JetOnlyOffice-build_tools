@@ -76,6 +76,45 @@ def component_license_record():
   }
 
 
+def multi_reference_component_license_record():
+  return {
+    "scope": "component",
+    "payloadPatterns": ["**/*.ttf"],
+    "components": [{
+      "id": "fonts",
+      "payloadPaths": ["fonts/Example.ttf", "fonts/Other.ttf"],
+      "license": {
+        "spdx": (
+          "LicenseRef-SCOWL-2020-12-07 AND "
+          "LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet"
+        ),
+        "evidence": [
+          {
+            "type": "git-blob",
+            "path": "fonts/Example.ttf",
+            "blob": SHA1_A,
+            "sha256": SHA256_A,
+            "locator": "fonts/SCOWL.txt",
+            "evidenceBlob": SHA1_A,
+            "evidenceSha256": SHA256_B,
+            "licenseRefs": ["LicenseRef-SCOWL-2020-12-07"],
+          },
+          {
+            "type": "git-blob",
+            "path": "fonts/Other.ttf",
+            "blob": SHA1_B,
+            "sha256": SHA256_B,
+            "locator": "fonts/hyphen.txt",
+            "evidenceBlob": SHA1_B,
+            "evidenceSha256": SHA256_A,
+            "licenseRefs": ["LicenseRef-Hyphen-en-US-2011-10-07"],
+          },
+        ],
+      },
+    }],
+  }
+
+
 def repository_component_license_record():
   return {
     "scope": "component",
@@ -662,6 +701,32 @@ class ContractToolTests(unittest.TestCase):
 
     validate_contract(value, "source-lock", self.schema_dir)
 
+  def test_source_lock_binds_each_custom_license_to_its_evidence(self):
+    value = source_lock()
+    value["repositories"][0]["license"] = multi_reference_component_license_record()
+    validate_contract(value, "source-lock", self.schema_dir)
+
+    missing = json.loads(json.dumps(value))
+    del missing["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["licenseRefs"]
+    with self.assertRaisesRegex(ContractError, "required when an expression has multiple"):
+      validate_contract(missing, "source-lock", self.schema_dir)
+
+    unknown = json.loads(json.dumps(value))
+    unknown["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["licenseRefs"] = ["LicenseRef-Unknown"]
+    with self.assertRaisesRegex(ContractError, "not present in the SPDX expression"):
+      validate_contract(unknown, "source-lock", self.schema_dir)
+
+    uncovered = json.loads(json.dumps(value))
+    uncovered["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][1]["licenseRefs"] = []
+    with self.assertRaisesRegex(ContractError, "every LicenseRef identifier needs evidence"):
+      validate_contract(uncovered, "source-lock", self.schema_dir)
+
   def test_source_lock_accepts_only_mapped_repository_license_evidence(self):
     value = source_lock()
     value["repositories"][0]["license"] = repository_component_license_record()
@@ -814,6 +879,16 @@ class ContractToolTests(unittest.TestCase):
       "font-family/font.ttf"
     )
     with self.assertRaisesRegex(ContractError, "exactly cover"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+  def test_source_license_audit_requires_multiple_custom_license_bindings(self):
+    value = source_license_audit()
+    license_record = value["repositories"][0]["components"][1]["license"]
+    license_record["spdx"] = (
+      "LicenseRef-SCOWL-2020-12-07 AND "
+      "LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet"
+    )
+    with self.assertRaisesRegex(ContractError, "required when an expression has multiple"):
       validate_contract(value, "source-license-audit", self.schema_dir)
 
   def test_source_license_audit_rejects_derived_status_drift(self):

@@ -61,6 +61,7 @@ REPOSITORY_KEYS = {
 }
 WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 SOURCE_TREE_MANIFEST_PATH = "source-tree-manifest.json"
+LICENSE_REF_PATTERN = re.compile(r"LicenseRef-[A-Za-z0-9.-]+")
 
 
 class ResolutionError(ValueError):
@@ -473,6 +474,8 @@ def _validate_reviewed_components(value, path):
     if not isinstance(evidence, list) or not evidence:
       raise ResolutionError(f"{component_path}.evidence: expected non-empty array", 2)
     evidence_keys = []
+    license_references = sorted(set(LICENSE_REF_PATTERN.findall(component["spdx"])))
+    bound_license_references = set()
     for evidence_index, record in enumerate(evidence):
       evidence_path = f"{component_path}.evidence[{evidence_index}]"
       evidence_type = record.get("type") if isinstance(record, dict) else None
@@ -480,14 +483,14 @@ def _validate_reviewed_components(value, path):
         _require_exact_keys(
           record,
           {"type", "path", "repository", "referencePath", "locator", "sha256"},
-          set(),
+          {"licenseRefs"},
           evidence_path,
         )
       else:
         _require_exact_keys(
           record,
           {"type", "path", "locator", "sha256"},
-          set(),
+          {"licenseRefs"},
           evidence_path,
         )
       if evidence_type not in {
@@ -530,6 +533,33 @@ def _validate_reviewed_components(value, path):
         record["sha256"]
       ):
         raise ResolutionError(f"{evidence_path}.sha256: expected SHA-256", 2)
+      bindings = record.get("licenseRefs")
+      if bindings is None:
+        if len(license_references) > 1:
+          raise ResolutionError(
+            f"{evidence_path}.licenseRefs: required when an expression has "
+            "multiple LicenseRef identifiers",
+            2,
+          )
+        bindings = license_references
+      if (
+        not isinstance(bindings, list)
+        or not all(
+          isinstance(item, str) and LICENSE_REF_PATTERN.fullmatch(item)
+          for item in bindings
+        )
+        or bindings != sorted(set(bindings))
+      ):
+        raise ResolutionError(
+          f"{evidence_path}.licenseRefs: expected sorted unique LicenseRef identifiers",
+          2,
+        )
+      if not set(bindings).issubset(license_references):
+        raise ResolutionError(
+          f"{evidence_path}.licenseRefs: identifier is not present in the SPDX expression",
+          2,
+        )
+      bound_license_references.update(bindings)
       evidence_keys.append((
         record["path"],
         evidence_type,
@@ -537,6 +567,11 @@ def _validate_reviewed_components(value, path):
         record.get("referencePath", ""),
         record["locator"],
       ))
+    if bound_license_references != set(license_references):
+      raise ResolutionError(
+        f"{component_path}.evidence: every LicenseRef identifier needs evidence",
+        2,
+      )
     if evidence_keys != sorted(set(evidence_keys)):
       raise ResolutionError(
         f"{component_path}.evidence: entries must be sorted and unique",
@@ -607,6 +642,7 @@ def _validate_repository_evidence_links(repositories):
           and item["path"] == evidence["referencePath"]
           and item["locator"] == evidence["locator"]
           and item["sha256"] == evidence["sha256"]
+          and item.get("licenseRefs") == evidence.get("licenseRefs")
         ]
         if len(matching) != 1:
           raise ResolutionError(
@@ -966,6 +1002,8 @@ def _verified_component_evidence(
       "locator": evidence_input["locator"],
       "evidenceSha256": evidence_input["sha256"],
     }
+    if "licenseRefs" in evidence_input:
+      record["licenseRefs"] = list(evidence_input["licenseRefs"])
     if evidence_input["type"] == "repository-git-blob":
       record.update({
         "repository": evidence_input["repository"],
