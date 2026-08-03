@@ -116,11 +116,12 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Twenty-eight dictionary language packs are mapped payload by payload to exact
-license blobs in the locked tree: `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`,
-`cs_CZ`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`,
-`hu_HU`, `ko_KR`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`,
-`ro_RO`, `sk_SK`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, and `vi_VN`.
+Thirty-one dictionary language packs are mapped payload by payload to exact
+license blobs in the locked tree or immutable `license-evidence` snapshot:
+`ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `de_AT`, `de_CH`, `de_DE`,
+`en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`, `hu_HU`,
+`ko_KR`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `ro_RO`, `sk_SK`,
+`sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
@@ -130,8 +131,10 @@ substituted for that blob. `en_US` records its independently licensed spelling,
 hyphenation, and WordNet thesaurus payloads as a compound expression. `en_GB`
 binds byte-identical spelling and hyphenation payloads to the immutable
 `license-evidence` snapshot, with separate LGPL 3.0 and versioned hyphenation
-terms. `gl_ES` and both Serbian variants bind their payloads to exact in-tree
-GPL 3.0 and LGPL 3.0 evidence respectively.
+terms. The three German variants bind their byte-identical payloads to GPL 2
+or 3 spelling terms and the cumulative LGPL 2 or later plus LPPL 1.0
+hyphenation terms. `gl_ES` and both Serbian variants bind their payloads to
+exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
@@ -146,7 +149,7 @@ whose multi-license notices are not version-specific; `pt_PT`, whose notices
 conflict; `en_AU`, `id_ID`, and `lt_LT`, whose locked evidence does not cover
 every payload; and both Uzbek variants, whose READMEs identify an upstream
 origin without granting a license. The remaining
-twenty-one language packs stay incomplete; nineteen have candidate text
+eighteen language packs stay incomplete; sixteen have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 

@@ -531,7 +531,7 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       [
         "az_Latn_AZ",
-        "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
+        "da_DK", "el_GR", "en_AU",
         "hr_HR", "id_ID", "it_IT", "kk_KZ",
         "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
         "ru_RU", "sl_SI", "uk_UA", "uz_Cyrl_UZ",
@@ -598,12 +598,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.2",
+        "ref": "refs/tags/v9.4.0-evidence.3",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "c4263028812577becec855f4e3f81ece7758a8e9",
+      "43308c6939597145e0387daded3cba2a481641be",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -612,11 +612,16 @@ class SourceResolverTests(unittest.TestCase):
       evidence_repository["license"]["payloadPatterns"],
     )
     self.assertEqual(
-      ["**/*.txt", "**/COPYRIGHT", "**/LICENSE*"],
+      [
+        "**/*.tex", "**/*.txt", "**/COPYING*", "**/COPYRIGHT", "**/LICENSE*"
+      ],
       evidence_repository["license"]["patterns"],
     )
     self.assertEqual(
       [
+        "de_AT",
+        "de_CH",
+        "de_DE",
         "en_GB",
         "fonts-beng-extra",
         "fonts-gujr-extra",
@@ -628,6 +633,28 @@ class SourceResolverTests(unittest.TestCase):
         for component in evidence_repository["license"]["reviewedComponents"]
       ],
     )
+    german_spdx = (
+      "(GPL-2.0-only OR GPL-3.0-only) AND "
+      "LGPL-2.0-or-later AND LPPL-1.0"
+    )
+    for locale in ("de_AT", "de_CH", "de_DE"):
+      evidence_component = next(
+        component
+        for component in evidence_repository["license"]["reviewedComponents"]
+        if component["id"] == locale
+      )
+      self.assertEqual(german_spdx, evidence_component["spdx"])
+      self.assertEqual(
+        [
+          (f"{locale}/{locale}.aff", f"{locale}/README_de_DE_frami.txt"),
+          (f"{locale}/{locale}.dic", f"{locale}/README_de_DE_frami.txt"),
+          (f"{locale}/hyph_{locale}.dic", f"{locale}/README_hyph_de.txt"),
+        ],
+        [
+          (record["path"], record["locator"])
+          for record in evidence_component["evidence"]
+        ],
+      )
     evidence_en_gb = next(
       component
       for component in evidence_repository["license"]["reviewedComponents"]
@@ -787,6 +814,21 @@ class SourceResolverTests(unittest.TestCase):
         2,
       ),
       "cs_CZ": ("GPL-2.0-only", {"cs_CZ/cs_CZ_Czech.txt"}, 3),
+      "de_AT": (
+        german_spdx,
+        {"de_AT/README_de_DE_frami.txt", "de_AT/README_hyph_de.txt"},
+        3,
+      ),
+      "de_CH": (
+        german_spdx,
+        {"de_CH/README_de_DE_frami.txt", "de_CH/README_hyph_de.txt"},
+        3,
+      ),
+      "de_DE": (
+        german_spdx,
+        {"de_DE/README_de_DE_frami.txt", "de_DE/README_hyph_de.txt"},
+        3,
+      ),
       "en_CA": (
         "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
       ),
@@ -867,9 +909,17 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      21, len(dictionaries["license"]["unresolvedComponents"])
+      18, len(dictionaries["license"]["unresolvedComponents"])
     )
-    self.assertNotIn("en_GB", dictionaries["license"]["unresolvedComponents"])
+    for component_id in ("de_AT", "de_CH", "de_DE", "en_GB"):
+      self.assertNotIn(
+        component_id, dictionaries["license"]["unresolvedComponents"]
+      )
+      self.assertTrue(all(
+        record["type"] == "repository-git-blob"
+        and record["repository"] == "license-evidence"
+        for record in reviewed_dictionaries[component_id]["evidence"]
+      ))
     self.assertIn(
       "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
     )

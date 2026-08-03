@@ -45,6 +45,7 @@ EXPECTED_ENVIRONMENT = {
   "concurrency": 4,
 }
 SOURCE_LICENSE_EXPRESSIONS = {
+  "(GPL-2.0-only OR GPL-3.0-only) AND LGPL-2.0-or-later AND LPPL-1.0",
   "AGPL-3.0-only",
   "Apache-2.0",
   "Arphic-1999",
