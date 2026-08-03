@@ -76,6 +76,13 @@ artifact presence alone. Git LFS evidence binds the pointer bytes in Git and
 extracts embedded font or archive terms only from the separately digest-verified
 LFS object.
 
+Evidence absent from the licensed repository must use the
+`repository-git-blob` contract from ADR-0068. The referenced repository is part
+of the source lock and materialized workspace; package and verify never fetch
+the research URL. Both sides of the mapping and the adopted license text are
+rehashed from ordinary Git blobs before the license archive and SBOM are
+accepted.
+
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any
 previous manifest at that path is removed. The build manifest must bind one

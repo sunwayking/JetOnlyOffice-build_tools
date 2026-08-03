@@ -624,7 +624,13 @@ def font_name_texts(content, name_id, context):
   return sorted(texts)
 
 
-def component_evidence_bytes(checkout, repository, evidence):
+def component_evidence_bytes(
+  checkout,
+  repository,
+  evidence,
+  source_tree=None,
+  source_lock=None,
+):
   context = f"{repository['id']}:{evidence['path']}:{evidence['locator']}"
   payload = require_file(
     safe_destination(checkout, evidence["path"], context), context
@@ -643,7 +649,41 @@ def component_evidence_bytes(checkout, repository, evidence):
     fail(f"{context}: payload digest does not match source lock")
   if lfs_object is not None and len(payload) != lfs_object["size"]:
     fail(f"{context}: payload size does not match source lock")
-  if evidence["type"] == "git-blob":
+  if evidence["type"] == "repository-git-blob":
+    if source_tree is None or source_lock is None:
+      fail(f"{context}: source graph is required for repository evidence")
+    reference_repository = next(
+      (
+        item
+        for item in source_lock["repositories"]
+        if item["id"] == evidence["repository"]
+      ),
+      None,
+    )
+    if reference_repository is None:
+      fail(f"{context}: evidence repository is not locked")
+    reference_checkout = locked_repository(
+      source_tree,
+      source_lock,
+      reference_repository["id"],
+    )
+    reference_payload = require_file(
+      safe_destination(
+        reference_checkout,
+        evidence["referencePath"],
+        context,
+      ),
+      context,
+    ).read_bytes()
+    if hashlib.sha256(reference_payload).hexdigest() != evidence["referenceSha256"]:
+      fail(f"{context}: referenced payload digest does not match source lock")
+    if reference_payload != payload:
+      fail(f"{context}: referenced payload bytes do not match")
+    material = require_file(
+      safe_destination(reference_checkout, evidence["locator"], context),
+      context,
+    ).read_bytes()
+  elif evidence["type"] == "git-blob":
     material = require_file(
       safe_destination(checkout, evidence["locator"], context), context
     ).read_bytes()
@@ -707,7 +747,13 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
       for component in repository["license"]["components"]:
         evidence_records = []
         for evidence in component["license"]["evidence"]:
-          material = component_evidence_bytes(checkout, repository, evidence)
+          material = component_evidence_bytes(
+            checkout,
+            repository,
+            evidence,
+            source_tree,
+            source_lock,
+          )
           destination = license_root / "repositories" / repository["id"] \
             / "components" / component["id"] / "evidence" \
             / (evidence["evidenceSha256"] + ".license")
@@ -814,13 +860,16 @@ def make_license_artifacts(source_tree, source_lock, toolchain, source_lock_dige
 
 
 def source_license_units(source_lock):
+  repositories_by_id = {
+    repository["id"]: repository for repository in source_lock["repositories"]
+  }
   for repository in source_lock["repositories"]:
     if not repository["active"] or not repository["buildInput"]:
       continue
     if repository["license"].get("scope") == "component":
       for component in repository["license"]["components"]:
         evidence_references = [
-          f"{item['type']}:{item['path']}:{item['locator']}:sha256:{item['evidenceSha256']}"
+          component_evidence_reference(item, repositories_by_id)
           for item in component["license"]["evidence"]
         ]
         yield {
@@ -848,6 +897,24 @@ def source_license_units(source_lock):
           f"git-blob:{repository['license']['path']}:sha256:{repository['license']['sha256']}"
         ],
       }
+
+
+def component_evidence_reference(item, repositories_by_id):
+  if item["type"] == "repository-git-blob":
+    repository = repositories_by_id[item["repository"]]
+    return (
+      f"{item['type']}:{item['path']}:sha256:{item['sha256']}:"
+      f"repository:{item['repository']}@{repository['commit']}:"
+      f"tree:{repository['tree']}:"
+      f"reference:{item['referencePath']}@{item['referenceBlob']}:"
+      f"sha256:{item['referenceSha256']}:"
+      f"license:{item['locator']}@{item['evidenceBlob']}:"
+      f"sha256:{item['evidenceSha256']}"
+    )
+  return (
+    f"{item['type']}:{item['path']}:{item['locator']}:"
+    f"sha256:{item['evidenceSha256']}"
+  )
 
 
 def make_sbom(kind, source_lock, toolchain, carriers, source_lock_digest, output,

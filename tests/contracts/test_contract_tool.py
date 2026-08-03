@@ -68,6 +68,34 @@ def component_license_record():
           "blob": SHA1_A,
           "sha256": SHA256_A,
           "locator": "fonts/LICENSE.txt",
+          "evidenceBlob": SHA1_A,
+          "evidenceSha256": SHA256_B,
+        }],
+      },
+    }],
+  }
+
+
+def repository_component_license_record():
+  return {
+    "scope": "component",
+    "payloadPatterns": ["**/*.ttf"],
+    "components": [{
+      "id": "fonts",
+      "payloadPaths": ["fonts/Example.ttf"],
+      "license": {
+        "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+        "evidence": [{
+          "type": "repository-git-blob",
+          "path": "fonts/Example.ttf",
+          "blob": SHA1_A,
+          "sha256": SHA256_A,
+          "repository": "license-evidence",
+          "referencePath": "fonts/Example.ttf",
+          "referenceBlob": SHA1_A,
+          "referenceSha256": SHA256_A,
+          "locator": "fonts/LICENSE.txt",
+          "evidenceBlob": SHA1_A,
           "evidenceSha256": SHA256_B,
         }],
       },
@@ -403,6 +431,48 @@ def source_license_audit():
   }
 
 
+def source_license_audit_with_repository_evidence():
+  return {
+    "schemaVersion": 1,
+    "auditType": "source-license-inventory",
+    "productVersion": "9.4.0",
+    "status": "passed",
+    "repositories": [
+      {
+        "repository": "font-source",
+        "commit": SHA1_A,
+        "tree": SHA1_B,
+        "status": "complete",
+        "components": [{
+          "id": "fonts",
+          "status": "resolved",
+          "payloadPaths": ["fonts/Example.ttf"],
+          "candidateEvidence": [],
+          "license": {
+            "spdx": "LicenseRef-Unicode-Fonts-for-Ancient-Scripts",
+            "evidence": [repository_component_license_record()[
+              "components"
+            ][0]["license"]["evidence"][0]],
+          },
+        }],
+      },
+      {
+        "repository": "license-evidence",
+        "commit": SHA1_A,
+        "tree": SHA1_B,
+        "status": "complete",
+        "components": [{
+          "id": "fonts",
+          "status": "resolved",
+          "payloadPaths": ["fonts/Example.ttf"],
+          "candidateEvidence": [],
+          "license": component_license_record()["components"][0]["license"],
+        }],
+      },
+    ],
+  }
+
+
 def source_lfs_audit():
   return {
     "schemaVersion": 1,
@@ -592,11 +662,86 @@ class ContractToolTests(unittest.TestCase):
 
     validate_contract(value, "source-lock", self.schema_dir)
 
+  def test_source_lock_accepts_only_mapped_repository_license_evidence(self):
+    value = source_lock()
+    value["repositories"][0]["license"] = repository_component_license_record()
+    reference = json.loads(json.dumps(value["repositories"][1]))
+    reference.update({
+      "id": "license-evidence",
+      "role": "auxiliary-mirror",
+      "checkoutPath": "sources/license-evidence",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "license": component_license_record(),
+    })
+    value["repositories"].insert(1, reference)
+
+    validate_contract(value, "source-lock", self.schema_dir)
+
+    tampered = json.loads(json.dumps(value))
+    tampered["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["evidenceBlob"] = SHA1_B
+    with self.assertRaisesRegex(ContractError, "referenced component mapping"):
+      validate_contract(tampered, "source-lock", self.schema_dir)
+
+    value["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["repository"] = "missing-evidence"
+    with self.assertRaisesRegex(ContractError, "evidence repository is not locked"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["license"] = repository_component_license_record()
+    reference = json.loads(json.dumps(value["repositories"][1]))
+    reference.update({
+      "id": "license-evidence",
+      "role": "auxiliary-mirror",
+      "checkoutPath": "sources/license-evidence",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "lfsObjects": [{
+        "oid": SHA256_A,
+        "size": 1,
+        "paths": ["fonts/Example.ttf"],
+      }],
+      "license": component_license_record(),
+    })
+    value["repositories"].insert(1, reference)
+    with self.assertRaisesRegex(ContractError, "regular Git blobs"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["license"] = repository_component_license_record()
+    reference = json.loads(json.dumps(value["repositories"][1]))
+    reference.update({
+      "id": "license-evidence",
+      "role": "auxiliary-mirror",
+      "checkoutPath": "sources/license-evidence",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "license": component_license_record(),
+    })
+    reference["license"]["components"][0]["license"]["evidence"][0][
+      "locator"
+    ] = "fonts/OTHER.txt"
+    value["repositories"].insert(1, reference)
+    with self.assertRaisesRegex(ContractError, "referenced component mapping"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
   def test_source_lock_rejects_invalid_component_scoped_license_evidence(self):
     value = source_lock()
     value["repositories"][0]["license"] = component_license_record()
     value["repositories"][0]["license"]["path"] = "LICENSE"
     with self.assertRaisesRegex(ContractError, "exactly one schema"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
+    value = source_lock()
+    value["repositories"][0]["license"] = component_license_record()
+    del value["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["evidenceBlob"]
+    with self.assertRaisesRegex(ContractError, "locked git-blob evidence"):
       validate_contract(value, "source-lock", self.schema_dir)
 
     value = source_lock()
@@ -692,6 +837,23 @@ class ContractToolTests(unittest.TestCase):
     value["repositories"][0]["status"] = "complete"
     value["status"] = "passed"
     validate_contract(value, "source-license-audit", self.schema_dir)
+
+  def test_source_license_audit_binds_repository_reference_digest(self):
+    value = source_license_audit_with_repository_evidence()
+    validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value["repositories"][0]["components"][0]["license"]["evidence"][0][
+      "referenceSha256"
+    ] = SHA256_B
+    with self.assertRaisesRegex(ContractError, "referenced payload digest"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit_with_repository_evidence()
+    value["repositories"][0]["components"][0]["license"]["evidence"][0][
+      "evidenceBlob"
+    ] = SHA1_B
+    with self.assertRaisesRegex(ContractError, "referenced component mapping"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
 
   def test_source_lfs_audit_rejects_counts_bytes_and_path_drift(self):
     value = source_lfs_audit()

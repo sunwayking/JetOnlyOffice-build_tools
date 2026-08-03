@@ -1340,6 +1340,240 @@ class PackageDriverTests(unittest.TestCase):
         package_driver.component_evidence_bytes(checkout, repository, zip_evidence),
       )
 
+  def test_component_license_bundle_extracts_locked_repository_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_tree = root / "source"
+      source_checkout = source_tree / "sources" / "DocumentServer"
+      evidence_checkout = source_tree / "sources" / "license-evidence"
+      (source_checkout / "fonts").mkdir(parents=True)
+      (evidence_checkout / "fonts").mkdir(parents=True)
+      payload = b"byte-identical font payload\n"
+      license_text = b"GPL-2.0 license mapping\n"
+      (source_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+      (evidence_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+      (evidence_checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+      payload_digest = hashlib.sha256(payload).hexdigest()
+      license_digest = hashlib.sha256(license_text).hexdigest()
+
+      source = source_lock()
+      source_repository = source["repositories"][0]
+      source_repository["lfsObjects"] = []
+      source_repository["license"] = {
+        "scope": "component",
+        "payloadPatterns": ["**/*.ttf"],
+        "components": [{
+          "id": "fonts",
+          "payloadPaths": ["fonts/Example.ttf"],
+          "license": {
+            "spdx": "GPL-2.0-only",
+            "evidence": [{
+              "type": "repository-git-blob",
+              "path": "fonts/Example.ttf",
+              "blob": "1" * 40,
+              "sha256": payload_digest,
+              "repository": "license-evidence",
+              "referencePath": "fonts/Example.ttf",
+              "referenceBlob": "2" * 40,
+              "referenceSha256": payload_digest,
+              "locator": "fonts/LICENSE.txt",
+              "evidenceBlob": "3" * 40,
+              "evidenceSha256": license_digest,
+            }],
+          },
+        }],
+      }
+      reference = json.loads(json.dumps(source_repository))
+      reference.update({
+        "id": "license-evidence",
+        "role": "auxiliary-mirror",
+        "checkoutPath": "sources/license-evidence",
+        "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+        "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+        "license": {
+          "scope": "component",
+          "payloadPatterns": ["**/*.ttf"],
+          "components": [{
+            "id": "fonts",
+            "payloadPaths": ["fonts/Example.ttf"],
+            "license": {
+              "spdx": "GPL-2.0-only",
+              "evidence": [{
+                "type": "git-blob",
+                "path": "fonts/Example.ttf",
+                "blob": "2" * 40,
+                "sha256": payload_digest,
+                "locator": "fonts/LICENSE.txt",
+                "evidenceBlob": "3" * 40,
+                "evidenceSha256": license_digest,
+              }],
+            },
+          }],
+        },
+      })
+      source["repositories"].append(reference)
+      source["repositories"].sort(key=lambda item: item["id"])
+      validate_contract(source, "source-lock", REPOSITORY_ROOT / "schemas")
+      zstd_payload = b"locked zstd executable\n"
+      tools = locked_zstd_toolchain(zstd_payload)
+
+      with patch.object(package_driver, "tar_directory"):
+        extracted = package_driver.make_license_artifacts(
+          source_tree,
+          source,
+          tools,
+          canonical_sha256(source),
+          root / "work",
+          root / "licenses.tar.zst",
+          root / "NOTICE.txt",
+          source["sourceDateEpoch"],
+        )
+      bundled = root / "work" / "license-bundle" / "repositories" \
+        / "documentserver" / "components" / "fonts" / "evidence" \
+        / (license_digest + ".license")
+      self.assertEqual(license_text, bundled.read_bytes())
+      self.assertEqual({}, extracted)
+
+      bundle_root = root / "work" / "license-bundle"
+      license_manifest_value = json.loads(
+        (bundle_root / "manifest.json").read_text(encoding="utf-8")
+      )
+      bundled_source = next(
+        item for item in license_manifest_value["repositories"]
+        if item["id"] == "documentserver"
+      )
+      bundled_evidence = bundled_source["components"][0]["license"][
+        "evidence"
+      ][0]
+      self.assertEqual("license-evidence", bundled_evidence["repository"])
+      self.assertEqual("fonts/Example.ttf", bundled_evidence["referencePath"])
+      self.assertEqual(payload_digest, bundled_evidence["referenceSha256"])
+
+      archive = root / "licenses.tar"
+      with tarfile.open(archive, "w") as output:
+        for path in sorted(bundle_root.rglob("*"), key=lambda item: item.as_posix()):
+          output.add(
+            path,
+            arcname=path.relative_to(bundle_root).as_posix(),
+            recursive=False,
+          )
+      compressed = root / "licenses.tar.zst"
+      compressed.write_bytes(ZSTD_MAGIC + b"locked payload")
+      cached_zstd = root / "cache" / "toolchain" / "zstd" \
+        / tools["tools"][0]["sha256"]
+      cached_zstd.parent.mkdir(parents=True)
+      cached_zstd.write_bytes(zstd_payload)
+      artifact_manifest = {"artifacts": [{
+        "id": "jetonlyoffice-licenses",
+        "type": "licenses",
+        "path": compressed.name,
+      }]}
+
+      def fake_run(_command, **kwargs):
+        kwargs["stdout"].write(archive.read_bytes())
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with patch("offline_baseline.subprocess.run", side_effect=fake_run):
+        self.assertEqual(
+          {},
+          verify_license_artifact(
+            artifact_manifest,
+            root,
+            source,
+            tools,
+            root / "cache",
+            verifier_image_lock(),
+            "docker",
+          ),
+        )
+
+      evidence_reference = (
+        "repository-git-blob:fonts/Example.ttf:sha256:" + payload_digest
+        + ":repository:license-evidence@" + "a" * 40
+        + ":tree:" + "b" * 40
+        + ":reference:fonts/Example.ttf@" + "2" * 40
+        + ":sha256:" + payload_digest
+        + ":license:fonts/LICENSE.txt@" + "3" * 40
+        + ":sha256:" + license_digest
+      )
+      spdx = root / "release.spdx.json"
+      cdx = root / "release.cdx.json"
+      source_digest = canonical_sha256(source)
+      package_driver.make_sbom(
+        "spdx", source, tools, [], source_digest, spdx, extracted
+      )
+      package_driver.make_sbom(
+        "cyclonedx", source, tools, [], source_digest, cdx, extracted
+      )
+      spdx_value = json.loads(spdx.read_text(encoding="utf-8"))
+      source_package = next(
+        item for item in spdx_value["packages"]
+        if item["SPDXID"] == "SPDXRef-documentserver-fonts"
+      )
+      self.assertIn(evidence_reference, source_package["comment"])
+      cdx_value = json.loads(cdx.read_text(encoding="utf-8"))
+      source_component = next(
+        item for item in cdx_value["components"]
+        if item["bom-ref"] == "repo:documentserver:fonts"
+      )
+      self.assertIn(
+        {
+          "name": "jetonlyoffice.licenseEvidence",
+          "value": evidence_reference,
+        },
+        source_component["properties"],
+      )
+      verify_spdx_artifact(
+        {"artifacts": [{"type": "spdx", "path": spdx.name}]},
+        root,
+        source,
+        tools,
+      )
+      verify_cyclonedx_artifact(
+        {"artifacts": [{"type": "cyclonedx", "path": cdx.name}]},
+        root,
+        source,
+        tools,
+      )
+
+      (source_checkout / "fonts" / "Example.ttf").write_bytes(b"tampered\n")
+      with self.assertRaisesRegex(package_driver.PackageError, "payload digest"):
+        package_driver.component_evidence_bytes(
+          source_checkout,
+          source_repository,
+          source_repository["license"]["components"][0]["license"]["evidence"][0],
+          source_tree,
+          source,
+        )
+      (source_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+
+      (evidence_checkout / "fonts" / "Example.ttf").write_bytes(b"tampered\n")
+      with self.assertRaisesRegex(
+        package_driver.PackageError,
+        "referenced payload digest",
+      ):
+        package_driver.component_evidence_bytes(
+          source_checkout,
+          source_repository,
+          source_repository["license"]["components"][0]["license"]["evidence"][0],
+          source_tree,
+          source,
+        )
+      (evidence_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+
+      (evidence_checkout / "fonts" / "LICENSE.txt").write_bytes(b"tampered\n")
+      with self.assertRaisesRegex(
+        package_driver.PackageError,
+        "license evidence digest",
+      ):
+        package_driver.component_evidence_bytes(
+          source_checkout,
+          source_repository,
+          source_repository["license"]["components"][0]["license"]["evidence"][0],
+          source_tree,
+          source,
+        )
+
   def test_provenance_binds_only_release_carriers(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)

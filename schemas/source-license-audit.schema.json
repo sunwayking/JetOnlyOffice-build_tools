@@ -94,24 +94,7 @@
                       "type": "array",
                       "minItems": 1,
                       "items": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "required": [
-                          "type",
-                          "path",
-                          "blob",
-                          "sha256",
-                          "locator",
-                          "evidenceSha256"
-                        ],
-                        "properties": {
-                          "type": {"enum": ["font-name", "git-blob", "zip-member"]},
-                          "path": {"$ref": "common.schema.json#/$defs/relativePath"},
-                          "blob": {"$ref": "common.schema.json#/$defs/sha1"},
-                          "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
-                          "locator": {"type": "string", "minLength": 1},
-                          "evidenceSha256": {"$ref": "common.schema.json#/$defs/sha256"}
-                        }
+                        "$ref": "common.schema.json#/$defs/componentLicenseEvidence"
                       }
                     }
                   }

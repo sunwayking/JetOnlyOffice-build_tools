@@ -25,6 +25,7 @@ from source_resolver import (  # noqa: E402
   audit_report,
   bind_source_tree_manifest,
   build_source_lock,
+  caches_from_lock,
   fetch_lfs_objects,
   license_inventory_report,
   lfs_public_audit_report,
@@ -138,6 +139,116 @@ def create_source_lock(root, identifier="source"):
   }
   bind_source_tree_manifest(lock, {identifier: bare})
   return repository, bare, commit, lock
+
+
+def create_repository_evidence_fixture(root):
+  payload = b"licensed font payload\n"
+  mismatch = b"different font payload\n"
+  license_text = b"GPL-2.0 license mapping\n"
+
+  _, build_tools_bare, _ = create_repository(root, "build-tools")
+
+  source_checkout, source_bare, _ = create_repository(root, "font-source")
+  (source_checkout / "fonts").mkdir()
+  (source_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+  run_git(source_checkout, "add", "fonts")
+  run_git(source_checkout, "commit", "-m", "add source font")
+  source_commit = run_git(source_checkout, "rev-parse", "HEAD^{commit}")
+  run_git(
+    source_bare,
+    "fetch",
+    str(source_checkout),
+    f"{source_commit}:refs/heads/main",
+  )
+
+  evidence_checkout, evidence_bare, _ = create_repository(
+    root, "license-evidence"
+  )
+  (evidence_checkout / "fonts").mkdir()
+  (evidence_checkout / "fonts" / "Example.ttf").write_bytes(payload)
+  (evidence_checkout / "fonts" / "Mismatch.ttf").write_bytes(mismatch)
+  (evidence_checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+  run_git(evidence_checkout, "add", "fonts")
+  run_git(evidence_checkout, "commit", "-m", "add reviewed evidence")
+  evidence_commit = run_git(evidence_checkout, "rev-parse", "HEAD^{commit}")
+  run_git(
+    evidence_bare,
+    "fetch",
+    str(evidence_checkout),
+    f"{evidence_commit}:refs/heads/main",
+  )
+
+  source = repository_input("font-source", source_commit)
+  source["license"] = {
+    "status": "component-scoped",
+    "payloadPatterns": ["**/*.ttf"],
+    "patterns": ["**/LICENSE*"],
+    "reason": "The exact external evidence mapping is reviewed.",
+    "reviewedComponents": [{
+      "id": "fonts",
+      "spdx": "GPL-2.0-only",
+      "evidence": [{
+        "type": "repository-git-blob",
+        "path": "fonts/Example.ttf",
+        "repository": "license-evidence",
+        "referencePath": "fonts/Example.ttf",
+        "locator": "fonts/LICENSE.txt",
+        "sha256": hashlib.sha256(license_text).hexdigest(),
+      }],
+    }],
+    "unresolvedComponents": [],
+  }
+  evidence = repository_input("license-evidence", evidence_commit)
+  evidence["role"] = "auxiliary-mirror"
+  evidence["license"] = {
+    "status": "component-scoped",
+    "payloadPatterns": ["**/*.ttf"],
+    "patterns": ["**/LICENSE*"],
+    "reason": "Every mirrored payload has an in-tree license mapping.",
+    "reviewedComponents": [{
+      "id": "fonts",
+      "spdx": "GPL-2.0-only",
+      "evidence": [
+        {
+          "type": "git-blob",
+          "path": path,
+          "locator": "fonts/LICENSE.txt",
+          "sha256": hashlib.sha256(license_text).hexdigest(),
+        }
+        for path in ["fonts/Example.ttf", "fonts/Mismatch.ttf"]
+      ],
+    }],
+    "unresolvedComponents": [],
+  }
+  build_tools = repository_input("build-tools")
+  del build_tools["commit"]
+  build_tools["commitSource"] = "self"
+  build_tools["selection"] = {"type": "self"}
+  build_tools["role"] = "product-fork"
+  build_tools["projectFork"] = True
+  inputs = {
+    "schemaVersion": 1,
+    "productVersion": "9.4.0",
+    "releaseCutoff": 2000000000,
+    "baseline": {"repository": "font-source", "commit": source_commit},
+    "repositories": [build_tools, source, evidence],
+    "relationships": [],
+  }
+  inputs["repositories"].sort(key=lambda item: item["id"])
+  caches = {
+    "build-tools": build_tools_bare,
+    "font-source": source_bare,
+    "license-evidence": evidence_bare,
+  }
+  for repository in inputs["repositories"]:
+    run_git(
+      caches[repository["id"]],
+      "remote",
+      "set-url",
+      "origin",
+      repository["origin"],
+    )
+  return inputs, caches, payload, license_text
 
 
 def font_with_license_name(license_text):
@@ -1005,6 +1116,225 @@ class SourceResolverTests(unittest.TestCase):
       with self.assertRaisesRegex(ResolutionError, "expected locked git blob"):
         repository_license_inventory(repository, bare, commit)
 
+  def test_repository_license_evidence_audit_uses_locked_mirror_bytes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      inputs, caches, payload, _ = create_repository_evidence_fixture(directory)
+      validate_inputs(inputs)
+      cache_root = Path(directory) / "cache"
+      cache_git = cache_root / "git"
+      cache_git.mkdir(parents=True)
+      for repository_id in ["font-source", "license-evidence"]:
+        caches[repository_id].rename(cache_git / (repository_id + ".git"))
+
+      report = license_inventory_report(inputs, cache_root)
+      validate_contract(report, "source-license-audit", REPOSITORY_ROOT / "schemas")
+      source_record = next(
+        item for item in report["repositories"]
+        if item["repository"] == "font-source"
+      )
+      locked = source_record["components"][0]["license"]["evidence"][0]
+      self.assertEqual("repository-git-blob", locked["type"])
+      self.assertEqual(
+        hashlib.sha256(payload).hexdigest(),
+        locked["referenceSha256"],
+      )
+
+      source = next(
+        item for item in inputs["repositories"] if item["id"] == "font-source"
+      )
+      source["license"]["reviewedComponents"][0]["evidence"][0][
+        "referencePath"
+      ] = "fonts/Mismatch.ttf"
+      validate_inputs(inputs)
+      with self.assertRaisesRegex(ResolutionError, "referenced payload bytes"):
+        license_inventory_report(inputs, cache_root)
+
+  def test_repository_license_evidence_policy_fails_closed(self):
+    with tempfile.TemporaryDirectory() as directory:
+      inputs, _, _, _ = create_repository_evidence_fixture(directory)
+      validate_inputs(inputs)
+
+      missing = json.loads(json.dumps(inputs))
+      missing["repositories"] = [
+        item for item in missing["repositories"]
+        if item["id"] != "license-evidence"
+      ]
+      with self.assertRaisesRegex(ResolutionError, "not selected"):
+        validate_inputs(missing)
+
+      inactive = json.loads(json.dumps(inputs))
+      inactive_reference = next(
+        item for item in inactive["repositories"]
+        if item["id"] == "license-evidence"
+      )
+      inactive_reference["active"] = False
+      inactive_reference["buildInput"] = False
+      with self.assertRaisesRegex(ResolutionError, "active build input"):
+        validate_inputs(inactive)
+
+      non_build = json.loads(json.dumps(inputs))
+      next(
+        item for item in non_build["repositories"]
+        if item["id"] == "license-evidence"
+      )["buildInput"] = False
+      with self.assertRaisesRegex(ResolutionError, "active build input"):
+        validate_inputs(non_build)
+
+      mutable_selection = json.loads(json.dumps(inputs))
+      mutable_reference = next(
+        item for item in mutable_selection["repositories"]
+        if item["id"] == "license-evidence"
+      )
+      mutable_reference["projectFork"] = True
+      mutable_reference["selection"] = {
+        "type": "branch",
+        "ref": "refs/heads/develop",
+      }
+      with self.assertRaisesRegex(ResolutionError, "immutable tag"):
+        validate_inputs(mutable_selection)
+
+      spdx_drift = json.loads(json.dumps(inputs))
+      next(
+        item for item in spdx_drift["repositories"]
+        if item["id"] == "license-evidence"
+      )["license"]["reviewedComponents"][0]["spdx"] = "MIT"
+      with self.assertRaisesRegex(ResolutionError, "SPDX expressions"):
+        validate_inputs(spdx_drift)
+
+      mapping_drift = json.loads(json.dumps(inputs))
+      next(
+        item for item in mapping_drift["repositories"]
+        if item["id"] == "font-source"
+      )["license"]["reviewedComponents"][0]["evidence"][0][
+        "locator"
+      ] = "fonts/OTHER-LICENSE.txt"
+      with self.assertRaisesRegex(ResolutionError, "not mapped"):
+        validate_inputs(mapping_drift)
+
+  def test_repository_license_evidence_survives_lock_revalidation_and_materialize(self):
+    with tempfile.TemporaryDirectory() as directory:
+      inputs, caches, payload, license_text = create_repository_evidence_fixture(
+        directory
+      )
+      validate_inputs(inputs)
+      commits = {
+        repository["id"]: repository.get("commit")
+        or run_git(caches[repository["id"]], "rev-parse", "HEAD^{commit}")
+        for repository in inputs["repositories"]
+      }
+      contexts = {
+        repository["id"]: {
+          "repository": repository,
+          "cache": caches[repository["id"]],
+          "commit": commits[repository["id"]],
+          "lfsObjects": [],
+        }
+        for repository in inputs["repositories"]
+      }
+      records = [
+        repository_metadata(
+          repository,
+          caches[repository["id"]],
+          commits[repository["id"]],
+          contexts,
+        )
+        for repository in inputs["repositories"]
+      ]
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": dict(inputs["baseline"]),
+        "sourceDateEpoch": max(item["commitTime"] for item in records),
+        "repositories": records,
+        "relationships": [],
+      }
+      bind_source_tree_manifest(lock, caches)
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+
+      source_repository = next(
+        item for item in lock["repositories"] if item["id"] == "font-source"
+      )
+      evidence = source_repository["license"]["components"][0]["license"][
+        "evidence"
+      ][0]
+      self.assertEqual(hashlib.sha256(payload).hexdigest(), evidence["sha256"])
+      self.assertEqual(evidence["sha256"], evidence["referenceSha256"])
+      self.assertEqual(
+        hashlib.sha256(license_text).hexdigest(), evidence["evidenceSha256"]
+      )
+
+      with patch(
+        "source_resolver.sync_cache",
+        side_effect=lambda repository, _cache, _commit: caches[repository["id"]],
+      ):
+        self.assertEqual(
+          caches,
+          caches_from_lock(lock, Path(directory) / "revalidation-cache"),
+        )
+
+      source_root = Path(directory) / "materialized"
+      materialize(lock, caches, source_root)
+      verify_materialized(lock, source_root)
+
+      payload_digest_drift = json.loads(json.dumps(lock))
+      next(
+        item for item in payload_digest_drift["repositories"]
+        if item["id"] == "font-source"
+      )["license"]["components"][0]["license"]["evidence"][0][
+        "sha256"
+      ] = "0" * 64
+      with self.assertRaisesRegex(ResolutionError, "payload digest"):
+        verify_materialized(payload_digest_drift, source_root)
+
+      reference_digest_drift = json.loads(json.dumps(lock))
+      next(
+        item for item in reference_digest_drift["repositories"]
+        if item["id"] == "font-source"
+      )["license"]["components"][0]["license"]["evidence"][0][
+        "referenceSha256"
+      ] = "0" * 64
+      with self.assertRaisesRegex(ResolutionError, "referenced payload digest"):
+        verify_materialized(reference_digest_drift, source_root)
+
+      reference_blob_drift = json.loads(json.dumps(lock))
+      source_evidence = next(
+        item for item in reference_blob_drift["repositories"]
+        if item["id"] == "font-source"
+      )["license"]["components"][0]["license"]["evidence"][0]
+      reference_evidence = next(
+        item for item in reference_blob_drift["repositories"]
+        if item["id"] == "license-evidence"
+      )["license"]["components"][0]["license"]["evidence"][0]
+      source_evidence["referenceBlob"] = "0" * 40
+      reference_evidence["blob"] = "0" * 40
+      with self.assertRaisesRegex(ResolutionError, "referenced payload blob"):
+        verify_materialized(reference_blob_drift, source_root)
+
+      license_blob_drift = json.loads(json.dumps(lock))
+      next(
+        item for item in license_blob_drift["repositories"]
+        if item["id"] == "font-source"
+      )["license"]["components"][0]["license"]["evidence"][0][
+        "evidenceBlob"
+      ] = "0" * 40
+      with self.assertRaisesRegex(ResolutionError, "license evidence blob"):
+        verify_materialized(license_blob_drift, source_root)
+
+      license_digest_drift = json.loads(json.dumps(lock))
+      source_evidence = next(
+        item for item in license_digest_drift["repositories"]
+        if item["id"] == "font-source"
+      )["license"]["components"][0]["license"]["evidence"][0]
+      reference_evidence = next(
+        item for item in license_digest_drift["repositories"]
+        if item["id"] == "license-evidence"
+      )["license"]["components"][0]["license"]["evidence"][0]
+      source_evidence["evidenceSha256"] = "0" * 64
+      reference_evidence["evidenceSha256"] = "0" * 64
+      with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
+        verify_materialized(license_digest_drift, source_root)
+
   def test_license_audit_reads_the_standard_git_cache_layout(self):
     with tempfile.TemporaryDirectory() as directory:
       checkout, bare, _ = create_repository(directory)
@@ -1208,6 +1538,9 @@ class SourceResolverTests(unittest.TestCase):
               "blob": run_git(bare, "rev-parse", f"{commit}:fonts/Example.ttf"),
               "sha256": hashlib.sha256(payload).hexdigest(),
               "locator": "fonts/LICENSE.txt",
+              "evidenceBlob": run_git(
+                bare, "rev-parse", f"{commit}:fonts/LICENSE.txt"
+              ),
               "evidenceSha256": hashlib.sha256(license_text).hexdigest(),
             }],
           },
@@ -1233,6 +1566,18 @@ class SourceResolverTests(unittest.TestCase):
         ["evidence"][0]["evidenceSha256"] = "0" * 64
       with self.assertRaisesRegex(ResolutionError, "license evidence digest"):
         verify_materialized(tampered, source_root)
+
+      tampered = json.loads(json.dumps(lock))
+      tampered["repositories"][0]["license"]["components"][0]["license"] \
+        ["evidence"][0]["evidenceBlob"] = "0" * 40
+      with self.assertRaisesRegex(ResolutionError, "license evidence blob"):
+        with patch(
+          "source_resolver.sync_cache",
+          side_effect=lambda repository, _cache, _commit: {"source": bare}[
+            repository["id"]
+          ],
+        ):
+          caches_from_lock(tampered, Path(directory) / "tampered-cache")
 
   def test_component_scoped_zip_evidence_uses_materialized_lfs_bytes(self):
     with tempfile.TemporaryDirectory() as directory:

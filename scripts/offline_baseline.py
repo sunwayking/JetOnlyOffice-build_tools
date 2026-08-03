@@ -898,8 +898,29 @@ def sbom_identifier(prefix, value):
   return prefix + sanitized
 
 
+def component_evidence_reference(item, repositories_by_id):
+  if item["type"] == "repository-git-blob":
+    repository = repositories_by_id[item["repository"]]
+    return (
+      f"{item['type']}:{item['path']}:sha256:{item['sha256']}:"
+      f"repository:{item['repository']}@{repository['commit']}:"
+      f"tree:{repository['tree']}:"
+      f"reference:{item['referencePath']}@{item['referenceBlob']}:"
+      f"sha256:{item['referenceSha256']}:"
+      f"license:{item['locator']}@{item['evidenceBlob']}:"
+      f"sha256:{item['evidenceSha256']}"
+    )
+  return (
+    f"{item['type']}:{item['path']}:{item['locator']}:"
+    f"sha256:{item['evidenceSha256']}"
+  )
+
+
 def locked_license_units(source_lock, toolchain):
   units = []
+  repositories_by_id = {
+    repository["id"]: repository for repository in source_lock["repositories"]
+  }
   for repository in source_lock["repositories"]:
     if not repository["active"] or not repository["buildInput"]:
       continue
@@ -918,8 +939,7 @@ def locked_license_units(source_lock, toolchain):
           "repository": repository["id"],
           "payloadPaths": list(component["payloadPaths"]),
           "evidence": [
-            f"{item['type']}:{item['path']}:{item['locator']}:"
-            f"sha256:{item['evidenceSha256']}"
+            component_evidence_reference(item, repositories_by_id)
             for item in component["license"]["evidence"]
           ],
           "externalType": "vcs",

@@ -421,10 +421,51 @@ def _validate_symlink_graph(files, path):
       current = targets[current]
 
 
+def _component_evidence_key(item):
+  return (
+    item["path"],
+    item["type"],
+    item.get("repository", ""),
+    item.get("referencePath", ""),
+    item["locator"],
+  )
+
+
+def _validate_component_evidence_record(
+  evidence_record,
+  path,
+  component_id,
+  repository_id,
+  repository_ids,
+):
+  _validate_relative_path(evidence_record["path"], path + ".path")
+  evidence_type = evidence_record["type"]
+  if evidence_type == "font-name":
+    if evidence_record["locator"] not in {"name:0", "name:13"}:
+      raise ContractError(path + ".locator: unsupported font name locator")
+  else:
+    _validate_relative_path(evidence_record["locator"], path + ".locator")
+  if evidence_type == "git-blob" and "evidenceBlob" not in evidence_record:
+    raise ContractError(path + ".evidenceBlob: locked git-blob evidence must bind its locator blob")
+  if evidence_type != "repository-git-blob":
+    return
+  reference_repository = evidence_record["repository"]
+  if reference_repository not in repository_ids:
+    raise ContractError(path + ".repository: evidence repository is not locked")
+  if reference_repository == repository_id:
+    raise ContractError(path + ".repository: cross-repository evidence must use another repository")
+  _validate_relative_path(evidence_record["referencePath"], path + ".referencePath")
+  if evidence_record["referencePath"].partition("/")[0] != component_id:
+    raise ContractError(path + ".referencePath: must belong to the licensed component")
+  if evidence_record["locator"].partition("/")[0] != component_id:
+    raise ContractError(path + ".locator: must belong to the licensed component")
+
+
 def _validate_source_lock(value):
   repositories = value["repositories"]
   _validate_sorted_unique(repositories, lambda item: item["id"], "$.repositories")
   repository_ids = {item["id"] for item in repositories}
+  repositories_by_id = {item["id"]: item for item in repositories}
   checkout_paths = [item["checkoutPath"] for item in repositories]
   if len(checkout_paths) != len(set(checkout_paths)):
     raise ContractError("$.repositories: checkoutPath values must be unique")
@@ -475,18 +516,84 @@ def _validate_source_lock(value):
         evidence = component_license["evidence"]
         _validate_sorted_unique(
           evidence,
-          lambda item: (item["path"], item["type"], item["locator"]),
+          _component_evidence_key,
           component_prefix + ".license.evidence",
         )
         evidence_paths = []
         for evidence_index, evidence_record in enumerate(evidence):
           evidence_prefix = f"{component_prefix}.license.evidence[{evidence_index}]"
-          _validate_relative_path(evidence_record["path"], evidence_prefix + ".path")
-          if evidence_record["type"] == "font-name":
-            if evidence_record["locator"] not in {"name:0", "name:13"}:
-              raise ContractError(evidence_prefix + ".locator: unsupported font name locator")
-          else:
-            _validate_relative_path(evidence_record["locator"], evidence_prefix + ".locator")
+          _validate_component_evidence_record(
+            evidence_record,
+            evidence_prefix,
+            component["id"],
+            repository["id"],
+            repository_ids,
+          )
+          if evidence_record["type"] == "repository-git-blob":
+            reference = repositories_by_id[evidence_record["repository"]]
+            if not reference["active"] or not reference["buildInput"]:
+              raise ContractError(
+                evidence_prefix
+                + ".repository: evidence repository must be an active build input"
+              )
+            reference_license = reference["license"]
+            if reference_license.get("scope") != "component":
+              raise ContractError(
+                evidence_prefix
+                + ".repository: evidence repository must be component-scoped"
+              )
+            reference_component = next(
+              (
+                item
+                for item in reference_license["components"]
+                if item["id"] == component["id"]
+              ),
+              None,
+            )
+            if (
+              reference_component is None
+              or reference_component["license"]["spdx"]
+              != component_license["spdx"]
+            ):
+              raise ContractError(
+                evidence_prefix + ": referenced component license does not match"
+              )
+            matching_reference = [
+              item
+              for item in reference_component["license"]["evidence"]
+              if item["type"] == "git-blob"
+              and item["path"] == evidence_record["referencePath"]
+              and item["locator"] == evidence_record["locator"]
+              and item["evidenceSha256"] == evidence_record["evidenceSha256"]
+              and item["blob"] == evidence_record["referenceBlob"]
+              and item["evidenceBlob"] == evidence_record["evidenceBlob"]
+            ]
+            if len(matching_reference) != 1:
+              raise ContractError(
+                evidence_prefix + ": referenced component mapping does not match"
+              )
+            reference_lfs = next(
+              (
+                item
+                for item in reference["lfsObjects"]
+                if evidence_record["referencePath"] in item["paths"]
+              ),
+              None,
+            )
+            locator_is_lfs = any(
+              evidence_record["locator"] in item["paths"]
+              for item in reference["lfsObjects"]
+            )
+            if reference_lfs is not None or locator_is_lfs:
+              raise ContractError(
+                evidence_prefix
+                + ": repository evidence must be stored as regular Git blobs"
+              )
+            reference_digest = matching_reference[0]["sha256"]
+            if evidence_record["referenceSha256"] != reference_digest:
+              raise ContractError(
+                evidence_prefix + ": referenced payload digest does not match"
+              )
           evidence_paths.append(evidence_record["path"])
         if evidence_paths != payload_paths:
           raise ContractError(
@@ -1146,6 +1253,8 @@ def _validate_gate_catalog(value):
 
 def _validate_source_license_audit(value):
   repositories = value["repositories"]
+  repository_ids = {item["repository"] for item in repositories}
+  repositories_by_id = {item["repository"]: item for item in repositories}
   _validate_sorted_unique(
     repositories,
     lambda item: item["repository"],
@@ -1217,18 +1326,53 @@ def _validate_source_license_audit(value):
         verified_evidence = license_record["evidence"]
         _validate_sorted_unique(
           verified_evidence,
-          lambda item: (item["path"], item["type"], item["locator"]),
+          _component_evidence_key,
           component_path + ".license.evidence",
         )
         evidence_paths = []
         for evidence_index, evidence_record in enumerate(verified_evidence):
           evidence_path = f"{component_path}.license.evidence[{evidence_index}]"
-          _validate_relative_path(evidence_record["path"], evidence_path + ".path")
-          if evidence_record["type"] == "font-name":
-            if evidence_record["locator"] not in {"name:0", "name:13"}:
-              raise ContractError(evidence_path + ".locator: unsupported font name locator")
-          else:
-            _validate_relative_path(evidence_record["locator"], evidence_path + ".locator")
+          _validate_component_evidence_record(
+            evidence_record,
+            evidence_path,
+            component["id"],
+            repository["repository"],
+            repository_ids,
+          )
+          if evidence_record["type"] == "repository-git-blob":
+            reference = repositories_by_id[evidence_record["repository"]]
+            reference_component = next(
+              (
+                item
+                for item in reference["components"]
+                if item["id"] == component["id"]
+              ),
+              None,
+            )
+            matching_reference = [] if reference_component is None else [
+              item
+              for item in reference_component.get("license", {}).get("evidence", [])
+              if item["type"] == "git-blob"
+              and item["path"] == evidence_record["referencePath"]
+              and item["locator"] == evidence_record["locator"]
+              and item["evidenceSha256"] == evidence_record["evidenceSha256"]
+              and item["blob"] == evidence_record["referenceBlob"]
+              and item["evidenceBlob"] == evidence_record["evidenceBlob"]
+            ]
+            if (
+              reference_component is None
+              or reference_component.get("status") != "resolved"
+              or reference_component.get("license", {}).get("spdx")
+              != license_record["spdx"]
+              or len(matching_reference) != 1
+            ):
+              raise ContractError(
+                evidence_path + ": referenced component mapping does not match"
+              )
+            if evidence_record["referenceSha256"] != matching_reference[0]["sha256"]:
+              raise ContractError(
+                evidence_path + ": referenced payload digest does not match"
+              )
           evidence_paths.append(evidence_record["path"])
         if evidence_paths != component["payloadPaths"]:
           raise ContractError(

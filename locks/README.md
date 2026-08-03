@@ -64,7 +64,7 @@ close their licenses before release. In all other cases,
 `patterns` defines candidate evidence only and does not declare a license.
 `reviewedComponents` is narrower: every payload in such a component must be
 covered by one immutable evidence record and an explicitly reviewed SPDX
-expression. The resolver accepts three primary evidence forms: an exact
+expression. The resolver accepts four primary evidence forms: an exact
 license member inside a locked ZIP, copyright/license text in a locked OpenType
 `name` table, or an exact license file stored as a locked Git blob. For
 Git-blob evidence, each payload `path` names the covered payload and `locator`
@@ -72,6 +72,14 @@ names its reviewed license file, or the exact payload whose own header contains
 a complete license grant, in the same locked tree. The resolver hashes
 the extracted bytes or decoded text, binds every result to the containing Git
 blob and payload SHA-256, and rejects missing, extra, or changed payloads.
+`repository-git-blob` is the fourth form. It compares the consuming payload
+byte-for-byte with a reviewed payload in another active, immutable-tag-selected
+build-input
+repository, then consumes that repository's own component-scoped Git-blob
+license mapping. The formal lock records both repositories' commits and trees,
+the consuming and reference payload blobs and SHA-256 values, and the evidence
+blob and SHA-256. Package, SBOM, and provenance verification resolve only the
+materialized locked checkout; they never fetch evidence during an offline step.
 `resolve-sources.ps1 -Command LicenseAudit` reads the locked Git objects from
 the local cache, records every matched payload plus candidate or verified
 evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns

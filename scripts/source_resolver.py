@@ -240,6 +240,7 @@ def validate_inputs(value):
   )
   if selected_baseline.get("commit") != baseline["commit"]:
     raise ResolutionError("$.baseline.commit: does not match selected repository", 2)
+  _validate_repository_evidence_links(repositories)
 
   relationships = value["relationships"]
   if not isinstance(relationships, list):
@@ -474,14 +475,27 @@ def _validate_reviewed_components(value, path):
     evidence_keys = []
     for evidence_index, record in enumerate(evidence):
       evidence_path = f"{component_path}.evidence[{evidence_index}]"
-      _require_exact_keys(
-        record,
-        {"type", "path", "locator", "sha256"},
-        set(),
-        evidence_path,
-      )
-      evidence_type = record["type"]
-      if evidence_type not in {"font-name", "git-blob", "zip-member"}:
+      evidence_type = record.get("type") if isinstance(record, dict) else None
+      if evidence_type == "repository-git-blob":
+        _require_exact_keys(
+          record,
+          {"type", "path", "repository", "referencePath", "locator", "sha256"},
+          set(),
+          evidence_path,
+        )
+      else:
+        _require_exact_keys(
+          record,
+          {"type", "path", "locator", "sha256"},
+          set(),
+          evidence_path,
+        )
+      if evidence_type not in {
+        "font-name",
+        "git-blob",
+        "repository-git-blob",
+        "zip-member",
+      }:
         raise ResolutionError(f"{evidence_path}.type: unsupported evidence type", 2)
       _validate_relative_path(record["path"], evidence_path + ".path")
       if evidence_type == "font-name":
@@ -492,11 +506,37 @@ def _validate_reviewed_components(value, path):
           )
       else:
         _validate_relative_path(record["locator"], evidence_path + ".locator")
+      if evidence_type == "repository-git-blob":
+        if not isinstance(record["repository"], str) or not ID_PATTERN.fullmatch(
+          record["repository"]
+        ):
+          raise ResolutionError(
+            f"{evidence_path}.repository: invalid repository id", 2
+          )
+        _validate_relative_path(
+          record["referencePath"], evidence_path + ".referencePath"
+        )
+        if record["referencePath"].partition("/")[0] != component_id:
+          raise ResolutionError(
+            f"{evidence_path}.referencePath: must belong to the reviewed component",
+            2,
+          )
+        if record["locator"].partition("/")[0] != component_id:
+          raise ResolutionError(
+            f"{evidence_path}.locator: must belong to the reviewed component",
+            2,
+          )
       if not isinstance(record["sha256"], str) or not SHA256_PATTERN.fullmatch(
         record["sha256"]
       ):
         raise ResolutionError(f"{evidence_path}.sha256: expected SHA-256", 2)
-      evidence_keys.append((record["path"], evidence_type, record["locator"]))
+      evidence_keys.append((
+        record["path"],
+        evidence_type,
+        record.get("repository", ""),
+        record.get("referencePath", ""),
+        record["locator"],
+      ))
     if evidence_keys != sorted(set(evidence_keys)):
       raise ResolutionError(
         f"{component_path}.evidence: entries must be sorted and unique",
@@ -504,6 +544,74 @@ def _validate_reviewed_components(value, path):
       )
   if component_ids != sorted(set(component_ids)):
     raise ResolutionError(f"{path}.reviewedComponents: ids must be sorted and unique", 2)
+
+
+def _validate_repository_evidence_links(repositories):
+  repositories_by_id = {repository["id"]: repository for repository in repositories}
+  for repository_index, repository in enumerate(repositories):
+    for component_index, component in enumerate(
+      repository["license"].get("reviewedComponents", [])
+    ):
+      for evidence_index, evidence in enumerate(component["evidence"]):
+        if evidence["type"] != "repository-git-blob":
+          continue
+        path = (
+          f"$.repositories[{repository_index}].license.reviewedComponents"
+          f"[{component_index}].evidence[{evidence_index}]"
+        )
+        reference = repositories_by_id.get(evidence["repository"])
+        if reference is None:
+          raise ResolutionError(
+            f"{path}.repository: evidence repository is not selected", 2
+          )
+        if reference is repository:
+          raise ResolutionError(
+            f"{path}.repository: cross-repository evidence must use another repository",
+            2,
+          )
+        if not reference["active"] or not reference["buildInput"]:
+          raise ResolutionError(
+            f"{path}.repository: evidence repository must be an active build input",
+            2,
+          )
+        if reference["selection"]["type"] != "tag":
+          raise ResolutionError(
+            f"{path}.repository: evidence repository must use an immutable tag",
+            2,
+          )
+        if reference["license"]["status"] != "component-scoped":
+          raise ResolutionError(
+            f"{path}.repository: evidence repository must use component licenses",
+            2,
+          )
+        reference_component = next(
+          (
+            item
+            for item in reference["license"].get("reviewedComponents", [])
+            if item["id"] == component["id"]
+          ),
+          None,
+        )
+        if reference_component is None:
+          raise ResolutionError(
+            f"{path}.repository: matching reviewed component is missing", 2
+          )
+        if reference_component["spdx"] != component["spdx"]:
+          raise ResolutionError(
+            f"{path}.repository: reviewed SPDX expressions do not match", 2
+          )
+        matching = [
+          item
+          for item in reference_component["evidence"]
+          if item["type"] == "git-blob"
+          and item["path"] == evidence["referencePath"]
+          and item["locator"] == evidence["locator"]
+          and item["sha256"] == evidence["sha256"]
+        ]
+        if len(matching) != 1:
+          raise ResolutionError(
+            f"{path}: evidence is not mapped by the referenced component", 2
+          )
 
 
 def _validate_patterns(value, path):
@@ -752,12 +860,28 @@ def _locked_git_blob(cache, commit, path, context):
   return object_id
 
 
+def _locked_materialized_blob(repository_context, path, context):
+  cache = repository_context["cache"]
+  commit = repository_context["commit"]
+  blob = _locked_git_blob(cache, commit, path, context)
+  content = _run_git_bytes(["cat-file", "blob", blob], cwd=cache)
+  materialized = _materialized_lfs_content(
+    cache,
+    path,
+    content,
+    repository_context["lfsObjects"],
+    context,
+  )
+  return blob, content, materialized
+
+
 def _verified_component_evidence(
   cache,
   commit,
   component,
   candidate_evidence_paths,
   lfs_objects,
+  repository_contexts,
 ):
   candidate_evidence_paths = set(candidate_evidence_paths)
   records = []
@@ -769,7 +893,42 @@ def _verified_component_evidence(
     payload_content = _materialized_lfs_content(
       cache, path, content, lfs_objects, context
     )
-    if evidence_input["type"] == "font-name":
+    if evidence_input["type"] == "repository-git-blob":
+      reference = repository_contexts.get(evidence_input["repository"])
+      if reference is None:
+        raise ResolutionError(
+          f"{context}: locked evidence repository is unavailable", 3
+        )
+      reference_lfs_paths = {
+        item
+        for lfs_object in reference["lfsObjects"]
+        for item in lfs_object["paths"]
+      }
+      if (
+        evidence_input["referencePath"] in reference_lfs_paths
+        or evidence_input["locator"] in reference_lfs_paths
+      ):
+        raise ResolutionError(
+          f"{context}: repository evidence must be stored as regular Git blobs",
+          3,
+        )
+      reference_blob, _, reference_content = _locked_materialized_blob(
+        reference,
+        evidence_input["referencePath"],
+        context,
+      )
+      if reference_content != payload_content:
+        raise ResolutionError(
+          f"{context}: referenced payload bytes do not match", 3
+        )
+      evidence_blob, _, evidence_content = _locked_materialized_blob(
+        reference,
+        evidence_input["locator"],
+        context,
+      )
+      if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
+        raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+    elif evidence_input["type"] == "font-name":
       name_id = int(evidence_input["locator"].split(":", 1)[1])
       evidence_digests = {
         hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -799,18 +958,35 @@ def _verified_component_evidence(
       )
       if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
         raise ResolutionError(f"{context}: license evidence digest does not match", 3)
-    records.append({
+    record = {
       "type": evidence_input["type"],
       "path": path,
       "blob": blob,
       "sha256": hashlib.sha256(content).hexdigest(),
       "locator": evidence_input["locator"],
       "evidenceSha256": evidence_input["sha256"],
-    })
+    }
+    if evidence_input["type"] == "repository-git-blob":
+      record.update({
+        "repository": evidence_input["repository"],
+        "referencePath": evidence_input["referencePath"],
+        "referenceBlob": reference_blob,
+        "referenceSha256": hashlib.sha256(reference_content).hexdigest(),
+        "evidenceBlob": evidence_blob,
+      })
+    elif evidence_input["type"] == "git-blob":
+      record["evidenceBlob"] = evidence_blob
+    records.append(record)
   return records
 
 
-def repository_license_inventory(repository, cache, commit, lfs_objects=None):
+def repository_license_inventory(
+  repository,
+  cache,
+  commit,
+  lfs_objects=None,
+  repository_contexts=None,
+):
   license_input = repository["license"]
   if license_input["status"] == "declared":
     raise ResolutionError(
@@ -819,6 +995,15 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
     )
   if lfs_objects is None:
     lfs_objects = lfs_objects_at_commit(repository, cache, commit)
+  if repository_contexts is None:
+    repository_contexts = {
+      repository["id"]: {
+        "repository": repository,
+        "cache": cache,
+        "commit": commit,
+        "lfsObjects": lfs_objects,
+      },
+    }
   paths = _paths_at_commit(cache, commit)
   payloads = [
     path
@@ -926,6 +1111,7 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
           reviewed_component,
           component_evidence,
           lfs_objects,
+          repository_contexts,
         ),
       }
     components.append(component_record)
@@ -950,43 +1136,73 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
 
 def license_inventory_report(inputs, cache_directory):
   cache_directory = Path(cache_directory).resolve()
+  reviewed_paths = {}
+  required_repository_ids = set()
+  for repository in inputs["repositories"]:
+    if repository["license"]["status"] == "declared":
+      continue
+    required_repository_ids.add(repository["id"])
+    for component in repository["license"].get("reviewedComponents", []):
+      for evidence in component["evidence"]:
+        reviewed_paths.setdefault(repository["id"], set()).add(evidence["path"])
+        if evidence["type"] == "git-blob":
+          reviewed_paths[repository["id"]].add(evidence["locator"])
+        elif evidence["type"] == "repository-git-blob":
+          required_repository_ids.add(evidence["repository"])
+          reviewed_paths.setdefault(evidence["repository"], set()).update({
+            evidence["referencePath"],
+            evidence["locator"],
+          })
+  repositories_by_id = {
+    repository["id"]: repository for repository in inputs["repositories"]
+  }
+  repository_contexts = {}
+  for repository_id in sorted(required_repository_ids):
+    repository = repositories_by_id[repository_id]
+    if "commit" not in repository:
+      raise ResolutionError(
+        f"{repository_id}: incomplete self license input cannot be audited",
+        3,
+      )
+    cache = _repository_cache_path(cache_directory, repository_id)
+    if not cache.is_dir():
+      raise ResolutionError(f"{repository_id}: license audit cache is missing", 3)
+    origin = _run_git(["remote", "get-url", "origin"], cwd=cache, exit_code=3)
+    if origin != repository["origin"]:
+      raise ResolutionError(
+        f"{repository_id}: license audit cache origin does not match policy",
+        3,
+      )
+    lfs_objects = lfs_objects_at_commit(repository, cache, repository["commit"])
+    evidence_lfs_objects = [
+      item
+      for item in lfs_objects
+      if reviewed_paths.get(repository_id, set()).intersection(item["paths"])
+    ]
+    fetch_lfs_objects(
+      repository,
+      cache,
+      repository["commit"],
+      evidence_lfs_objects,
+    )
+    repository_contexts[repository_id] = {
+      "repository": repository,
+      "cache": cache,
+      "commit": repository["commit"],
+      "lfsObjects": lfs_objects,
+    }
   records = []
   for repository in inputs["repositories"]:
     if repository["license"]["status"] == "declared":
       continue
-    if "commit" not in repository:
-      raise ResolutionError(
-        f"{repository['id']}: incomplete self license input cannot be audited",
-        3,
-      )
-    cache = _repository_cache_path(cache_directory, repository["id"])
-    if not cache.is_dir():
-      raise ResolutionError(f"{repository['id']}: license audit cache is missing", 3)
-    origin = _run_git(["remote", "get-url", "origin"], cwd=cache, exit_code=3)
-    if origin != repository["origin"]:
-      raise ResolutionError(
-        f"{repository['id']}: license audit cache origin does not match policy",
-        3,
-      )
-    lfs_objects = lfs_objects_at_commit(repository, cache, repository["commit"])
-    reviewed_paths = {
-      path
-      for component in repository["license"].get("reviewedComponents", [])
-      for evidence in component["evidence"]
-      for path in (
-        evidence["path"],
-        *([evidence["locator"]] if evidence["type"] == "git-blob" else []),
-      )
-    }
-    evidence_lfs_objects = [
-      item for item in lfs_objects if reviewed_paths.intersection(item["paths"])
-    ]
-    fetch_lfs_objects(
-      repository, cache, repository["commit"], evidence_lfs_objects
-    )
+    context = repository_contexts[repository["id"]]
     records.append(
       repository_license_inventory(
-        repository, cache, repository["commit"], lfs_objects
+        repository,
+        context["cache"],
+        repository["commit"],
+        context["lfsObjects"],
+        repository_contexts,
       )
     )
   if not records:
@@ -1760,7 +1976,7 @@ def selection_audit_report(inputs, cache_directory, self_root):
   }
 
 
-def repository_metadata(repository, cache, commit):
+def repository_metadata(repository, cache, commit, repository_contexts=None):
   _run_git(["cat-file", "-e", commit + "^{commit}"], cwd=cache, exit_code=3)
   tree = _run_git(["rev-parse", commit + "^{tree}"], cwd=cache, exit_code=3)
   commit_time_text = _run_git(["show", "-s", "--format=%ct", commit], cwd=cache, exit_code=3)
@@ -1770,7 +1986,11 @@ def repository_metadata(repository, cache, commit):
     raise ResolutionError(f"{repository['id']}: invalid commit timestamp", 3) from error
   lfs_objects = lfs_objects_at_commit(repository, cache, commit)
   license_record = repository_license_metadata(
-    repository, cache, commit, lfs_objects
+    repository,
+    cache,
+    commit,
+    lfs_objects,
+    repository_contexts,
   )
   return {
     "id": repository["id"],
@@ -2016,13 +2236,20 @@ def _declared_license_metadata(license_record, cache, commit, lfs_objects):
   return metadata
 
 
-def _component_license_metadata(repository, cache, commit, lfs_objects):
+def _component_license_metadata(
+  repository,
+  cache,
+  commit,
+  lfs_objects,
+  repository_contexts,
+):
   license_input = repository["license"]
   inventory = repository_license_inventory(
     repository,
     cache,
     commit,
     lfs_objects,
+    repository_contexts,
   )
   if inventory["status"] != "complete":
     raise ResolutionError(f"LICENSE_INCOMPLETE: {repository['id']}", 3)
@@ -2043,7 +2270,61 @@ def _component_license_metadata(repository, cache, commit, lfs_objects):
   }
 
 
-def _verify_locked_component_evidence(cache, commit, evidence, lfs_objects):
+def _verify_locked_component_evidence_mapping(
+  evidence,
+  component_id,
+  spdx,
+  repository_contexts,
+  context,
+):
+  reference = repository_contexts.get(evidence["repository"])
+  if reference is None:
+    raise ResolutionError(f"{context}: locked evidence repository is unavailable", 3)
+  reference_lfs_paths = {
+    item
+    for lfs_object in reference["lfsObjects"]
+    for item in lfs_object["paths"]
+  }
+  if (
+    evidence["referencePath"] in reference_lfs_paths
+    or evidence["locator"] in reference_lfs_paths
+  ):
+    raise ResolutionError(
+      f"{context}: repository evidence must be stored as regular Git blobs", 3
+    )
+  license_record = reference["repository"]["license"]
+  if license_record.get("scope") != "component":
+    raise ResolutionError(f"{context}: evidence repository is not component-scoped", 3)
+  component = next(
+    (item for item in license_record["components"] if item["id"] == component_id),
+    None,
+  )
+  if component is None or component["license"]["spdx"] != spdx:
+    raise ResolutionError(f"{context}: referenced component license does not match", 3)
+  matching = [
+    item
+    for item in component["license"]["evidence"]
+    if item["type"] == "git-blob"
+    and item["path"] == evidence["referencePath"]
+    and item["locator"] == evidence["locator"]
+    and item["evidenceSha256"] == evidence["evidenceSha256"]
+    and item["blob"] == evidence["referenceBlob"]
+  ]
+  if len(matching) != 1:
+    raise ResolutionError(f"{context}: referenced component mapping does not match", 3)
+  return reference
+
+
+def _verify_locked_component_evidence(
+  evidence,
+  component_id,
+  spdx,
+  repository_context,
+  repository_contexts,
+):
+  cache = repository_context["cache"]
+  commit = repository_context["commit"]
+  lfs_objects = repository_context["lfsObjects"]
   context = f"{evidence['path']}:{evidence['locator']}"
   blob = _locked_git_blob(cache, commit, evidence["path"], context)
   if blob != evidence["blob"]:
@@ -2054,7 +2335,35 @@ def _verify_locked_component_evidence(cache, commit, evidence, lfs_objects):
   payload_content = _materialized_lfs_content(
     cache, evidence["path"], content, lfs_objects, context
   )
-  if evidence["type"] == "font-name":
+  if evidence["type"] == "repository-git-blob":
+    reference = _verify_locked_component_evidence_mapping(
+      evidence,
+      component_id,
+      spdx,
+      repository_contexts,
+      context,
+    )
+    reference_blob, _, reference_content = _locked_materialized_blob(
+      reference,
+      evidence["referencePath"],
+      context,
+    )
+    if reference_blob != evidence["referenceBlob"]:
+      raise ResolutionError(f"{context}: referenced payload blob does not match", 3)
+    if hashlib.sha256(reference_content).hexdigest() != evidence["referenceSha256"]:
+      raise ResolutionError(f"{context}: referenced payload digest does not match", 3)
+    if reference_content != payload_content:
+      raise ResolutionError(f"{context}: referenced payload bytes do not match", 3)
+    evidence_blob, _, evidence_content = _locked_materialized_blob(
+      reference,
+      evidence["locator"],
+      context,
+    )
+    if evidence_blob != evidence["evidenceBlob"]:
+      raise ResolutionError(f"{context}: license evidence blob does not match", 3)
+    if hashlib.sha256(evidence_content).hexdigest() != evidence["evidenceSha256"]:
+      raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+  elif evidence["type"] == "font-name":
     name_id = int(evidence["locator"].split(":", 1)[1])
     evidence_digests = {
       hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -2070,6 +2379,8 @@ def _verify_locked_component_evidence(cache, commit, evidence, lfs_objects):
       raise ResolutionError(f"{context}: license evidence digest does not match", 3)
   else:
     evidence_blob = _locked_git_blob(cache, commit, evidence["locator"], context)
+    if evidence_blob != evidence["evidenceBlob"]:
+      raise ResolutionError(f"{context}: license evidence blob does not match", 3)
     evidence_content = _run_git_bytes(
       ["cat-file", "blob", evidence_blob], cwd=cache
     )
@@ -2080,7 +2391,14 @@ def _verify_locked_component_evidence(cache, commit, evidence, lfs_objects):
       raise ResolutionError(f"{context}: license evidence digest does not match", 3)
 
 
-def _locked_component_license_metadata(license_record, cache, commit, lfs_objects):
+def _locked_component_license_metadata(
+  repository,
+  license_record,
+  cache,
+  commit,
+  lfs_objects,
+  repository_contexts,
+):
   actual_payloads = [
     path
     for path in _paths_at_commit(cache, commit)
@@ -2096,7 +2414,16 @@ def _locked_component_license_metadata(license_record, cache, commit, lfs_object
   for component in license_record["components"]:
     for evidence in component["license"]["evidence"]:
       _verify_locked_component_evidence(
-        cache, commit, evidence, lfs_objects
+        evidence,
+        component["id"],
+        component["license"]["spdx"],
+        {
+          "repository": repository,
+          "cache": cache,
+          "commit": commit,
+          "lfsObjects": lfs_objects,
+        },
+        repository_contexts,
       )
   return {
     "scope": "component",
@@ -2115,7 +2442,13 @@ def _locked_component_license_metadata(license_record, cache, commit, lfs_object
   }
 
 
-def repository_license_metadata(repository, cache, commit, lfs_objects=None):
+def repository_license_metadata(
+  repository,
+  cache,
+  commit,
+  lfs_objects=None,
+  repository_contexts=None,
+):
   license_record = repository["license"]
   if lfs_objects is None:
     lfs_objects = lfs_objects_at_commit(repository, cache, commit)
@@ -2123,12 +2456,23 @@ def repository_license_metadata(repository, cache, commit, lfs_objects=None):
   if status == "declared":
     return _declared_license_metadata(license_record, cache, commit, lfs_objects)
   if status == "component-scoped":
-    return _component_license_metadata(repository, cache, commit, lfs_objects)
+    return _component_license_metadata(
+      repository,
+      cache,
+      commit,
+      lfs_objects,
+      repository_contexts,
+    )
   if status == "missing":
     raise ResolutionError(f"LICENSE_INCOMPLETE: {repository['id']}", 3)
   if license_record.get("scope") == "component":
     return _locked_component_license_metadata(
-      license_record, cache, commit, lfs_objects
+      repository,
+      license_record,
+      cache,
+      commit,
+      lfs_objects,
+      repository_contexts,
     )
   if status is None and "path" in license_record:
     return _declared_license_metadata(license_record, cache, commit, lfs_objects)
@@ -2204,7 +2548,7 @@ def build_source_lock(inputs, cache_directory, self_root):
   self_commit = resolve_self_commit(self_root, self_repository["origin"])
   caches = {}
   commits = {}
-  records = []
+  repository_contexts = {}
   for repository in inputs["repositories"]:
     commit = self_commit if repository.get("commitSource") == "self" else repository["commit"]
     cache = sync_cache(repository, cache_directory, commit)
@@ -2212,7 +2556,21 @@ def build_source_lock(inputs, cache_directory, self_root):
     fetch_lfs_objects(repository, cache, commit, lfs_objects)
     caches[repository["id"]] = cache
     commits[repository["id"]] = commit
-    records.append(repository_metadata(repository, cache, commit))
+    repository_contexts[repository["id"]] = {
+      "repository": repository,
+      "cache": cache,
+      "commit": commit,
+      "lfsObjects": lfs_objects,
+    }
+  records = [
+    repository_metadata(
+      repository,
+      repository_contexts[repository["id"]]["cache"],
+      repository_contexts[repository["id"]]["commit"],
+      repository_contexts,
+    )
+    for repository in inputs["repositories"]
+  ]
   verify_selections(inputs, caches, commits)
   verify_relationships(inputs, caches, commits)
   baseline = inputs["baseline"]
@@ -2232,6 +2590,7 @@ def build_source_lock(inputs, cache_directory, self_root):
 def caches_from_lock(lock, cache_directory):
   caches = {}
   commits = {}
+  repository_contexts = {}
   for repository in lock["repositories"]:
     if not MIRROR_PATTERN.fullmatch(repository["origin"]):
       raise ResolutionError(
@@ -2252,11 +2611,24 @@ def caches_from_lock(lock, cache_directory):
       repository["commit"],
       actual_lfs_objects,
     )
-    actual = repository_metadata(repository, cache, repository["commit"])
-    if actual != repository:
-      raise ResolutionError(f"{repository['id']}: mirror metadata does not match the lock", 3)
     caches[repository["id"]] = cache
     commits[repository["id"]] = repository["commit"]
+    repository_contexts[repository["id"]] = {
+      "repository": repository,
+      "cache": cache,
+      "commit": repository["commit"],
+      "lfsObjects": actual_lfs_objects,
+    }
+  for repository in lock["repositories"]:
+    context = repository_contexts[repository["id"]]
+    actual = repository_metadata(
+      repository,
+      context["cache"],
+      repository["commit"],
+      repository_contexts,
+    )
+    if actual != repository:
+      raise ResolutionError(f"{repository['id']}: mirror metadata does not match the lock", 3)
   verify_relationships(lock, caches, commits)
   return caches
 
@@ -2445,6 +2817,7 @@ def verify_materialized(lock, source_directory):
       "materialized source tree manifest does not match the source lock"
     )
   checkout_caches = {}
+  repository_contexts = {}
   for repository in lock["repositories"]:
     checkout = _resolve_within(
       source_directory,
@@ -2469,9 +2842,6 @@ def verify_materialized(lock, source_directory):
     actual_lfs_objects = lfs_objects_at_commit(repository, checkout, head)
     if actual_lfs_objects != repository["lfsObjects"]:
       raise ResolutionError(f"{checkout}: Git LFS object manifest does not match the lock")
-    actual_license = repository_license_metadata(repository, checkout, "HEAD")
-    if actual_license != repository["license"]:
-      raise ResolutionError(f"{checkout}: license metadata does not match the lock")
     for lfs_object in repository["lfsObjects"]:
       for path in lfs_object["paths"]:
         materialized = _resolve_within(
@@ -2491,6 +2861,25 @@ def verify_materialized(lock, source_directory):
     ):
       raise ResolutionError(f"{checkout}: checkout is dirty")
     checkout_caches[repository["id"]] = checkout
+    repository_contexts[repository["id"]] = {
+      "repository": repository,
+      "cache": checkout,
+      "commit": "HEAD",
+      "lfsObjects": actual_lfs_objects,
+    }
+  for repository in lock["repositories"]:
+    context = repository_contexts[repository["id"]]
+    actual_license = repository_license_metadata(
+      repository,
+      context["cache"],
+      "HEAD",
+      context["lfsObjects"],
+      repository_contexts,
+    )
+    if actual_license != repository["license"]:
+      raise ResolutionError(
+        f"{context['cache']}: license metadata does not match the lock"
+      )
   if manifest_missing:
     raise ResolutionError("materialized source tree manifest is missing")
   expected_manifest = source_tree_manifest_payload(

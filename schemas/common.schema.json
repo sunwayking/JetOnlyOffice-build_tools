@@ -101,41 +101,100 @@
       }
     },
     "componentLicenseEvidence": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "type",
-        "path",
-        "blob",
-        "sha256",
-        "locator",
-        "evidenceSha256"
-      ],
-      "properties": {
-        "type": {
-          "enum": [
-            "font-name",
-            "git-blob",
-            "zip-member"
-          ]
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "path",
+            "blob",
+            "sha256",
+            "locator",
+            "evidenceSha256"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "font-name",
+                "git-blob",
+                "zip-member"
+              ]
+            },
+            "path": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "blob": {
+              "$ref": "#/$defs/sha1"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "locator": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidenceSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "evidenceBlob": {
+              "$ref": "#/$defs/sha1"
+            }
+          }
         },
-        "path": {
-          "$ref": "#/$defs/relativePath"
-        },
-        "blob": {
-          "$ref": "#/$defs/sha1"
-        },
-        "sha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "locator": {
-          "type": "string",
-          "minLength": 1
-        },
-        "evidenceSha256": {
-          "$ref": "#/$defs/sha256"
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "path",
+            "blob",
+            "sha256",
+            "repository",
+            "referencePath",
+            "referenceBlob",
+            "referenceSha256",
+            "locator",
+            "evidenceBlob",
+            "evidenceSha256"
+          ],
+          "properties": {
+            "type": {
+              "const": "repository-git-blob"
+            },
+            "path": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "blob": {
+              "$ref": "#/$defs/sha1"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "repository": {
+              "$ref": "#/$defs/repositoryId"
+            },
+            "referencePath": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "referenceBlob": {
+              "$ref": "#/$defs/sha1"
+            },
+            "referenceSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "locator": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "evidenceBlob": {
+              "$ref": "#/$defs/sha1"
+            },
+            "evidenceSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         }
-      }
+      ]
     },
     "componentLicenseRecord": {
       "type": "object",

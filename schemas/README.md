@@ -8,7 +8,10 @@ packaging, and release verification:
 - `source-license-audit.schema.json` records the incomplete component license
   inventory derived from locked Git trees, including payload-complete mappings
   verified from embedded font metadata or exact archive members, and blocking
-  legal reviews bound to immutable evidence bytes.
+  legal reviews bound to immutable evidence bytes. External evidence is valid
+  only through an immutable-tag-selected JetOnlyOffice repository commit whose
+  regular Git blobs reproduce the payload bytes and their reviewed license
+  mapping offline, including the license locator blob ID.
 - `source-lfs-audit.schema.json` proves locked Git LFS objects are anonymously
   downloadable from public JetOnlyOffice mirrors.
 - `source-selection-audit.schema.json` proves every fixed commit is selected by
