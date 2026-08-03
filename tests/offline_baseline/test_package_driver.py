@@ -1769,6 +1769,73 @@ class PackageDriverTests(unittest.TestCase):
           source,
         )
 
+  def test_component_license_bundle_verifies_derived_cef_evidence(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_tree = root / "source"
+      source_checkout = source_tree / "sources" / "DocumentServer"
+      evidence_checkout = source_tree / "sources" / "license-evidence"
+      (source_checkout / "cef").mkdir(parents=True)
+      (evidence_checkout / "cef").mkdir(parents=True)
+      payload = b"locked CEF archive"
+      license_text = b"CEF license\n"
+      (source_checkout / "cef" / "cef_binary.7z").write_bytes(payload)
+      (evidence_checkout / "cef" / "LICENSE.txt").write_bytes(license_text)
+      evidence = {
+        "type": "repository-cef-pak-resource",
+        "path": "cef/cef_binary.7z",
+        "blob": "1" * 40,
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "repository": "license-evidence",
+        "locator": "cef/LICENSE.txt",
+        "evidenceBlob": "2" * 40,
+        "evidenceSha256": hashlib.sha256(license_text).hexdigest(),
+        "archiveMember": "cef_binary/Resources/chrome_100_percent.pak",
+        "resourceId": 63001,
+        "compression": "none",
+      }
+      source = source_lock()
+      repository = source["repositories"][0]
+      repository["lfsObjects"] = []
+      reference = json.loads(json.dumps(repository))
+      reference.update({
+        "id": "license-evidence",
+        "checkoutPath": "sources/license-evidence",
+      })
+      source["repositories"].append(reference)
+
+      with patch.object(
+        package_driver,
+        "derived_cef_pak_resource",
+        return_value=license_text,
+      ):
+        self.assertEqual(
+          license_text,
+          package_driver.component_evidence_bytes(
+            source_checkout,
+            repository,
+            evidence,
+            source_tree,
+            source,
+          ),
+        )
+      with patch.object(
+        package_driver,
+        "derived_cef_pak_resource",
+        return_value=b"other license",
+      ):
+        with self.assertRaisesRegex(
+          package_driver.PackageError,
+          "derived license evidence",
+        ):
+          package_driver.component_evidence_bytes(
+            source_checkout,
+            repository,
+            evidence,
+            source_tree,
+            source,
+          )
+
   def test_provenance_binds_only_release_carriers(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)

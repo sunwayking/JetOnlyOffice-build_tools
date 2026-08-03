@@ -207,6 +207,70 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "path",
+            "blob",
+            "sha256",
+            "repository",
+            "locator",
+            "evidenceBlob",
+            "evidenceSha256",
+            "archiveMember",
+            "resourceId",
+            "compression"
+          ],
+          "properties": {
+            "type": {
+              "const": "repository-cef-pak-resource"
+            },
+            "path": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "blob": {
+              "$ref": "#/$defs/sha1"
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "repository": {
+              "$ref": "#/$defs/repositoryId"
+            },
+            "locator": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "evidenceBlob": {
+              "$ref": "#/$defs/sha1"
+            },
+            "evidenceSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "archiveMember": {
+              "$ref": "#/$defs/relativePath"
+            },
+            "resourceId": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "compression": {
+              "enum": [
+                "none",
+                "brotli-header-8"
+              ]
+            },
+            "licenseRefs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^LicenseRef-[A-Za-z0-9.-]+$"
+              }
+            }
+          }
         }
       ]
     },

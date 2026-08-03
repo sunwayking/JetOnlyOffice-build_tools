@@ -51,6 +51,7 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "Apache-2.0",
   "Arphic-1999",
   "BSD-3-Clause",
+  "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits",
   "BSD-3-Clause AND MIT",
   "BSD-3-Clause OR CC-BY-3.0",
   "Bitstream-Vera AND LicenseRef-AMSFonts",
@@ -484,20 +485,36 @@ def _validate_component_evidence_record(
       raise ContractError(path + ".locator: unsupported font name locator")
   else:
     _validate_relative_path(evidence_record["locator"], path + ".locator")
+  if evidence_type == "repository-cef-pak-resource":
+    _validate_relative_path(
+      evidence_record["archiveMember"], path + ".archiveMember"
+    )
+    if (
+      not isinstance(evidence_record["resourceId"], int)
+      or isinstance(evidence_record["resourceId"], bool)
+      or not 0 < evidence_record["resourceId"] <= 65535
+    ):
+      raise ContractError(path + ".resourceId: expected a positive uint16")
+    if evidence_record["compression"] not in {"none", "brotli-header-8"}:
+      raise ContractError(path + ".compression: unsupported transform")
   if evidence_type == "git-blob" and "evidenceBlob" not in evidence_record:
     raise ContractError(path + ".evidenceBlob: locked git-blob evidence must bind its locator blob")
-  if evidence_type != "repository-git-blob":
+  if evidence_type not in {
+    "repository-cef-pak-resource",
+    "repository-git-blob",
+  }:
     return
   reference_repository = evidence_record["repository"]
   if reference_repository not in repository_ids:
     raise ContractError(path + ".repository: evidence repository is not locked")
   if reference_repository == repository_id:
     raise ContractError(path + ".repository: cross-repository evidence must use another repository")
-  _validate_relative_path(evidence_record["referencePath"], path + ".referencePath")
-  if evidence_record["referencePath"].partition("/")[0] != component_id:
-    raise ContractError(path + ".referencePath: must belong to the licensed component")
   if evidence_record["locator"].partition("/")[0] != component_id:
     raise ContractError(path + ".locator: must belong to the licensed component")
+  if evidence_type == "repository-git-blob":
+    _validate_relative_path(evidence_record["referencePath"], path + ".referencePath")
+    if evidence_record["referencePath"].partition("/")[0] != component_id:
+      raise ContractError(path + ".referencePath: must belong to the licensed component")
 
 
 def _validate_source_lock(value):
@@ -568,7 +585,10 @@ def _validate_source_lock(value):
             repository["id"],
             repository_ids,
           )
-          if evidence_record["type"] == "repository-git-blob":
+          if evidence_record["type"] in {
+            "repository-cef-pak-resource",
+            "repository-git-blob",
+          }:
             reference = repositories_by_id[evidence_record["repository"]]
             if not reference["active"] or not reference["buildInput"]:
               raise ContractError(
@@ -597,14 +617,24 @@ def _validate_source_lock(value):
               raise ContractError(
                 evidence_prefix + ": referenced component license does not match"
               )
+            reference_path = (
+              evidence_record["referencePath"]
+              if evidence_record["type"] == "repository-git-blob"
+              else evidence_record["locator"]
+            )
+            reference_blob = (
+              evidence_record["referenceBlob"]
+              if evidence_record["type"] == "repository-git-blob"
+              else evidence_record["evidenceBlob"]
+            )
             matching_reference = [
               item
               for item in reference_component["license"]["evidence"]
               if item["type"] == "git-blob"
-              and item["path"] == evidence_record["referencePath"]
+              and item["path"] == reference_path
               and item["locator"] == evidence_record["locator"]
               and item["evidenceSha256"] == evidence_record["evidenceSha256"]
-              and item["blob"] == evidence_record["referenceBlob"]
+              and item["blob"] == reference_blob
               and item["evidenceBlob"] == evidence_record["evidenceBlob"]
               and item.get("licenseRefs") == evidence_record.get("licenseRefs")
             ]
@@ -616,7 +646,7 @@ def _validate_source_lock(value):
               (
                 item
                 for item in reference["lfsObjects"]
-                if evidence_record["referencePath"] in item["paths"]
+                if reference_path in item["paths"]
               ),
               None,
             )
@@ -630,7 +660,10 @@ def _validate_source_lock(value):
                 + ": repository evidence must be stored as regular Git blobs"
               )
             reference_digest = matching_reference[0]["sha256"]
-            if evidence_record["referenceSha256"] != reference_digest:
+            if (
+              evidence_record.get("referenceSha256", reference_digest)
+              != reference_digest
+            ):
               raise ContractError(
                 evidence_prefix + ": referenced payload digest does not match"
               )
@@ -1382,7 +1415,10 @@ def _validate_source_license_audit(value):
             repository["repository"],
             repository_ids,
           )
-          if evidence_record["type"] == "repository-git-blob":
+          if evidence_record["type"] in {
+            "repository-cef-pak-resource",
+            "repository-git-blob",
+          }:
             reference = repositories_by_id[evidence_record["repository"]]
             reference_component = next(
               (
@@ -1392,14 +1428,24 @@ def _validate_source_license_audit(value):
               ),
               None,
             )
+            reference_path = (
+              evidence_record["referencePath"]
+              if evidence_record["type"] == "repository-git-blob"
+              else evidence_record["locator"]
+            )
+            reference_blob = (
+              evidence_record["referenceBlob"]
+              if evidence_record["type"] == "repository-git-blob"
+              else evidence_record["evidenceBlob"]
+            )
             matching_reference = [] if reference_component is None else [
               item
               for item in reference_component.get("license", {}).get("evidence", [])
               if item["type"] == "git-blob"
-              and item["path"] == evidence_record["referencePath"]
+              and item["path"] == reference_path
               and item["locator"] == evidence_record["locator"]
               and item["evidenceSha256"] == evidence_record["evidenceSha256"]
-              and item["blob"] == evidence_record["referenceBlob"]
+              and item["blob"] == reference_blob
               and item["evidenceBlob"] == evidence_record["evidenceBlob"]
               and item.get("licenseRefs") == evidence_record.get("licenseRefs")
             ]
@@ -1413,7 +1459,10 @@ def _validate_source_license_audit(value):
               raise ContractError(
                 evidence_path + ": referenced component mapping does not match"
               )
-            if evidence_record["referenceSha256"] != matching_reference[0]["sha256"]:
+            if (
+              evidence_record.get("referenceSha256", matching_reference[0]["sha256"])
+              != matching_reference[0]["sha256"]
+            ):
               raise ContractError(
                 evidence_path + ": referenced payload digest does not match"
               )

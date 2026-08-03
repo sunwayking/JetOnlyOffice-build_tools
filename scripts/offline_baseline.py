@@ -910,6 +910,17 @@ def component_evidence_reference(item, repositories_by_id):
       f"license:{item['locator']}@{item['evidenceBlob']}:"
       f"sha256:{item['evidenceSha256']}"
     )
+  if item["type"] == "repository-cef-pak-resource":
+    repository = repositories_by_id[item["repository"]]
+    return (
+      f"{item['type']}:{item['path']}:sha256:{item['sha256']}:"
+      f"repository:{item['repository']}@{repository['commit']}:"
+      f"tree:{repository['tree']}:"
+      f"license:{item['locator']}@{item['evidenceBlob']}:"
+      f"sha256:{item['evidenceSha256']}:"
+      f"archiveMember:{item['archiveMember']}:"
+      f"resourceId:{item['resourceId']}:compression:{item['compression']}"
+    )
   return (
     f"{item['type']}:{item['path']}:{item['locator']}:"
     f"sha256:{item['evidenceSha256']}"

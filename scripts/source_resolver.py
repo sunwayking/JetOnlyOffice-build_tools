@@ -486,6 +486,16 @@ def _validate_reviewed_components(value, path):
           {"licenseRefs"},
           evidence_path,
         )
+      elif evidence_type == "repository-cef-pak-resource":
+        _require_exact_keys(
+          record,
+          {
+            "type", "path", "repository", "locator", "sha256",
+            "archiveMember", "resourceId", "compression",
+          },
+          {"licenseRefs"},
+          evidence_path,
+        )
       else:
         _require_exact_keys(
           record,
@@ -496,6 +506,7 @@ def _validate_reviewed_components(value, path):
       if evidence_type not in {
         "font-name",
         "git-blob",
+        "repository-cef-pak-resource",
         "repository-git-blob",
         "zip-member",
       }:
@@ -509,13 +520,22 @@ def _validate_reviewed_components(value, path):
           )
       else:
         _validate_relative_path(record["locator"], evidence_path + ".locator")
-      if evidence_type == "repository-git-blob":
+      if evidence_type in {
+        "repository-cef-pak-resource",
+        "repository-git-blob",
+      }:
         if not isinstance(record["repository"], str) or not ID_PATTERN.fullmatch(
           record["repository"]
         ):
           raise ResolutionError(
             f"{evidence_path}.repository: invalid repository id", 2
           )
+        if record["locator"].partition("/")[0] != component_id:
+          raise ResolutionError(
+            f"{evidence_path}.locator: must belong to the reviewed component",
+            2,
+          )
+      if evidence_type == "repository-git-blob":
         _validate_relative_path(
           record["referencePath"], evidence_path + ".referencePath"
         )
@@ -524,10 +544,21 @@ def _validate_reviewed_components(value, path):
             f"{evidence_path}.referencePath: must belong to the reviewed component",
             2,
           )
-        if record["locator"].partition("/")[0] != component_id:
+      elif evidence_type == "repository-cef-pak-resource":
+        _validate_relative_path(
+          record["archiveMember"], evidence_path + ".archiveMember"
+        )
+        if (
+          not isinstance(record["resourceId"], int)
+          or isinstance(record["resourceId"], bool)
+          or not 0 < record["resourceId"] <= 65535
+        ):
           raise ResolutionError(
-            f"{evidence_path}.locator: must belong to the reviewed component",
-            2,
+            f"{evidence_path}.resourceId: expected a positive uint16", 2
+          )
+        if record["compression"] not in {"none", "brotli-header-8"}:
+          raise ResolutionError(
+            f"{evidence_path}.compression: unsupported transform", 2
           )
       if not isinstance(record["sha256"], str) or not SHA256_PATTERN.fullmatch(
         record["sha256"]
@@ -588,7 +619,10 @@ def _validate_repository_evidence_links(repositories):
       repository["license"].get("reviewedComponents", [])
     ):
       for evidence_index, evidence in enumerate(component["evidence"]):
-        if evidence["type"] != "repository-git-blob":
+        if evidence["type"] not in {
+          "repository-cef-pak-resource",
+          "repository-git-blob",
+        }:
           continue
         path = (
           f"$.repositories[{repository_index}].license.reviewedComponents"
@@ -639,7 +673,11 @@ def _validate_repository_evidence_links(repositories):
           item
           for item in reference_component["evidence"]
           if item["type"] == "git-blob"
-          and item["path"] == evidence["referencePath"]
+          and item["path"] == (
+            evidence["referencePath"]
+            if evidence["type"] == "repository-git-blob"
+            else evidence["locator"]
+          )
           and item["locator"] == evidence["locator"]
           and item["sha256"] == evidence["sha256"]
           and item.get("licenseRefs") == evidence.get("licenseRefs")
@@ -888,6 +926,102 @@ def _zip_member_bytes(content, member_path, context):
     raise ResolutionError(f"{context}: invalid ZIP license evidence", 3) from error
 
 
+def _seven_zip_executable():
+  executable = shutil.which("7z") or shutil.which("7zz")
+  if executable:
+    return executable
+  if os.name == "nt":
+    candidate = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "7-Zip/7z.exe"
+    if candidate.is_file():
+      return str(candidate)
+  raise ResolutionError("7-Zip is required for derived archive evidence", 3)
+
+
+def _seven_zip_member_bytes(content, member_path, context):
+  temporary_path = None
+  try:
+    with tempfile.NamedTemporaryFile(suffix=".7z", delete=False) as temporary:
+      temporary.write(content)
+      temporary_path = Path(temporary.name)
+    result = subprocess.run(
+      [_seven_zip_executable(), "e", "-so", str(temporary_path), member_path],
+      check=False,
+      capture_output=True,
+    )
+    if result.returncode != 0:
+      detail = result.stderr.decode("utf-8", "replace").strip() or "7z failed"
+      raise ResolutionError(f"{context}: cannot extract archive member: {detail}", 3)
+    if len(result.stdout) > 16 * 1024 * 1024:
+      raise ResolutionError(f"{context}: derived archive member is too large", 3)
+    return result.stdout
+  except OSError as error:
+    raise ResolutionError(f"{context}: cannot extract archive member", 3) from error
+  finally:
+    if temporary_path is not None:
+      temporary_path.unlink(missing_ok=True)
+
+
+def _chromium_pak_resource(content, resource_id, context):
+  if len(content) < 12 or struct.unpack_from("<I", content, 0)[0] != 5:
+    raise ResolutionError(f"{context}: unsupported Chromium DataPack", 3)
+  resource_count, alias_count = struct.unpack_from("<HH", content, 8)
+  index_end = 12 + (resource_count + 1) * 6 + alias_count * 4
+  if index_end > len(content):
+    raise ResolutionError(f"{context}: truncated Chromium DataPack index", 3)
+  entries = [
+    struct.unpack_from("<HI", content, 12 + index * 6)
+    for index in range(resource_count + 1)
+  ]
+  identifiers = [item[0] for item in entries[:-1]]
+  offsets = [item[1] for item in entries]
+  if (
+    identifiers != sorted(set(identifiers))
+    or offsets != sorted(offsets)
+    or offsets[0] != index_end
+    or offsets[-1] != len(content)
+  ):
+    raise ResolutionError(f"{context}: invalid Chromium DataPack index", 3)
+  try:
+    index = identifiers.index(resource_id)
+  except ValueError as error:
+    raise ResolutionError(f"{context}: Chromium resource is missing", 3) from error
+  resource = content[offsets[index]:offsets[index + 1]]
+  if len(resource) > 8 * 1024 * 1024:
+    raise ResolutionError(f"{context}: Chromium resource is too large", 3)
+  return resource
+
+
+def _brotli_with_header_8(content, context):
+  if len(content) < 8:
+    raise ResolutionError(f"{context}: Brotli resource header is truncated", 3)
+  script = (
+    "const z=require('node:zlib'),c=[];"
+    "process.stdin.on('data',x=>c.push(x));"
+    "process.stdin.on('end',()=>process.stdout.write("
+    "z.brotliDecompressSync(Buffer.concat(c),{maxOutputLength:8388608})))"
+  )
+  try:
+    result = subprocess.run(
+      ["node", "-e", script],
+      input=content[8:],
+      check=False,
+      capture_output=True,
+    )
+  except OSError as error:
+    raise ResolutionError(f"{context}: Node.js is required for Brotli evidence", 3) from error
+  if result.returncode != 0 or len(result.stdout) > 8 * 1024 * 1024:
+    raise ResolutionError(f"{context}: invalid Brotli license evidence", 3)
+  return result.stdout
+
+
+def _derived_cef_pak_resource(content, evidence, context):
+  pak = _seven_zip_member_bytes(content, evidence["archiveMember"], context)
+  resource = _chromium_pak_resource(pak, evidence["resourceId"], context)
+  if evidence["compression"] == "brotli-header-8":
+    return _brotli_with_header_8(resource, context)
+  return resource
+
+
 def _locked_git_blob(cache, commit, path, context):
   object_id = _run_git(["rev-parse", f"{commit}:{path}"], cwd=cache, exit_code=3)
   object_type = _run_git(["cat-file", "-t", object_id], cwd=cache, exit_code=3)
@@ -964,6 +1098,37 @@ def _verified_component_evidence(
       )
       if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
         raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+    elif evidence_input["type"] == "repository-cef-pak-resource":
+      reference = repository_contexts.get(evidence_input["repository"])
+      if reference is None:
+        raise ResolutionError(
+          f"{context}: locked evidence repository is unavailable", 3
+        )
+      reference_lfs_paths = {
+        item
+        for lfs_object in reference["lfsObjects"]
+        for item in lfs_object["paths"]
+      }
+      if evidence_input["locator"] in reference_lfs_paths:
+        raise ResolutionError(
+          f"{context}: derived evidence must be stored as a regular Git blob", 3
+        )
+      evidence_blob, _, evidence_content = _locked_materialized_blob(
+        reference,
+        evidence_input["locator"],
+        context,
+      )
+      derived_content = _derived_cef_pak_resource(
+        payload_content,
+        evidence_input,
+        context,
+      )
+      if evidence_content != derived_content:
+        raise ResolutionError(
+          f"{context}: derived license evidence does not match", 3
+        )
+      if hashlib.sha256(evidence_content).hexdigest() != evidence_input["sha256"]:
+        raise ResolutionError(f"{context}: license evidence digest does not match", 3)
     elif evidence_input["type"] == "font-name":
       name_id = int(evidence_input["locator"].split(":", 1)[1])
       evidence_digests = {
@@ -1010,6 +1175,14 @@ def _verified_component_evidence(
         "referencePath": evidence_input["referencePath"],
         "referenceBlob": reference_blob,
         "referenceSha256": hashlib.sha256(reference_content).hexdigest(),
+        "evidenceBlob": evidence_blob,
+      })
+    elif evidence_input["type"] == "repository-cef-pak-resource":
+      record.update({
+        "repository": evidence_input["repository"],
+        "archiveMember": evidence_input["archiveMember"],
+        "resourceId": evidence_input["resourceId"],
+        "compression": evidence_input["compression"],
         "evidenceBlob": evidence_blob,
       })
     elif evidence_input["type"] == "git-blob":
@@ -1185,12 +1358,17 @@ def license_inventory_report(inputs, cache_directory):
         reviewed_paths.setdefault(repository["id"], set()).add(evidence["path"])
         if evidence["type"] == "git-blob":
           reviewed_paths[repository["id"]].add(evidence["locator"])
-        elif evidence["type"] == "repository-git-blob":
+        elif evidence["type"] in {
+          "repository-cef-pak-resource",
+          "repository-git-blob",
+        }:
           required_repository_ids.add(evidence["repository"])
-          reviewed_paths.setdefault(evidence["repository"], set()).update({
-            evidence["referencePath"],
-            evidence["locator"],
-          })
+          referenced_paths = {evidence["locator"]}
+          if evidence["type"] == "repository-git-blob":
+            referenced_paths.add(evidence["referencePath"])
+          reviewed_paths.setdefault(evidence["repository"], set()).update(
+            referenced_paths
+          )
   repositories_by_id = {
     repository["id"]: repository for repository in inputs["repositories"]
   }
@@ -2323,9 +2501,9 @@ def _verify_locked_component_evidence_mapping(
     for lfs_object in reference["lfsObjects"]
     for item in lfs_object["paths"]
   }
-  if (
-    evidence["referencePath"] in reference_lfs_paths
-    or evidence["locator"] in reference_lfs_paths
+  if evidence["locator"] in reference_lfs_paths or (
+    evidence["type"] == "repository-git-blob"
+    and evidence["referencePath"] in reference_lfs_paths
   ):
     raise ResolutionError(
       f"{context}: repository evidence must be stored as regular Git blobs", 3
@@ -2343,10 +2521,18 @@ def _verify_locked_component_evidence_mapping(
     item
     for item in component["license"]["evidence"]
     if item["type"] == "git-blob"
-    and item["path"] == evidence["referencePath"]
+    and item["path"] == (
+      evidence["referencePath"]
+      if evidence["type"] == "repository-git-blob"
+      else evidence["locator"]
+    )
     and item["locator"] == evidence["locator"]
     and item["evidenceSha256"] == evidence["evidenceSha256"]
-    and item["blob"] == evidence["referenceBlob"]
+    and item["blob"] == (
+      evidence["referenceBlob"]
+      if evidence["type"] == "repository-git-blob"
+      else evidence["evidenceBlob"]
+    )
   ]
   if len(matching) != 1:
     raise ResolutionError(f"{context}: referenced component mapping does not match", 3)
@@ -2399,6 +2585,32 @@ def _verify_locked_component_evidence(
     )
     if evidence_blob != evidence["evidenceBlob"]:
       raise ResolutionError(f"{context}: license evidence blob does not match", 3)
+    if hashlib.sha256(evidence_content).hexdigest() != evidence["evidenceSha256"]:
+      raise ResolutionError(f"{context}: license evidence digest does not match", 3)
+  elif evidence["type"] == "repository-cef-pak-resource":
+    reference = _verify_locked_component_evidence_mapping(
+      evidence,
+      component_id,
+      spdx,
+      repository_contexts,
+      context,
+    )
+    evidence_blob, _, evidence_content = _locked_materialized_blob(
+      reference,
+      evidence["locator"],
+      context,
+    )
+    if evidence_blob != evidence["evidenceBlob"]:
+      raise ResolutionError(f"{context}: license evidence blob does not match", 3)
+    derived_content = _derived_cef_pak_resource(
+      payload_content,
+      evidence,
+      context,
+    )
+    if evidence_content != derived_content:
+      raise ResolutionError(
+        f"{context}: derived license evidence does not match", 3
+      )
     if hashlib.sha256(evidence_content).hexdigest() != evidence["evidenceSha256"]:
       raise ResolutionError(f"{context}: license evidence digest does not match", 3)
   elif evidence["type"] == "font-name":

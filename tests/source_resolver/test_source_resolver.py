@@ -18,6 +18,9 @@ sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
 
 from contracts.contract_tool import validate_contract  # noqa: E402
 from source_resolver import (  # noqa: E402
+  _brotli_with_header_8,
+  _chromium_pak_resource,
+  _derived_cef_pak_resource,
   _download_anonymous_lfs_object,
   _fetch_anonymous_lfs_actions,
   LfsActionRefreshRequired,
@@ -46,6 +49,22 @@ from source_resolver import (  # noqa: E402
 
 SHA1_A = "a" * 40
 SHA1_B = "b" * 40
+
+
+def chromium_pak(resources):
+  resources = sorted(resources.items())
+  index_end = 12 + (len(resources) + 1) * 6
+  offsets = []
+  position = index_end
+  for resource_id, content in resources:
+    offsets.append((resource_id, position))
+    position += len(content)
+  header = struct.pack("<IB3xHH", 5, 1, len(resources), 0)
+  index = b"".join(
+    struct.pack("<HI", resource_id, offset)
+    for resource_id, offset in offsets
+  ) + struct.pack("<HI", 0, position)
+  return header + index + b"".join(content for _, content in resources)
 
 
 def run_git(directory, *arguments):
@@ -321,6 +340,47 @@ def add_lfs_object(root, checkout, name="asset.bin", content=b"locked lfs conten
 
 
 class SourceResolverTests(unittest.TestCase):
+  def test_chromium_pak_resource_is_strict(self):
+    payload = chromium_pak({31061: b"credits", 63001: b"license"})
+    self.assertEqual(
+      b"credits",
+      _chromium_pak_resource(payload, 31061, "test"),
+    )
+    with self.assertRaisesRegex(ResolutionError, "resource is missing"):
+      _chromium_pak_resource(payload, 7, "test")
+    with self.assertRaisesRegex(ResolutionError, "invalid Chromium DataPack index"):
+      _chromium_pak_resource(payload[:-1], 31061, "test")
+
+  @unittest.skipUnless(shutil.which("node"), "Node.js is unavailable")
+  def test_derived_cef_pak_resource_applies_locked_transform(self):
+    compressed = subprocess.run(
+      [
+        "node",
+        "-e",
+        "const z=require('node:zlib'),c=[];process.stdin.on('data',x=>c.push(x));"
+        "process.stdin.on('end',()=>process.stdout.write("
+        "z.brotliCompressSync(Buffer.concat(c))))",
+      ],
+      input=b"credits\n",
+      capture_output=True,
+      check=True,
+    ).stdout
+    pak = chromium_pak({31061: b"12345678" + compressed})
+    evidence = {
+      "archiveMember": "cef_binary/Resources/resources.pak",
+      "resourceId": 31061,
+      "compression": "brotli-header-8",
+    }
+    with patch("source_resolver._seven_zip_member_bytes", return_value=pak):
+      self.assertEqual(
+        b"credits\n",
+        _derived_cef_pak_resource(b"archive", evidence, "test"),
+      )
+    self.assertEqual(
+      b"credits\n",
+      _brotli_with_header_8(b"12345678" + compressed, "test"),
+    )
+
   def test_repository_selection_policy_is_explicit_and_fail_closed(self):
     value = source_inputs()
     validate_inputs(value)

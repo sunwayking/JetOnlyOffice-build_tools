@@ -142,6 +142,86 @@ def repository_component_license_record():
   }
 
 
+def derived_cef_license_record():
+  expression = "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits"
+  records = []
+  for locator, resource_id, compression, digest, blob, bindings in (
+    ("cef/LICENSE.txt", 63001, "none", SHA256_A, SHA1_A, []),
+    (
+      "cef/chromium-credits.html",
+      31061,
+      "brotli-header-8",
+      SHA256_B,
+      SHA1_B,
+      ["LicenseRef-Chromium-Third-Party-Credits"],
+    ),
+  ):
+    records.append({
+      "type": "repository-cef-pak-resource",
+      "path": "cef/cef_binary.7z",
+      "blob": SHA1_A,
+      "sha256": SHA256_A,
+      "repository": "license-evidence",
+      "locator": locator,
+      "evidenceBlob": blob,
+      "evidenceSha256": digest,
+      "archiveMember": (
+        "cef_binary/Resources/resources.pak"
+        if resource_id == 31061
+        else "cef_binary/Resources/chrome_100_percent.pak"
+      ),
+      "resourceId": resource_id,
+      "compression": compression,
+      "licenseRefs": bindings,
+    })
+  return {
+    "scope": "component",
+    "payloadPatterns": ["cef/cef_binary.7z"],
+    "components": [{
+      "id": "cef",
+      "payloadPaths": ["cef/cef_binary.7z"],
+      "license": {"spdx": expression, "evidence": records},
+    }],
+  }
+
+
+def cef_evidence_repository_license_record():
+  expression = "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits"
+  return {
+    "scope": "component",
+    "payloadPatterns": ["cef/LICENSE.txt", "cef/chromium-credits.html"],
+    "components": [{
+      "id": "cef",
+      "payloadPaths": ["cef/LICENSE.txt", "cef/chromium-credits.html"],
+      "license": {
+        "spdx": expression,
+        "evidence": [
+          {
+            "type": "git-blob",
+            "path": "cef/LICENSE.txt",
+            "blob": SHA1_A,
+            "sha256": SHA256_A,
+            "locator": "cef/LICENSE.txt",
+            "evidenceBlob": SHA1_A,
+            "evidenceSha256": SHA256_A,
+            "licenseRefs": [],
+          },
+          {
+            "type": "git-blob",
+            "path": "cef/chromium-credits.html",
+            "blob": SHA1_B,
+            "sha256": SHA256_B,
+            "locator": "cef/chromium-credits.html",
+            "evidenceBlob": SHA1_B,
+            "evidenceSha256": SHA256_B,
+            "licenseRefs": ["LicenseRef-Chromium-Third-Party-Credits"],
+          },
+        ],
+      },
+    }],
+  }
+
+
 def source_lock():
   return {
     "schemaVersion": 1,
@@ -845,6 +925,36 @@ class ContractToolTests(unittest.TestCase):
     value["repositories"].insert(1, reference)
     with self.assertRaisesRegex(ContractError, "referenced component mapping"):
       validate_contract(value, "source-lock", self.schema_dir)
+
+  def test_source_lock_accepts_payload_derived_cef_evidence(self):
+    value = source_lock()
+    value["repositories"][0]["license"] = derived_cef_license_record()
+    reference = json.loads(json.dumps(value["repositories"][1]))
+    reference.update({
+      "id": "license-evidence",
+      "role": "auxiliary-mirror",
+      "checkoutPath": "sources/license-evidence",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "license": cef_evidence_repository_license_record(),
+    })
+    value["repositories"].insert(1, reference)
+
+    validate_contract(value, "source-lock", self.schema_dir)
+
+    tampered = json.loads(json.dumps(value))
+    tampered["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["resourceId"] = 0
+    with self.assertRaisesRegex(ContractError, "exactly one schema"):
+      validate_contract(tampered, "source-lock", self.schema_dir)
+
+    tampered = json.loads(json.dumps(value))
+    tampered["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ][0]["evidenceBlob"] = SHA1_B
+    with self.assertRaisesRegex(ContractError, "referenced component mapping"):
+      validate_contract(tampered, "source-lock", self.schema_dir)
 
   def test_source_lock_rejects_invalid_component_scoped_license_evidence(self):
     value = source_lock()
