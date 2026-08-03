@@ -654,6 +654,15 @@ class ContractToolTests(unittest.TestCase):
     with self.assertRaisesRegex(ContractError, "repository is not locked"):
       validate_contract(value, "source-lock", self.schema_dir)
 
+  def test_source_lock_accepts_reviewed_dictionary_license_expressions(self):
+    for reviewed_expression in (
+      "BSD-3-Clause",
+      "LGPL-2.1-only AND LPPL-1.0",
+    ):
+      value = source_lock()
+      value["repositories"][0]["license"]["spdx"] = reviewed_expression
+      validate_contract(value, "source-lock", self.schema_dir)
+
   def test_source_lock_rejects_incomplete_license_and_ambiguous_lfs_paths(self):
     for invalid_expression in ("NOASSERTION", "TBD", "MIT OR", " "):
       value = source_lock()

@@ -1586,7 +1586,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Thirty-two language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Thirty-four language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "da_DK",
@@ -1655,17 +1655,6 @@
             ]
           },
           {
-            "id": "lt_LT",
-            "code": "MISSING_EVIDENCE",
-            "reason": "The locked README refers to a BSD-style license in a COPYING file that is absent from the locked component.",
-            "evidence": [
-              {
-                "path": "lt_LT/lt_LT_Lithuanian.txt",
-                "sha256": "034bf1f41757291f0b5b59739bb7a6aff488159898f0143e8bb43bf9aca5e262"
-              }
-            ]
-          },
-          {
             "id": "mn_MN",
             "code": "CONFLICTING_TERMS",
             "reason": "The locked README both prohibits modified redistribution and grants redistribution or modification under LPPL 1.3 or later.",
@@ -1714,17 +1703,6 @@
               {
                 "path": "pt_PT/README_pt_PT.txt",
                 "sha256": "7eeba93bcda56daec9c4847d08e0147ab6c8238c7b3883a7fcca6b5ada02f1d7"
-              }
-            ]
-          },
-          {
-            "id": "sl_SI",
-            "code": "AMBIGUOUS_VERSION",
-            "reason": "The locked hyphenation README invokes LPPL without identifying a version while also describing GPL and LGPL choices, so the complete language-pack expression is not unambiguous.",
-            "evidence": [
-              {
-                "path": "sl_SI/README_hyph_sl_SI.txt",
-                "sha256": "76e518bc5426ac5e3954f5168e7737a549ad7a3b6d3f81d6fd4473a1679940da"
               }
             ]
           },
@@ -2306,6 +2284,28 @@
             ]
           },
           {
+            "id": "lt_LT",
+            "spdx": "BSD-3-Clause",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "lt_LT/lt_LT.aff",
+                "repository": "license-evidence",
+                "referencePath": "lt_LT/lt_LT.aff",
+                "locator": "lt_LT/COPYING",
+                "sha256": "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "lt_LT/lt_LT.dic",
+                "repository": "license-evidence",
+                "referencePath": "lt_LT/lt_LT.dic",
+                "locator": "lt_LT/COPYING",
+                "sha256": "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5"
+              }
+            ]
+          },
+          {
             "id": "lv_LV",
             "spdx": "LGPL-2.1-only",
             "evidence": [
@@ -2468,6 +2468,52 @@
             ]
           },
           {
+            "id": "sl_SI",
+            "spdx": "LGPL-2.1-only AND LPPL-1.0",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "sl_SI/hyph_sl_SI.dic",
+                "repository": "license-evidence",
+                "referencePath": "sl_SI/hyph_sl_SI.dic",
+                "locator": "sl_SI/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "sl_SI/hyph_sl_SI.dic",
+                "repository": "license-evidence",
+                "referencePath": "sl_SI/hyph_sl_SI.dic",
+                "locator": "sl_SI/README_hyph_sl_SI.txt",
+                "sha256": "76e518bc5426ac5e3954f5168e7737a549ad7a3b6d3f81d6fd4473a1679940da"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "sl_SI/hyph_sl_SI.dic",
+                "repository": "license-evidence",
+                "referencePath": "sl_SI/hyph_sl_SI.dic",
+                "locator": "sl_SI/hyph-sl.tex",
+                "sha256": "dd50791eb083ed7a163cd883bf7175fc914cc01e41f3b5b7b94d2106d5beb1da"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "sl_SI/sl_SI.aff",
+                "repository": "license-evidence",
+                "referencePath": "sl_SI/sl_SI.aff",
+                "locator": "sl_SI/Readme_sl_SI.txt",
+                "sha256": "06ca32a935a36fcede286799d18b017b4a8cba8eb9c4dd4aaf6d4b9d5cdf286d"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "sl_SI/sl_SI.dic",
+                "repository": "license-evidence",
+                "referencePath": "sl_SI/sl_SI.dic",
+                "locator": "sl_SI/Readme_sl_SI.txt",
+                "sha256": "06ca32a935a36fcede286799d18b017b4a8cba8eb9c4dd4aaf6d4b9d5cdf286d"
+              }
+            ]
+          },
+          {
             "id": "sr_Cyrl_RS",
             "spdx": "LGPL-3.0-only",
             "evidence": [
@@ -2584,13 +2630,11 @@
           "hr_HR",
           "id_ID",
           "it_IT",
-          "lt_LT",
           "mn_MN",
           "pl_PL",
           "pt_BR",
           "pt_PT",
           "ru_RU",
-          "sl_SI",
           "uk_UA",
           "uz_Cyrl_UZ",
           "uz_Latn_UZ"
@@ -2773,11 +2817,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "238dd08c1a1d00742555464e70f14fd3f4e8189b",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 4",
+      "commit": "003822edfcf75fd5420d033fbc3af319406eae78",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 5",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.4"
+        "ref": "refs/tags/v9.4.0-evidence.5"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3124,6 +3168,60 @@
                 "path": "kk_KZ/kk_KZ.dic",
                 "locator": "kk_KZ/COPYRIGHT",
                 "sha256": "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027"
+              }
+            ]
+          },
+          {
+            "id": "lt_LT",
+            "spdx": "BSD-3-Clause",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "lt_LT/lt_LT.aff",
+                "locator": "lt_LT/COPYING",
+                "sha256": "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5"
+              },
+              {
+                "type": "git-blob",
+                "path": "lt_LT/lt_LT.dic",
+                "locator": "lt_LT/COPYING",
+                "sha256": "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5"
+              }
+            ]
+          },
+          {
+            "id": "sl_SI",
+            "spdx": "LGPL-2.1-only AND LPPL-1.0",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "sl_SI/hyph_sl_SI.dic",
+                "locator": "sl_SI/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "sl_SI/hyph_sl_SI.dic",
+                "locator": "sl_SI/README_hyph_sl_SI.txt",
+                "sha256": "76e518bc5426ac5e3954f5168e7737a549ad7a3b6d3f81d6fd4473a1679940da"
+              },
+              {
+                "type": "git-blob",
+                "path": "sl_SI/hyph_sl_SI.dic",
+                "locator": "sl_SI/hyph-sl.tex",
+                "sha256": "dd50791eb083ed7a163cd883bf7175fc914cc01e41f3b5b7b94d2106d5beb1da"
+              },
+              {
+                "type": "git-blob",
+                "path": "sl_SI/sl_SI.aff",
+                "locator": "sl_SI/Readme_sl_SI.txt",
+                "sha256": "06ca32a935a36fcede286799d18b017b4a8cba8eb9c4dd4aaf6d4b9d5cdf286d"
+              },
+              {
+                "type": "git-blob",
+                "path": "sl_SI/sl_SI.dic",
+                "locator": "sl_SI/Readme_sl_SI.txt",
+                "sha256": "06ca32a935a36fcede286799d18b017b4a8cba8eb9c4dd4aaf6d4b9d5cdf286d"
               }
             ]
           }

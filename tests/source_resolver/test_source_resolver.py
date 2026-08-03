@@ -562,8 +562,8 @@ class SourceResolverTests(unittest.TestCase):
         "az_Latn_AZ",
         "da_DK", "el_GR", "en_AU",
         "hr_HR", "id_ID", "it_IT",
-        "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
-        "ru_RU", "sl_SI", "uk_UA", "uz_Cyrl_UZ",
+        "mn_MN", "pl_PL", "pt_BR", "pt_PT",
+        "ru_RU", "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
       ],
       next(
@@ -627,12 +627,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.4",
+        "ref": "refs/tags/v9.4.0-evidence.5",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "238dd08c1a1d00742555464e70f14fd3f4e8189b",
+      "003822edfcf75fd5420d033fbc3af319406eae78",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -657,6 +657,8 @@ class SourceResolverTests(unittest.TestCase):
         "kacst",
         "kacst-one",
         "kk_KZ",
+        "lt_LT",
+        "sl_SI",
       ],
       [
         component["id"]
@@ -709,6 +711,49 @@ class SourceResolverTests(unittest.TestCase):
       [
         (record["path"], record["locator"], record["licenseRefs"])
         for record in evidence_en_gb["evidence"]
+      ],
+    )
+    evidence_lt_lt = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "lt_LT"
+    )
+    self.assertEqual("BSD-3-Clause", evidence_lt_lt["spdx"])
+    self.assertEqual(
+      [
+        (
+          "lt_LT/lt_LT.aff",
+          "lt_LT/COPYING",
+          "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5",
+        ),
+        (
+          "lt_LT/lt_LT.dic",
+          "lt_LT/COPYING",
+          "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5",
+        ),
+      ],
+      [
+        (record["path"], record["locator"], record["sha256"])
+        for record in evidence_lt_lt["evidence"]
+      ],
+    )
+    evidence_sl_si = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "sl_SI"
+    )
+    self.assertEqual("LGPL-2.1-only AND LPPL-1.0", evidence_sl_si["spdx"])
+    self.assertEqual(
+      [
+        ("sl_SI/hyph_sl_SI.dic", "sl_SI/LPPL-1.0.txt"),
+        ("sl_SI/hyph_sl_SI.dic", "sl_SI/README_hyph_sl_SI.txt"),
+        ("sl_SI/hyph_sl_SI.dic", "sl_SI/hyph-sl.tex"),
+        ("sl_SI/sl_SI.aff", "sl_SI/Readme_sl_SI.txt"),
+        ("sl_SI/sl_SI.dic", "sl_SI/Readme_sl_SI.txt"),
+      ],
+      [
+        (record["path"], record["locator"])
+        for record in evidence_sl_si["evidence"]
       ],
     )
     evidence_kk_kz = next(
@@ -946,10 +991,21 @@ class SourceResolverTests(unittest.TestCase):
         2,
       ),
       "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
+      "lt_LT": ("BSD-3-Clause", {"lt_LT/COPYING"}, 2),
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
       "ro_RO": ("GPL-2.0-only", {"ro_RO/ro_RO_Romanian.txt"}, 3),
+      "sl_SI": (
+        "LGPL-2.1-only AND LPPL-1.0",
+        {
+          "sl_SI/LPPL-1.0.txt",
+          "sl_SI/README_hyph_sl_SI.txt",
+          "sl_SI/Readme_sl_SI.txt",
+          "sl_SI/hyph-sl.tex",
+        },
+        5,
+      ),
       "sr_Cyrl_RS": (
         "LGPL-3.0-only", {"sr_Cyrl_RS/Readme_sr_Cyrl_RS.txt"}, 3
       ),
@@ -988,9 +1044,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      17, len(dictionaries["license"]["unresolvedComponents"])
+      15, len(dictionaries["license"]["unresolvedComponents"])
     )
-    for component_id in ("de_AT", "de_CH", "de_DE", "en_GB", "kk_KZ"):
+    for component_id in (
+      "de_AT", "de_CH", "de_DE", "en_GB", "kk_KZ", "lt_LT", "sl_SI"
+    ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
       )
@@ -1017,7 +1075,6 @@ class SourceResolverTests(unittest.TestCase):
       "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
       "id_ID": ("MISSING_EVIDENCE", ["id_ID/README_id_ID.txt"]),
       "it_IT": ("AMBIGUOUS_VERSION", ["it_IT/README_hyph_it_IT.txt"]),
-      "lt_LT": ("MISSING_EVIDENCE", ["lt_LT/lt_LT_Lithuanian.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
       "pt_BR": ("AMBIGUOUS_VERSION", ["pt_BR/README_hyph_pt_BR.txt"]),
@@ -1029,7 +1086,6 @@ class SourceResolverTests(unittest.TestCase):
           "pt_PT/README_pt_PT.txt",
         ],
       ),
-      "sl_SI": ("AMBIGUOUS_VERSION", ["sl_SI/README_hyph_sl_SI.txt"]),
       "uk_UA": ("AMBIGUOUS_VERSION", ["uk_UA/README_th_uk_UA.txt"]),
       "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
       "uz_Latn_UZ": ("MISSING_EVIDENCE", ["uz_Latn_UZ/README.md"]),
