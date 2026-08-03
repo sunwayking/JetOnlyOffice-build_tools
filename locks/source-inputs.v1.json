@@ -1907,6 +1907,41 @@
             ]
           },
           {
+            "id": "en_GB",
+            "spdx": "LGPL-3.0-only AND LicenseRef-Hyphen-en-GB-2011-10-07",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "en_GB/en_GB.aff",
+                "repository": "license-evidence",
+                "referencePath": "en_GB/en_GB.aff",
+                "locator": "en_GB/lgpl-3.0.txt",
+                "licenseRefs": [],
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "en_GB/en_GB.dic",
+                "repository": "license-evidence",
+                "referencePath": "en_GB/en_GB.dic",
+                "locator": "en_GB/lgpl-3.0.txt",
+                "licenseRefs": [],
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "en_GB/hyph_en_GB.dic",
+                "repository": "license-evidence",
+                "referencePath": "en_GB/hyph_en_GB.dic",
+                "locator": "en_GB/README_hyph_en_GB.txt",
+                "licenseRefs": [
+                  "LicenseRef-Hyphen-en-GB-2011-10-07"
+                ],
+                "sha256": "6f3d1dddcf62d2d452801bd86289ad5826a30d15a502c0825f5c73715372db50"
+              }
+            ]
+          },
+          {
             "id": "en_US",
             "spdx": "LicenseRef-SCOWL-2020-12-07 AND LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet",
             "evidence": [
@@ -2400,7 +2435,6 @@
           "de_DE",
           "el_GR",
           "en_AU",
-          "en_GB",
           "hr_HR",
           "id_ID",
           "it_IT",
@@ -2594,11 +2628,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "8cd365ab3798a7c2a54a8ce1ec9f4567b2667c24",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 1",
+      "commit": "c4263028812577becec855f4e3f81ece7758a8e9",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 2",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.1"
+        "ref": "refs/tags/v9.4.0-evidence.2"
       },
       "projectFork": false,
       "buildInput": true,
@@ -2606,14 +2640,46 @@
       "license": {
         "status": "component-scoped",
         "payloadPatterns": [
+          "**/*.aff",
+          "**/*.dic",
           "**/*.ttf"
         ],
         "patterns": [
+          "**/*.txt",
           "**/COPYRIGHT",
           "**/LICENSE*"
         ],
         "reason": "All mirrored payloads have an exact component-scoped license mapping.",
         "reviewedComponents": [
+          {
+            "id": "en_GB",
+            "spdx": "LGPL-3.0-only AND LicenseRef-Hyphen-en-GB-2011-10-07",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "en_GB/en_GB.aff",
+                "locator": "en_GB/lgpl-3.0.txt",
+                "licenseRefs": [],
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_GB/en_GB.dic",
+                "locator": "en_GB/lgpl-3.0.txt",
+                "licenseRefs": [],
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_GB/hyph_en_GB.dic",
+                "locator": "en_GB/README_hyph_en_GB.txt",
+                "licenseRefs": [
+                  "LicenseRef-Hyphen-en-GB-2011-10-07"
+                ],
+                "sha256": "6f3d1dddcf62d2d452801bd86289ad5826a30d15a502c0825f5c73715372db50"
+              }
+            ]
+          },
           {
             "id": "fonts-beng-extra",
             "spdx": "GPL-2.0-or-later",

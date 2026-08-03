@@ -532,7 +532,6 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ",
         "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-        "en_GB",
         "hr_HR", "id_ID", "it_IT", "kk_KZ",
         "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
         "ru_RU", "sl_SI", "uk_UA", "uz_Cyrl_UZ",
@@ -599,13 +598,59 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.1",
+        "ref": "refs/tags/v9.4.0-evidence.2",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "8cd365ab3798a7c2a54a8ce1ec9f4567b2667c24",
+      "c4263028812577becec855f4e3f81ece7758a8e9",
       repositories_by_id["license-evidence"]["commit"],
+    )
+    evidence_repository = repositories_by_id["license-evidence"]
+    self.assertEqual(
+      ["**/*.aff", "**/*.dic", "**/*.ttf"],
+      evidence_repository["license"]["payloadPatterns"],
+    )
+    self.assertEqual(
+      ["**/*.txt", "**/COPYRIGHT", "**/LICENSE*"],
+      evidence_repository["license"]["patterns"],
+    )
+    self.assertEqual(
+      [
+        "en_GB",
+        "fonts-beng-extra",
+        "fonts-gujr-extra",
+        "kacst",
+        "kacst-one",
+      ],
+      [
+        component["id"]
+        for component in evidence_repository["license"]["reviewedComponents"]
+      ],
+    )
+    evidence_en_gb = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "en_GB"
+    )
+    self.assertEqual(
+      "LGPL-3.0-only AND LicenseRef-Hyphen-en-GB-2011-10-07",
+      evidence_en_gb["spdx"],
+    )
+    self.assertEqual(
+      [
+        ("en_GB/en_GB.aff", "en_GB/lgpl-3.0.txt", []),
+        ("en_GB/en_GB.dic", "en_GB/lgpl-3.0.txt", []),
+        (
+          "en_GB/hyph_en_GB.dic",
+          "en_GB/README_hyph_en_GB.txt",
+          ["LicenseRef-Hyphen-en-GB-2011-10-07"],
+        ),
+      ],
+      [
+        (record["path"], record["locator"], record["licenseRefs"])
+        for record in evidence_en_gb["evidence"]
+      ],
     )
     self.assertEqual(
       ["ASC.ttf", "liberation"],
@@ -745,6 +790,11 @@ class SourceResolverTests(unittest.TestCase):
       "en_CA": (
         "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
       ),
+      "en_GB": (
+        "LGPL-3.0-only AND LicenseRef-Hyphen-en-GB-2011-10-07",
+        {"en_GB/README_hyph_en_GB.txt", "en_GB/lgpl-3.0.txt"},
+        3,
+      ),
       "en_US": (
         "LicenseRef-SCOWL-2020-12-07 AND "
         "LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet",
@@ -809,6 +859,17 @@ class SourceResolverTests(unittest.TestCase):
         for record in reviewed_dictionaries["en_US"]["evidence"]
       ],
     )
+    self.assertEqual(
+      [[], [], ["LicenseRef-Hyphen-en-GB-2011-10-07"]],
+      [
+        record["licenseRefs"]
+        for record in reviewed_dictionaries["en_GB"]["evidence"]
+      ],
+    )
+    self.assertEqual(
+      21, len(dictionaries["license"]["unresolvedComponents"])
+    )
+    self.assertNotIn("en_GB", dictionaries["license"]["unresolvedComponents"])
     self.assertIn(
       "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
     )
