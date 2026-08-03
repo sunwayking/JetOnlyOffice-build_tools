@@ -1245,6 +1245,39 @@
         "reason": "Twenty-three language packs are mapped to exact in-tree license blobs; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
+            "id": "el_GR",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The locked hyphenation README names LGPL without identifying a license version.",
+            "evidence": [
+              {
+                "path": "el_GR/README_hyph_el_GR.txt",
+                "sha256": "0b3e117f4ab079e7cbcdd7f4645f9a4f193ae123e6c781928597b27d22706aa7"
+              }
+            ]
+          },
+          {
+            "id": "kk_KZ",
+            "code": "AMBIGUOUS_CHOICE",
+            "reason": "The locked README lists GPL, LGPL, and MPL without establishing whether recipients may choose one license or must satisfy all three.",
+            "evidence": [
+              {
+                "path": "kk_KZ/README_kk_KZ.txt",
+                "sha256": "e858f2d541e7b7220f973e892477bd8046c25aa90da42a25bd237f417721e52e"
+              }
+            ]
+          },
+          {
+            "id": "lt_LT",
+            "code": "MISSING_EVIDENCE",
+            "reason": "The locked README refers to a BSD-style license in a COPYING file that is absent from the locked component.",
+            "evidence": [
+              {
+                "path": "lt_LT/lt_LT_Lithuanian.txt",
+                "sha256": "034bf1f41757291f0b5b59739bb7a6aff488159898f0143e8bb43bf9aca5e262"
+              }
+            ]
+          },
+          {
             "id": "mn_MN",
             "code": "CONFLICTING_TERMS",
             "reason": "The locked README both prohibits modified redistribution and grants redistribution or modification under LPPL 1.3 or later.",
@@ -1252,6 +1285,39 @@
               {
                 "path": "mn_MN/Readme_mn_MN.txt",
                 "sha256": "a1072d76b0677f45e49f04882e28f446509df25cee59fa5da8d803a64d821307"
+              }
+            ]
+          },
+          {
+            "id": "pt_BR",
+            "code": "AMBIGUOUS_VERSION",
+            "reason": "The locked hyphenation README names LGPLv3 together with Mozilla Public License terms but does not identify the MPL version.",
+            "evidence": [
+              {
+                "path": "pt_BR/README_hyph_pt_BR.txt",
+                "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
+              }
+            ]
+          },
+          {
+            "id": "uz_Cyrl_UZ",
+            "code": "MISSING_EVIDENCE",
+            "reason": "The locked README identifies the upstream dictionary origin but contains no license grant for the locked payloads.",
+            "evidence": [
+              {
+                "path": "uz_Cyrl_UZ/README.md",
+                "sha256": "e599543ee5ae57f302fd08765f01927a87d197163422fec03eb6ce78892d5e1f"
+              }
+            ]
+          },
+          {
+            "id": "uz_Latn_UZ",
+            "code": "MISSING_EVIDENCE",
+            "reason": "The locked README identifies the upstream dictionary origin but contains no license grant for the locked payloads.",
+            "evidence": [
+              {
+                "path": "uz_Latn_UZ/README.md",
+                "sha256": "7b312f91d8a18dc255af5673a2b09a095fa884c135b4b051f1b3904cbdb33914"
               }
             ]
           }

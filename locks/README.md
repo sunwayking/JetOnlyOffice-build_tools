@@ -120,10 +120,11 @@ also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
-LPPL 1.3 or later. This also includes `kk_KZ`, whose grant lists GPL, LGPL,
-and MPL without establishing an alternative choice, and `pt_BR`, whose
-hyphenation notice names LGPLv3 together with an unspecified Mozilla Public
-License. The remaining
+LPPL 1.3 or later. The locked blockers also cover `el_GR` and `pt_BR`, whose
+notices omit a license version; `kk_KZ`, whose grant lists GPL, LGPL, and MPL
+without establishing an alternative choice; `lt_LT`, whose referenced
+`COPYING` file is absent; and both Uzbek variants, whose READMEs identify an
+upstream origin without granting a license. The remaining
 twenty-six language packs stay incomplete; twenty-four have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.

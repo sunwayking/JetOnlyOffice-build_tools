@@ -621,12 +621,25 @@ class SourceResolverTests(unittest.TestCase):
       review["id"]: review
       for review in dictionaries["license"]["blockingReviews"]
     }
-    self.assertEqual(["mn_MN"], sorted(blocking_reviews))
-    self.assertEqual("CONFLICTING_TERMS", blocking_reviews["mn_MN"]["code"])
-    self.assertEqual(
-      ["mn_MN/Readme_mn_MN.txt"],
-      [record["path"] for record in blocking_reviews["mn_MN"]["evidence"]],
-    )
+    expected_blocking_reviews = {
+      "el_GR": ("AMBIGUOUS_VERSION", "el_GR/README_hyph_el_GR.txt"),
+      "kk_KZ": ("AMBIGUOUS_CHOICE", "kk_KZ/README_kk_KZ.txt"),
+      "lt_LT": ("MISSING_EVIDENCE", "lt_LT/lt_LT_Lithuanian.txt"),
+      "mn_MN": ("CONFLICTING_TERMS", "mn_MN/Readme_mn_MN.txt"),
+      "pt_BR": ("AMBIGUOUS_VERSION", "pt_BR/README_hyph_pt_BR.txt"),
+      "uz_Cyrl_UZ": ("MISSING_EVIDENCE", "uz_Cyrl_UZ/README.md"),
+      "uz_Latn_UZ": ("MISSING_EVIDENCE", "uz_Latn_UZ/README.md"),
+    }
+    self.assertEqual(sorted(expected_blocking_reviews), sorted(blocking_reviews))
+    for component_id, (code, evidence_path) in expected_blocking_reviews.items():
+      self.assertEqual(code, blocking_reviews[component_id]["code"])
+      self.assertEqual(
+        [evidence_path],
+        [
+          record["path"]
+          for record in blocking_reviews[component_id]["evidence"]
+        ],
+      )
     expected_lgpl_evidence = {
       "bg_BG": "bg_BG/Readme_bg_BG.txt",
       "en_ZA": "en_ZA/Readme_en_ZA.txt",
