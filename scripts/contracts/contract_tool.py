@@ -62,6 +62,7 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
   "GPL-2.0-or-later WITH Font-exception-2.0",
   "GPL-3.0-only",
+  "GPL-3.0-only AND LGPL-2.1-or-later",
   "GPL-3.0-or-later AND (GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1)",
   "GPL-3.0-or-later OR LGPL-3.0-or-later OR MPL-1.1",
   "GPL-3.0-or-later WITH Font-exception-2.0",
