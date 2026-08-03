@@ -57,19 +57,8 @@
           "python/python3.tar.gz",
           "qt/qt_binary_5.9.9_gcc_64.7z"
         ],
-        "reason": "The upstream repository contains no repository license. This release inventory is restricted to the exact linux_64 server payload candidates: Android is unreachable for the selected platform, sysroot is disabled by --sysroot 0, the Windows Mobile GLEW path returns immediately on Linux, and the locked Python is materialized without the upstream extraction helper. The selected CEF, Python archive, and Qt archive still lack a complete reviewed inventory.",
+        "reason": "The upstream repository contains no repository license. This release inventory is restricted to the exact linux_64 server payload candidates: Android is unreachable for the selected platform, sysroot is disabled by --sysroot 0, the Windows Mobile GLEW path returns immediately on Linux, and the locked Python is materialized without the upstream extraction helper. The selected CEF archive is closed from embedded license resources; Python and Qt still lack complete reviewed inventories.",
         "blockingReviews": [
-          {
-            "id": "cef",
-            "code": "INCOMPLETE_SCOPE",
-            "reason": "The locked CEF distribution contains Chromium, CEF, V8, ICU, Vulkan, SwiftShader, and related runtime payloads but no license, notice, or complete third-party inventory.",
-            "evidence": [
-              {
-                "path": "cef/5414/linux_64/cef_binary.7z",
-                "sha256": "dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145"
-              }
-            ]
-          },
           {
             "id": "python",
             "code": "INCOMPLETE_SCOPE",
@@ -93,8 +82,39 @@
             ]
           }
         ],
+        "reviewedComponents": [
+          {
+            "id": "cef",
+            "spdx": "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits",
+            "evidence": [
+              {
+                "type": "repository-cef-pak-resource",
+                "path": "cef/5414/linux_64/cef_binary.7z",
+                "repository": "license-evidence",
+                "locator": "cef/LICENSE.txt",
+                "archiveMember": "cef_binary/Resources/chrome_100_percent.pak",
+                "resourceId": 63001,
+                "compression": "none",
+                "licenseRefs": [],
+                "sha256": "058c3827ffb827ff3edda471ae7e1bb1d1aa5931985f0126043ccd33409e792f"
+              },
+              {
+                "type": "repository-cef-pak-resource",
+                "path": "cef/5414/linux_64/cef_binary.7z",
+                "repository": "license-evidence",
+                "locator": "cef/chromium-credits.html",
+                "archiveMember": "cef_binary/Resources/resources.pak",
+                "resourceId": 31061,
+                "compression": "brotli-header-8",
+                "licenseRefs": [
+                  "LicenseRef-Chromium-Third-Party-Credits"
+                ],
+                "sha256": "4323092783bb888b8cacdd0f4e6173a69eedc29b747015376f17d337bbe304ef"
+              }
+            ]
+          }
+        ],
         "unresolvedComponents": [
-          "cef",
           "python",
           "qt"
         ]
@@ -3204,10 +3224,13 @@
           "**/*.dat",
           "**/*.dic",
           "**/*.idx",
-          "**/*.ttf"
+          "**/*.ttf",
+          "cef/LICENSE.txt",
+          "cef/chromium-credits.html"
         ],
         "patterns": [
           "**/*.README",
+          "**/*.html",
           "**/*.spec",
           "**/*.tex",
           "**/*.txt",
@@ -3218,6 +3241,28 @@
         ],
         "reason": "All mirrored payloads have an exact component-scoped license mapping.",
         "reviewedComponents": [
+          {
+            "id": "cef",
+            "spdx": "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "cef/LICENSE.txt",
+                "locator": "cef/LICENSE.txt",
+                "licenseRefs": [],
+                "sha256": "058c3827ffb827ff3edda471ae7e1bb1d1aa5931985f0126043ccd33409e792f"
+              },
+              {
+                "type": "git-blob",
+                "path": "cef/chromium-credits.html",
+                "locator": "cef/chromium-credits.html",
+                "licenseRefs": [
+                  "LicenseRef-Chromium-Third-Party-Credits"
+                ],
+                "sha256": "4323092783bb888b8cacdd0f4e6173a69eedc29b747015376f17d337bbe304ef"
+              }
+            ]
+          },
           {
             "id": "da_DK",
             "spdx": "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1) AND LGPL-2.1-or-later AND LPPL-1.3c",

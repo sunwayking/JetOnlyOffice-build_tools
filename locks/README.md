@@ -65,10 +65,9 @@ close their licenses before release. In all other cases,
 `reviewedComponents` is narrower: every payload in such a component must be
 covered by one or more immutable evidence records and an explicitly reviewed
 SPDX expression. Distinct `path` plus `locator` mappings may bind cumulative
-terms to one payload; duplicate mappings are rejected. The resolver accepts
-four primary evidence forms: an exact
-license member inside a locked ZIP, copyright/license text in a locked OpenType
-`name` table, or an exact license file stored as a locked Git blob. For
+terms to one payload; duplicate mappings are rejected. The resolver accepts an
+exact license member inside a locked ZIP, copyright/license text in a locked
+OpenType `name` table, or an exact license file stored as a locked Git blob. For
 Git-blob evidence, each payload `path` names the covered payload and `locator`
 names its reviewed license file, or the exact payload whose own header contains
 a complete license grant, in the same locked tree. The resolver hashes
@@ -82,6 +81,13 @@ license mapping. The formal lock records both repositories' commits and trees,
 the consuming and reference payload blobs and SHA-256 values, and the evidence
 blob and SHA-256. Package, SBOM, and provenance verification resolve only the
 materialized locked checkout; they never fetch evidence during an offline step.
+`repository-cef-pak-resource` covers the CEF distribution case without copying
+the 92 MB archive into the evidence repository. It binds the original LFS
+payload, exact 7z member, Chromium DataPack v5 resource id, and optional
+eight-byte-header Brotli transform, then compares the derived bytes with a
+regular Git blob in the immutable evidence snapshot. Resolver, package, and
+verify repeat the extraction and byte comparison; malformed PAK indexes,
+unsupported transforms, LFS evidence blobs, and digest drift fail closed.
 When a component expression contains multiple `LicenseRef-*` identifiers, every
 evidence record carries a sorted `licenseRefs` binding, including an empty list
 for evidence that belongs only to a standard SPDX license. The resolver,
@@ -99,24 +105,32 @@ maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `nanum`, `openoffice`,
 `takao-gothic`, and `wqy-zenhei` to exact Git blobs or embedded font license
 records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and `kacst-one` use
 byte-identical payload and license mappings from the immutable-tag-selected
-`license-evidence` repository. The release gate remains blocked for the
-selected `build-tools-data` CEF, Python, and Qt payloads. `ASC.ttf` remains
+`license-evidence` repository. The selected `build-tools-data` CEF payload is
+now closed from its embedded CEF and Chromium license resources. The release
+gate remains blocked for the selected Python and Qt payloads. `ASC.ttf` remains
 blocked on missing redistribution terms and `liberation` remains blocked on
 conflicting custom terms. A product name, copyright line, package family,
 external URL, or unrelated nearby license is not accepted as a substitute.
 
-Primary archive inspection at build-tools-data commit
-`743e8e55f0431523248d16b7521e01aa11744ffc` found no license, notice, or
-copyright member in either the selected CEF 5414 Linux archive (SHA-256
+At build-tools-data commit
+`743e8e55f0431523248d16b7521e01aa11744ffc`, the selected CEF 5414 Linux
+archive (SHA-256
 `dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145`)
-or the selected Qt 5.9.9 Linux archive (LFS/SHA-256
-`84181f983a5e76c2f8a63f8bf06d5ce27675f543c45febe014514633a1289f0e`).
+contains CEF license resource 63001 in
+`cef_binary/Resources/chrome_100_percent.pak` and Chromium generated credits
+resource 31061 in `cef_binary/Resources/resources.pak`. After the locked Brotli
+transform, their SHA-256 values are respectively
+`058c3827ffb827ff3edda471ae7e1bb1d1aa5931985f0126043ccd33409e792f` and
+`4323092783bb888b8cacdd0f4e6173a69eedc29b747015376f17d337bbe304ef`.
+The selected Qt 5.9.9 Linux archive (LFS/SHA-256
+`84181f983a5e76c2f8a63f8bf06d5ce27675f543c45febe014514633a1289f0e`)
+still has no complete reviewed binary-to-source license inventory.
 The Python archive (SHA-256
 `c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360`)
 contains the Python, pip, setuptools, and wheel license texts, but those files
 do not yet prove a complete payload-to-license expression for the bundled
-runtime. All three components therefore remain unresolved; no SPDX expression
-is inferred from product identity or adjacent upstream sources.
+runtime. Python and Qt therefore remain unresolved; no SPDX expression is
+inferred from product identity or adjacent upstream sources.
 
 Forty-one dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:

@@ -63,8 +63,9 @@ CycloneDX, SLSA provenance, and checksums manifest.
 
 Repository-level and component-scoped license records are both first-class
 source-lock inputs. Packaging copies a declared repository license or extracts
-the exact reviewed bytes from a Git blob, OpenType name record, or locked ZIP
-member for every component payload. A payload may bind multiple distinct
+the exact reviewed bytes from a Git blob, OpenType name record, locked ZIP
+member, or locked Chromium PAK resource for every component payload. A payload
+may bind multiple distinct
 locators when its SPDX expression accumulates terms; the German hyphenation
 fixtures require the adaptation README, original `dehyphn.tex`, and full
 `LPPL-1.0` text. The deterministic license bundle records
@@ -85,6 +86,12 @@ of the source lock and materialized workspace; package and verify never fetch
 the research URL. Both sides of the mapping and the adopted license text are
 rehashed from ordinary Git blobs before the license archive and SBOM are
 accepted.
+CEF uses the narrower `repository-cef-pak-resource` contract. The original
+build-tools-data LFS archive remains the licensed payload; the lock names the
+exact 7z member, Chromium DataPack v5 resource id, and Brotli transform. The
+derived bytes must equal the ordinary Git blob in the immutable evidence
+snapshot during resolve, package, and verify, so the evidence repository never
+becomes a substitute runtime or a duplicate carrier for the CEF archive.
 
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any
@@ -157,11 +164,11 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-Thirty-seven font components and forty-one dictionary packs now have
-payload-complete, machine-verified primary evidence. The remaining blockers
-are the selected CEF, Python, and Qt payloads; two font components; and
-eight dictionary packs enumerated in
-`locks/source-inputs.v1.json`, for thirteen unresolved components in total.
+Thirty-seven font components, forty-one dictionary packs, and the selected CEF
+payload now have payload-complete, machine-verified evidence. The remaining
+blockers are the selected Python and Qt payloads, two font components, and eight
+dictionary packs enumerated in `locks/source-inputs.v1.json`, for twelve
+unresolved components in total.
 The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
 V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
 behavior tests bind those exclusions to the published entrypoint and upstream

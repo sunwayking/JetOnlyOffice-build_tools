@@ -632,7 +632,7 @@ class SourceResolverTests(unittest.TestCase):
       ),
     )
     self.assertEqual(
-      ["cef", "python", "qt"],
+      ["python", "qt"],
       next(
         finding["unresolvedComponents"]
         for finding in findings
@@ -653,10 +653,6 @@ class SourceResolverTests(unittest.TestCase):
       for review in build_tools_data["license"]["blockingReviews"]
     }
     expected_build_tools_blockers = {
-      "cef": (
-        "cef/5414/linux_64/cef_binary.7z",
-        "dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145",
-      ),
       "python": (
         "python/python3.tar.gz",
         "c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360",
@@ -675,6 +671,43 @@ class SourceResolverTests(unittest.TestCase):
       self.assertEqual(
         [{"path": path, "sha256": sha256}], review["evidence"]
       )
+    cef_component = next(
+      component
+      for component in build_tools_data["license"]["reviewedComponents"]
+      if component["id"] == "cef"
+    )
+    self.assertEqual(
+      "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits",
+      cef_component["spdx"],
+    )
+    self.assertEqual(
+      [
+        (
+          "cef/LICENSE.txt",
+          "cef_binary/Resources/chrome_100_percent.pak",
+          63001,
+          "none",
+          [],
+        ),
+        (
+          "cef/chromium-credits.html",
+          "cef_binary/Resources/resources.pak",
+          31061,
+          "brotli-header-8",
+          ["LicenseRef-Chromium-Third-Party-Credits"],
+        ),
+      ],
+      [
+        (
+          record["locator"],
+          record["archiveMember"],
+          record["resourceId"],
+          record["compression"],
+          record["licenseRefs"],
+        )
+        for record in cef_component["evidence"]
+      ],
+    )
     self.assertEqual(
       ["ASC.ttf", "liberation"],
       next(
@@ -696,12 +729,20 @@ class SourceResolverTests(unittest.TestCase):
     )
     evidence_repository = repositories_by_id["license-evidence"]
     self.assertEqual(
-      ["**/*.aff", "**/*.dat", "**/*.dic", "**/*.idx", "**/*.ttf"],
+      [
+        "**/*.aff",
+        "**/*.dat",
+        "**/*.dic",
+        "**/*.idx",
+        "**/*.ttf",
+        "cef/LICENSE.txt",
+        "cef/chromium-credits.html",
+      ],
       evidence_repository["license"]["payloadPatterns"],
     )
     self.assertEqual(
       [
-        "**/*.README", "**/*.spec", "**/*.tex", "**/*.txt", "**/*.xml",
+        "**/*.README", "**/*.html", "**/*.spec", "**/*.tex", "**/*.txt", "**/*.xml",
         "**/COPYING*",
         "**/COPYRIGHT", "**/LICENSE*"
       ],
@@ -709,6 +750,7 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
+        "cef",
         "da_DK",
         "de_AT",
         "de_CH",
