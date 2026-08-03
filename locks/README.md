@@ -118,12 +118,12 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Thirty-one dictionary language packs are mapped payload by payload to exact
+Thirty-two dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `de_AT`, `de_CH`, `de_DE`,
 `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`, `hu_HU`,
-`ko_KR`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `ro_RO`, `sk_SK`,
-`sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, and `vi_VN`.
+`kk_KZ`, `ko_KR`, `lb_LU`, `lv_LV`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`,
+`ro_RO`, `sk_SK`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
@@ -137,6 +137,10 @@ terms. The three German variants bind their byte-identical payloads to GPL 2
 or 3 spelling terms and the cumulative LGPL 2 or later plus LPPL 1.0
 hyphenation terms. Each hyphenation payload maps independently to the adaptation
 README, the original `dehyphn.tex` grant, and the canonical `LPPL-1.0` text.
+`kk_KZ` binds byte-identical locked payloads to an immutable Debian copyright
+record that establishes GPL 2 or later, LGPL 2.1 or later, and MPL 1.1 as
+alternative choices. The independent package payloads reproduce the locked
+bytes after UTF-8 BOM removal and CRLF-to-LF normalization.
 `gl_ES` and both Serbian variants bind their payloads to
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
@@ -147,13 +151,12 @@ to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
 LPPL 1.3 or later. The locked blockers also cover `da_DK`, `el_GR`, `hr_HR`,
-`it_IT`, `pt_BR`, and `sl_SI`, whose notices omit a license version; `kk_KZ`,
-whose grant does not establish an alternative choice; `pl_PL` and `uk_UA`,
-whose multi-license notices are not version-specific; `pt_PT`, whose notices
-conflict; `en_AU`, `id_ID`, and `lt_LT`, whose locked evidence does not cover
-every payload; and both Uzbek variants, whose READMEs identify an upstream
-origin without granting a license. The remaining
-eighteen language packs stay incomplete; sixteen have candidate text
+`it_IT`, `pt_BR`, and `sl_SI`, whose notices omit a license version; `pl_PL`
+and `uk_UA`, whose multi-license notices are not version-specific; `pt_PT`,
+whose notices conflict; `en_AU`, `id_ID`, and `lt_LT`, whose locked evidence
+does not cover every payload; and both Uzbek variants, whose READMEs identify
+an upstream origin without granting a license. The remaining
+seventeen language packs stay incomplete; fifteen have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 

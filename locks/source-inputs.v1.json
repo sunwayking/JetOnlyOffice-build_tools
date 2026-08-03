@@ -1586,7 +1586,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Thirty-one language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Thirty-two language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "da_DK",
@@ -1651,17 +1651,6 @@
               {
                 "path": "it_IT/README_hyph_it_IT.txt",
                 "sha256": "e6f356c3c49bc6016b6a635c20b468468eef6d011953a7051bbdfd56e17f0d3b"
-              }
-            ]
-          },
-          {
-            "id": "kk_KZ",
-            "code": "AMBIGUOUS_CHOICE",
-            "reason": "The locked README lists GPL, LGPL, and MPL without establishing whether recipients may choose one license or must satisfy all three.",
-            "evidence": [
-              {
-                "path": "kk_KZ/README_kk_KZ.txt",
-                "sha256": "e858f2d541e7b7220f973e892477bd8046c25aa90da42a25bd237f417721e52e"
               }
             ]
           },
@@ -2259,6 +2248,28 @@
             ]
           },
           {
+            "id": "kk_KZ",
+            "spdx": "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "kk_KZ/kk_KZ.aff",
+                "repository": "license-evidence",
+                "referencePath": "kk_KZ/kk_KZ.aff",
+                "locator": "kk_KZ/COPYRIGHT",
+                "sha256": "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kk_KZ/kk_KZ.dic",
+                "repository": "license-evidence",
+                "referencePath": "kk_KZ/kk_KZ.dic",
+                "locator": "kk_KZ/COPYRIGHT",
+                "sha256": "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027"
+              }
+            ]
+          },
+          {
             "id": "ko_KR",
             "spdx": "GPL-3.0-or-later AND (GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1)",
             "evidence": [
@@ -2573,7 +2584,6 @@
           "hr_HR",
           "id_ID",
           "it_IT",
-          "kk_KZ",
           "lt_LT",
           "mn_MN",
           "pl_PL",
@@ -2763,11 +2773,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "43308c6939597145e0387daded3cba2a481641be",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 3",
+      "commit": "238dd08c1a1d00742555464e70f14fd3f4e8189b",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 4",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.3"
+        "ref": "refs/tags/v9.4.0-evidence.4"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3096,6 +3106,24 @@
                 "path": "kacst-one/KacstOne.ttf",
                 "locator": "kacst-one/LICENSE",
                 "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              }
+            ]
+          },
+          {
+            "id": "kk_KZ",
+            "spdx": "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "kk_KZ/kk_KZ.aff",
+                "locator": "kk_KZ/COPYRIGHT",
+                "sha256": "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027"
+              },
+              {
+                "type": "git-blob",
+                "path": "kk_KZ/kk_KZ.dic",
+                "locator": "kk_KZ/COPYRIGHT",
+                "sha256": "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027"
               }
             ]
           }

@@ -561,7 +561,7 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ",
         "da_DK", "el_GR", "en_AU",
-        "hr_HR", "id_ID", "it_IT", "kk_KZ",
+        "hr_HR", "id_ID", "it_IT",
         "lt_LT", "mn_MN", "pl_PL", "pt_BR", "pt_PT",
         "ru_RU", "sl_SI", "uk_UA", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
@@ -627,12 +627,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.3",
+        "ref": "refs/tags/v9.4.0-evidence.4",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "43308c6939597145e0387daded3cba2a481641be",
+      "238dd08c1a1d00742555464e70f14fd3f4e8189b",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -656,6 +656,7 @@ class SourceResolverTests(unittest.TestCase):
         "fonts-gujr-extra",
         "kacst",
         "kacst-one",
+        "kk_KZ",
       ],
       [
         component["id"]
@@ -708,6 +709,33 @@ class SourceResolverTests(unittest.TestCase):
       [
         (record["path"], record["locator"], record["licenseRefs"])
         for record in evidence_en_gb["evidence"]
+      ],
+    )
+    evidence_kk_kz = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "kk_KZ"
+    )
+    self.assertEqual(
+      "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+      evidence_kk_kz["spdx"],
+    )
+    self.assertEqual(
+      [
+        (
+          "kk_KZ/kk_KZ.aff",
+          "kk_KZ/COPYRIGHT",
+          "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027",
+        ),
+        (
+          "kk_KZ/kk_KZ.dic",
+          "kk_KZ/COPYRIGHT",
+          "005abba37d3fd43f3703ecc3da1820a5f401832d32d476cfdf41de4a7ec2c027",
+        ),
+      ],
+      [
+        (record["path"], record["locator"], record["sha256"])
+        for record in evidence_kk_kz["evidence"]
       ],
     )
     self.assertEqual(
@@ -912,6 +940,11 @@ class SourceResolverTests(unittest.TestCase):
         {"ko_KR/ko_KR.aff", "ko_KR/ko_KR_LICENSE.txt"},
         2,
       ),
+      "kk_KZ": (
+        "GPL-2.0-or-later OR LGPL-2.1-or-later OR MPL-1.1",
+        {"kk_KZ/COPYRIGHT"},
+        2,
+      ),
       "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
@@ -955,9 +988,9 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      18, len(dictionaries["license"]["unresolvedComponents"])
+      17, len(dictionaries["license"]["unresolvedComponents"])
     )
-    for component_id in ("de_AT", "de_CH", "de_DE", "en_GB"):
+    for component_id in ("de_AT", "de_CH", "de_DE", "en_GB", "kk_KZ"):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
       )
@@ -971,11 +1004,8 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertIn("ca_ES/ca_ES.aff", dictionaries["license"]["patterns"])
     self.assertIn("ko_KR/ko_KR.aff", dictionaries["license"]["patterns"])
-    for component_id in ("kk_KZ", "pt_BR"):
-      self.assertNotIn(component_id, reviewed_dictionaries)
-      self.assertIn(
-        component_id, dictionaries["license"]["unresolvedComponents"]
-      )
+    self.assertNotIn("pt_BR", reviewed_dictionaries)
+    self.assertIn("pt_BR", dictionaries["license"]["unresolvedComponents"])
     blocking_reviews = {
       review["id"]: review
       for review in dictionaries["license"]["blockingReviews"]
@@ -987,7 +1017,6 @@ class SourceResolverTests(unittest.TestCase):
       "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
       "id_ID": ("MISSING_EVIDENCE", ["id_ID/README_id_ID.txt"]),
       "it_IT": ("AMBIGUOUS_VERSION", ["it_IT/README_hyph_it_IT.txt"]),
-      "kk_KZ": ("AMBIGUOUS_CHOICE", ["kk_KZ/README_kk_KZ.txt"]),
       "lt_LT": ("MISSING_EVIDENCE", ["lt_LT/lt_LT_Lithuanian.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
