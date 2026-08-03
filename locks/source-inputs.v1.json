@@ -1606,7 +1606,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Forty-one language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Forty-two language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "en_AU",
@@ -1649,17 +1649,6 @@
               {
                 "path": "pl_PL/pl_PL_Polish.txt",
                 "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
-              }
-            ]
-          },
-          {
-            "id": "pt_BR",
-            "code": "AMBIGUOUS_VERSION",
-            "reason": "The locked hyphenation README names LGPLv3 together with Mozilla Public License terms but does not identify the MPL version.",
-            "evidence": [
-              {
-                "path": "pt_BR/README_hyph_pt_BR.txt",
-                "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
               }
             ]
           },
@@ -2582,6 +2571,68 @@
             ]
           },
           {
+            "id": "pt_BR",
+            "spdx": "LGPL-2.1-only AND LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/COPYING_LGPL_v3.txt",
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/README_hyph_pt_BR.txt",
+                "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/hyphen-pt.spec",
+                "sha256": "2c4f426155f7db9eadaaef77781c1e19f72cfac2e8a4e8f4889ebeb83bfde384"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/pt_BR.aff",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/pt_BR.aff",
+                "locator": "pt_BR/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/pt_BR.aff",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/pt_BR.aff",
+                "locator": "pt_BR/README_pt_BR.TXT",
+                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/pt_BR.dic",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/pt_BR.dic",
+                "locator": "pt_BR/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pt_BR/pt_BR.dic",
+                "repository": "license-evidence",
+                "referencePath": "pt_BR/pt_BR.dic",
+                "locator": "pt_BR/README_pt_BR.TXT",
+                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
+              }
+            ]
+          },
+          {
             "id": "pt_PT",
             "spdx": "GPL-2.0-only",
             "evidence": [
@@ -3026,7 +3077,6 @@
           "hr_HR",
           "mn_MN",
           "pl_PL",
-          "pt_BR",
           "uz_Cyrl_UZ",
           "uz_Latn_UZ"
         ]
@@ -3208,11 +3258,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "43163cfada0dc75c873919b22474704b454f7f81",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 13",
+      "commit": "c585a4490c4a5aafa8becbd6ec21cb1b1e6f6b6d",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 14",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.13"
+        "ref": "refs/tags/v9.4.0-evidence.14"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3230,6 +3280,7 @@
         ],
         "patterns": [
           "**/*.README",
+          "**/*.TXT",
           "**/*.html",
           "**/*.spec",
           "**/*.tex",
@@ -3775,6 +3826,54 @@
                 "path": "lt_LT/lt_LT.dic",
                 "locator": "lt_LT/COPYING",
                 "sha256": "97c7647bb681f70233ba9698daf7d7837764796cb98ca88abfed38ca03af47a5"
+              }
+            ]
+          },
+          {
+            "id": "pt_BR",
+            "spdx": "LGPL-2.1-only AND LGPL-3.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/COPYING_LGPL_v3.txt",
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/README_hyph_pt_BR.txt",
+                "sha256": "07400608865ce4c964cc443a9f354c733ca7f3f7d31f4463222b927cb7c54b87"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/hyph_pt_BR.dic",
+                "locator": "pt_BR/hyphen-pt.spec",
+                "sha256": "2c4f426155f7db9eadaaef77781c1e19f72cfac2e8a4e8f4889ebeb83bfde384"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/pt_BR.aff",
+                "locator": "pt_BR/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/pt_BR.aff",
+                "locator": "pt_BR/README_pt_BR.TXT",
+                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/pt_BR.dic",
+                "locator": "pt_BR/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "git-blob",
+                "path": "pt_BR/pt_BR.dic",
+                "locator": "pt_BR/README_pt_BR.TXT",
+                "sha256": "f687b608ecf02c57fc37ea81efa9bbdeef023cbf8eafc7a60467ab3417a1f29b"
               }
             ]
           },

@@ -142,12 +142,12 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. Python and Qt therefore remain unresolved; no SPDX expression is
 inferred from product identity or adjacent upstream sources.
 
-Forty-one dictionary language packs are mapped payload by payload to exact
+Forty-two dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`, `de_CH`, `de_DE`,
 `el_GR`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`,
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
-`nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_PT`, `ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`,
+`nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`,
 `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, `uk_UA`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
@@ -188,6 +188,11 @@ hyphenation bytes.
 `pt_PT` binds all three payloads to Debian `libreoffice-dictionaries 1:7.2.0-1`.
 The source record offers GPL 2 for the spelling payloads and assigns GPL 2 to
 hyphenation, so the reviewed mapping consistently selects `GPL-2.0-only`.
+`pt_BR` binds byte-identical spelling payloads to an immutable LibreOffice
+commit and the locked LGPL 2.1 notice. Its hyphenation payload is reproduced
+from Fedora's digest-bound `hyphptBR-213.zip`; the Azure Linux package spec
+assigns LGPL 3.0 to the Brazilian subpackage, and a deterministic
+ISO-8859-1-to-UTF-8 conversion reproduces the locked bytes.
 `uk_UA` retains the in-tree GPL 2-or-later spelling and hyphenation notices,
 while the thesaurus data and deterministically generated index bind to an
 immutable `spell-uk` source commit under the same selected branch.
@@ -208,12 +213,12 @@ also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
-LPPL 1.3 or later. The locked blockers cover `hr_HR` and `pt_BR`, whose notices
-omit a license version; `pl_PL`, whose multi-license
+LPPL 1.3 or later. The locked blockers cover `hr_HR`, whose notice omits a
+license version; `pl_PL`, whose multi-license
 notice is not version-specific; `en_AU`, whose locked evidence does not
 establish a versioned SPDX expression; and both Uzbek variants, whose READMEs
-identify an upstream origin without granting a license. The remaining eight
-language packs stay incomplete; seven have candidate text
+identify an upstream origin without granting a license. The remaining seven
+language packs stay incomplete; six have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` has no in-tree license candidate.
 

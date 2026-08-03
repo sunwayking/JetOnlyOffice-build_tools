@@ -575,7 +575,7 @@ class SourceResolverTests(unittest.TestCase):
         "az_Latn_AZ",
         "en_AU",
         "hr_HR",
-        "mn_MN", "pl_PL", "pt_BR",
+        "mn_MN", "pl_PL",
         "uz_Cyrl_UZ", "uz_Latn_UZ",
       ],
       next(
@@ -672,12 +672,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.13",
+        "ref": "refs/tags/v9.4.0-evidence.14",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "43163cfada0dc75c873919b22474704b454f7f81",
+      "c585a4490c4a5aafa8becbd6ec21cb1b1e6f6b6d",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -695,7 +695,8 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "**/*.README", "**/*.html", "**/*.spec", "**/*.tex", "**/*.txt", "**/*.xml",
+        "**/*.README", "**/*.TXT", "**/*.html", "**/*.spec", "**/*.tex",
+        "**/*.txt", "**/*.xml",
         "**/COPYING*",
         "**/COPYRIGHT", "**/LICENSE*"
       ],
@@ -718,6 +719,7 @@ class SourceResolverTests(unittest.TestCase):
         "kacst-one",
         "kk_KZ",
         "lt_LT",
+        "pt_BR",
         "pt_PT",
         "ru_RU",
         "sl_SI",
@@ -771,6 +773,25 @@ class SourceResolverTests(unittest.TestCase):
         "ru_RU/README_ru_RU.libreoffice.txt",
       },
       {record["locator"] for record in evidence_ru_ru["evidence"]},
+    )
+    evidence_pt_br = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "pt_BR"
+    )
+    self.assertEqual(
+      "LGPL-2.1-only AND LGPL-3.0-only", evidence_pt_br["spdx"]
+    )
+    self.assertEqual(7, len(evidence_pt_br["evidence"]))
+    self.assertEqual(
+      {
+        "pt_BR/COPYING_LGPL_v2.1.txt",
+        "pt_BR/COPYING_LGPL_v3.txt",
+        "pt_BR/README_hyph_pt_BR.txt",
+        "pt_BR/README_pt_BR.TXT",
+        "pt_BR/hyphen-pt.spec",
+      },
+      {record["locator"] for record in evidence_pt_br["evidence"]},
     )
     german_spdx = (
       "(GPL-2.0-only OR GPL-3.0-only) AND "
@@ -1246,6 +1267,17 @@ class SourceResolverTests(unittest.TestCase):
       "pt_PT": (
         "GPL-2.0-only", {"pt_PT/COPYING_GPLv2", "pt_PT/COPYRIGHT"}, 6
       ),
+      "pt_BR": (
+        "LGPL-2.1-only AND LGPL-3.0-only",
+        {
+          "pt_BR/COPYING_LGPL_v2.1.txt",
+          "pt_BR/COPYING_LGPL_v3.txt",
+          "pt_BR/README_hyph_pt_BR.txt",
+          "pt_BR/README_pt_BR.TXT",
+          "pt_BR/hyphen-pt.spec",
+        },
+        7,
+      ),
       "ru_RU": (
         "LicenseRef-Russian-Dictionaries-Lebedev-1997-2008",
         {
@@ -1315,11 +1347,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      8, len(dictionaries["license"]["unresolvedComponents"])
+      7, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
       "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID",
-      "it_IT", "kk_KZ", "lt_LT", "pt_PT", "ru_RU", "sl_SI"
+      "it_IT", "kk_KZ", "lt_LT", "pt_BR", "pt_PT", "ru_RU", "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1338,8 +1370,6 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertIn("ca_ES/ca_ES.aff", dictionaries["license"]["patterns"])
     self.assertIn("ko_KR/ko_KR.aff", dictionaries["license"]["patterns"])
-    self.assertNotIn("pt_BR", reviewed_dictionaries)
-    self.assertIn("pt_BR", dictionaries["license"]["unresolvedComponents"])
     blocking_reviews = {
       review["id"]: review
       for review in dictionaries["license"]["blockingReviews"]
@@ -1349,7 +1379,6 @@ class SourceResolverTests(unittest.TestCase):
       "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
-      "pt_BR": ("AMBIGUOUS_VERSION", ["pt_BR/README_hyph_pt_BR.txt"]),
       "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
       "uz_Latn_UZ": ("MISSING_EVIDENCE", ["uz_Latn_UZ/README.md"]),
     }
