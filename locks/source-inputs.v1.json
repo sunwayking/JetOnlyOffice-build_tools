@@ -110,9 +110,95 @@
         "patterns": [
           "**/COPYING*",
           "**/LICENSE*",
-          "**/OFL*"
+          "**/OFL*",
+          "ASC.ttf",
+          "liberation/*.ttf"
         ],
-        "reason": "Thirty-three font components are mapped to exact license grants in the locked tree or embedded in every locked font payload; six components remain unresolved because their available evidence is incomplete or non-redistributable.",
+        "reason": "Thirty-seven font components are mapped to exact license grants; ASC.ttf lacks a redistribution grant and Liberation 1.07.4 remains blocked on conflicting terms.",
+        "blockingReviews": [
+          {
+            "id": "ASC.ttf",
+            "code": "MISSING_EVIDENCE",
+            "reason": "The locked font has no explicit copying, modification, or redistribution grant.",
+            "evidence": [
+              {
+                "path": "ASC.ttf",
+                "sha256": "35ff902a3b9c9254ce3c57d610dad9e57008b8a3351691c463bee775644c1e18"
+              }
+            ]
+          },
+          {
+            "id": "liberation",
+            "code": "CONFLICTING_TERMS",
+            "reason": "The 1.07.4 custom terms and Sans Narrow licensing conflict require explicit legal review.",
+            "evidence": [
+              {
+                "path": "liberation/LiberationMono-Bold.ttf",
+                "sha256": "1e81c74bfaf93ce724e3c2118f085c84ee9f9aa7a56bfe4e87d7746863c4ab95"
+              },
+              {
+                "path": "liberation/LiberationMono-BoldItalic.ttf",
+                "sha256": "319157f5d824ede8ce397e46d65d1fbd4d01c3699a903fff73c5a17ec120f5d9"
+              },
+              {
+                "path": "liberation/LiberationMono-Italic.ttf",
+                "sha256": "00b76b2717491709a2c7f8dfacfebeeee12cdce06fb8a95b0dd8836033a432af"
+              },
+              {
+                "path": "liberation/LiberationMono-Regular.ttf",
+                "sha256": "5738bfd34fac3e9454281b3ebdff6ba64f0558fac3dad4c7da22aae21a05fc1e"
+              },
+              {
+                "path": "liberation/LiberationSans-Bold.ttf",
+                "sha256": "e32256f280c7ffeb29f9b8da6ceb64781c440ccd683b5fcc9c22646ffec019c5"
+              },
+              {
+                "path": "liberation/LiberationSans-BoldItalic.ttf",
+                "sha256": "a3dbf57c98a0a6ec8fc7a10301f2f4440dbb171c90a3b5ab48b05622469bb9ce"
+              },
+              {
+                "path": "liberation/LiberationSans-Italic.ttf",
+                "sha256": "0f9b08355791c08e7e704063d56971f72b31fde0bffe63a57f5683779ff9db8b"
+              },
+              {
+                "path": "liberation/LiberationSans-Regular.ttf",
+                "sha256": "d44ef4341131f4f9bc7d336e0d5c479fe6ecf15a183e6b5a4e88289dd2d333d6"
+              },
+              {
+                "path": "liberation/LiberationSansNarrow-Bold.ttf",
+                "sha256": "5ff9217a6a7cd6cccdca8fd436e3d8a7bbb075e7f6c009f8809480dc5349e2e6"
+              },
+              {
+                "path": "liberation/LiberationSansNarrow-BoldItalic.ttf",
+                "sha256": "ceac79459f017d19275118fc27fbffb2924c2dd6645d362b0afece16026d98ec"
+              },
+              {
+                "path": "liberation/LiberationSansNarrow-Italic.ttf",
+                "sha256": "f1d1465feb4ab621b9eadc42a722b5895944debd0aab96ef197e9ae3ab609c55"
+              },
+              {
+                "path": "liberation/LiberationSansNarrow-Regular.ttf",
+                "sha256": "31de1a7adf5eb3e01a3d2319cae80ede2379a09cbbf692eb56f7024bfb0c8237"
+              },
+              {
+                "path": "liberation/LiberationSerif-Bold.ttf",
+                "sha256": "0755523e1bf3f40612a563c0f5f4ce2e97110a9f5900b15b3dd598185f138ecb"
+              },
+              {
+                "path": "liberation/LiberationSerif-BoldItalic.ttf",
+                "sha256": "a9ddeee9ca1ec9138d9fef5e6103f84e9113d1f1f34f97db61e1cd034150f722"
+              },
+              {
+                "path": "liberation/LiberationSerif-Italic.ttf",
+                "sha256": "758024be56a69ac7222e41ea441c4a3bc2fef8386c27506afa0e52473a5df19d"
+              },
+              {
+                "path": "liberation/LiberationSerif-Regular.ttf",
+                "sha256": "44c68d8acbf7314226592d30b50caf3832aaa81ab63b40f60cd11369618a613a"
+              }
+            ]
+          }
+        ],
         "reviewedComponents": [
           {
             "id": "abyssinica",
@@ -373,6 +459,82 @@
             ]
           },
           {
+            "id": "fonts-beng-extra",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-beng-extra/JamrulNormal.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-beng-extra/JamrulNormal.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-beng-extra/LikhanNormal.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-beng-extra/LikhanNormal.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-beng-extra/MuktiNarrow.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-beng-extra/MuktiNarrow.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-beng-extra/MuktiNarrowBold.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-beng-extra/MuktiNarrowBold.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-beng-extra/ani.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-beng-extra/ani.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-beng-extra/mitra.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-beng-extra/mitra.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              }
+            ]
+          },
+          {
+            "id": "fonts-gujr-extra",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-gujr-extra/Rekha.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-gujr-extra/Rekha.ttf",
+                "locator": "fonts-gujr-extra/LICENSE",
+                "sha256": "3bb9e458484c1403105e72e6653fd5af0dffa91bdc60042bd395584b77f7bd60"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "fonts-gujr-extra/padmaa.ttf",
+                "repository": "license-evidence",
+                "referencePath": "fonts-gujr-extra/padmaa.ttf",
+                "locator": "fonts-gujr-extra/LICENSE",
+                "sha256": "3bb9e458484c1403105e72e6653fd5af0dffa91bdc60042bd395584b77f7bd60"
+              }
+            ]
+          },
+          {
             "id": "fonts-telu-extra",
             "spdx": "GPL-2.0-or-later WITH Font-exception-2.0",
             "evidence": [
@@ -465,6 +627,154 @@
                 "path": "freefont/FreeSerifItalic.ttf",
                 "locator": "name:13",
                 "sha256": "e3dcf5a7fbd484a93837d51cf1976787c6f4b84a9138c29d3fe27c14b82b6eb9"
+              }
+            ]
+          },
+          {
+            "id": "kacst",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstArt.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstArt.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstBook.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstBook.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstDecorative.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstDecorative.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstDigital.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstDigital.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstFarsi.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstFarsi.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstLetter.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstLetter.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstNaskh.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstNaskh.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstOffice.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstOffice.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstPen.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstPen.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstPoster.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstPoster.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstQurn.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstQurn.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstScreen.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstScreen.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstTitle.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstTitle.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/KacstTitleL.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/KacstTitleL.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst/mry_KacstQurn.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst/mry_KacstQurn.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              }
+            ]
+          },
+          {
+            "id": "kacst-one",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "kacst-one/KacstOne-Bold.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst-one/KacstOne-Bold.ttf",
+                "locator": "kacst-one/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "kacst-one/KacstOne.ttf",
+                "repository": "license-evidence",
+                "referencePath": "kacst-one/KacstOne.ttf",
+                "locator": "kacst-one/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
               }
             ]
           },
@@ -1197,10 +1507,6 @@
         ],
         "unresolvedComponents": [
           "ASC.ttf",
-          "fonts-beng-extra",
-          "fonts-gujr-extra",
-          "kacst",
-          "kacst-one",
           "liberation"
         ]
       }
@@ -2020,6 +2326,210 @@
         "status": "declared",
         "path": "LICENSE.md",
         "spdx": "MIT"
+      }
+    },
+    {
+      "id": "license-evidence",
+      "role": "auxiliary-mirror",
+      "checkoutPath": "sources/license-evidence",
+      "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
+      "commit": "8cd365ab3798a7c2a54a8ce1ec9f4567b2667c24",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 1",
+      "selection": {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0-evidence.1"
+      },
+      "projectFork": false,
+      "buildInput": true,
+      "active": true,
+      "license": {
+        "status": "component-scoped",
+        "payloadPatterns": [
+          "**/*.ttf"
+        ],
+        "patterns": [
+          "**/COPYRIGHT",
+          "**/LICENSE*"
+        ],
+        "reason": "All mirrored payloads have an exact component-scoped license mapping.",
+        "reviewedComponents": [
+          {
+            "id": "fonts-beng-extra",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "fonts-beng-extra/JamrulNormal.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "git-blob",
+                "path": "fonts-beng-extra/LikhanNormal.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "git-blob",
+                "path": "fonts-beng-extra/MuktiNarrow.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "git-blob",
+                "path": "fonts-beng-extra/MuktiNarrowBold.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "git-blob",
+                "path": "fonts-beng-extra/ani.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              },
+              {
+                "type": "git-blob",
+                "path": "fonts-beng-extra/mitra.ttf",
+                "locator": "fonts-beng-extra/LICENSE",
+                "sha256": "0906ca9525efa072ec67a37ed19c94cd0d37dea60c6707076cdfa66bdef7bc3c"
+              }
+            ]
+          },
+          {
+            "id": "fonts-gujr-extra",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "fonts-gujr-extra/Rekha.ttf",
+                "locator": "fonts-gujr-extra/LICENSE",
+                "sha256": "3bb9e458484c1403105e72e6653fd5af0dffa91bdc60042bd395584b77f7bd60"
+              },
+              {
+                "type": "git-blob",
+                "path": "fonts-gujr-extra/padmaa.ttf",
+                "locator": "fonts-gujr-extra/LICENSE",
+                "sha256": "3bb9e458484c1403105e72e6653fd5af0dffa91bdc60042bd395584b77f7bd60"
+              }
+            ]
+          },
+          {
+            "id": "kacst",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstArt.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstBook.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstDecorative.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstDigital.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstFarsi.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstLetter.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstNaskh.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstOffice.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstPen.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstPoster.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstQurn.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstScreen.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstTitle.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/KacstTitleL.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst/mry_KacstQurn.ttf",
+                "locator": "kacst/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              }
+            ]
+          },
+          {
+            "id": "kacst-one",
+            "spdx": "GPL-2.0-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "kacst-one/KacstOne-Bold.ttf",
+                "locator": "kacst-one/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              },
+              {
+                "type": "git-blob",
+                "path": "kacst-one/KacstOne.ttf",
+                "locator": "kacst-one/LICENSE",
+                "sha256": "296b69823ccb33e5785d7871e4dc05ac78426ae59873a258c5180556fe72782a"
+              }
+            ]
+          }
+        ],
+        "unresolvedComponents": []
       }
     },
     {

@@ -86,17 +86,17 @@ evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
 exit code 3 while legal mappings are incomplete, even when candidate files
 exist.
 
-At the current lock, this closes thirty-three font
+At the current lock, this closes thirty-seven font
 components. In addition to the previously reviewed families, the lock now
 maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `nanum`, `openoffice`,
 `takao-gothic`, and `wqy-zenhei` to exact Git blobs or embedded font license
-records. The release gate remains blocked for the selected `build-tools-data`
-CEF, Python, and Qt payloads. The `ASC.ttf`, `fonts-beng-extra`,
-`fonts-gujr-extra`, `kacst`, `kacst-one`, and `liberation` font components also
-remain unresolved because their locked bytes do not provide complete,
-redistributable, version-specific terms. A product name, copyright line,
-package family, external URL, or unrelated nearby license is not accepted as a
-substitute.
+records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and `kacst-one` use
+byte-identical payload and license mappings from the immutable-tag-selected
+`license-evidence` repository. The release gate remains blocked for the
+selected `build-tools-data` CEF, Python, and Qt payloads. `ASC.ttf` remains
+blocked on missing redistribution terms and `liberation` remains blocked on
+conflicting custom terms. A product name, copyright line, package family,
+external URL, or unrelated nearby license is not accepted as a substitute.
 
 Primary archive inspection at build-tools-data commit
 `743e8e55f0431523248d16b7521e01aa11744ffc` found no license, notice, or

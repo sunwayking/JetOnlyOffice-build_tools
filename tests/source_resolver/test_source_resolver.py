@@ -563,15 +563,32 @@ class SourceResolverTests(unittest.TestCase):
       build_tools_data["license"]["payloadPatterns"],
     )
     self.assertEqual(
-      [
-        "ASC.ttf", "fonts-beng-extra", "fonts-gujr-extra", "kacst",
-        "kacst-one", "liberation",
-      ],
+      ["ASC.ttf", "liberation"],
       next(
         finding["unresolvedComponents"]
         for finding in findings
         if finding["repository"] == "core-fonts"
       ),
+    )
+    self.assertEqual(
+      {
+        "type": "tag",
+        "ref": "refs/tags/v9.4.0-evidence.1",
+      },
+      repositories_by_id["license-evidence"]["selection"],
+    )
+    self.assertEqual(
+      "8cd365ab3798a7c2a54a8ce1ec9f4567b2667c24",
+      repositories_by_id["license-evidence"]["commit"],
+    )
+    self.assertEqual(
+      ["ASC.ttf", "liberation"],
+      [
+        review["id"]
+        for review in repositories_by_id["core-fonts"]["license"][
+          "blockingReviews"
+        ]
+      ],
     )
     core_fonts = next(
       repository
@@ -588,8 +605,12 @@ class SourceResolverTests(unittest.TestCase):
         "crosextra",
         "dejavu",
         "droid",
+        "fonts-beng-extra",
+        "fonts-gujr-extra",
         "fonts-telu-extra",
         "freefont",
+        "kacst",
+        "kacst-one",
         "lohit-assamese",
         "lohit-bengali",
         "lohit-devanagari",
@@ -631,6 +652,10 @@ class SourceResolverTests(unittest.TestCase):
       "crosextra": ("OFL-1.1", 4),
       "dejavu": ("Bitstream-Vera AND LicenseRef-AMSFonts", 22),
       "droid": ("Apache-2.0", 1),
+      "fonts-beng-extra": ("GPL-2.0-or-later", 6),
+      "fonts-gujr-extra": ("GPL-2.0-or-later", 2),
+      "kacst": ("GPL-2.0-only", 15),
+      "kacst-one": ("GPL-2.0-only", 2),
       "lohit-assamese": ("OFL-1.1", 1),
       "lohit-bengali": ("OFL-1.1", 1),
       "lohit-devanagari": ("OFL-1.1", 1),
@@ -661,6 +686,14 @@ class SourceResolverTests(unittest.TestCase):
       record["type"] == "font-name"
       for record in reviewed_by_id["wqy-zenhei"]["evidence"]
     ))
+    for component_id in (
+      "fonts-beng-extra", "fonts-gujr-extra", "kacst", "kacst-one"
+    ):
+      self.assertTrue(all(
+        record["type"] == "repository-git-blob"
+        and record["repository"] == "license-evidence"
+        for record in reviewed_by_id[component_id]["evidence"]
+      ))
 
     dictionaries = next(
       repository
