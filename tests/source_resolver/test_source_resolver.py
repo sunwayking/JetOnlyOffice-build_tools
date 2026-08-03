@@ -145,6 +145,7 @@ def create_repository_evidence_fixture(root):
   payload = b"licensed font payload\n"
   mismatch = b"different font payload\n"
   license_text = b"GPL-2.0 license mapping\n"
+  notice_text = b"Reviewed GPL-2.0 provenance\n"
 
   _, build_tools_bare, _ = create_repository(root, "build-tools")
 
@@ -168,6 +169,7 @@ def create_repository_evidence_fixture(root):
   (evidence_checkout / "fonts" / "Example.ttf").write_bytes(payload)
   (evidence_checkout / "fonts" / "Mismatch.ttf").write_bytes(mismatch)
   (evidence_checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+  (evidence_checkout / "fonts" / "NOTICE.txt").write_bytes(notice_text)
   run_git(evidence_checkout, "add", "fonts")
   run_git(evidence_checkout, "commit", "-m", "add reviewed evidence")
   evidence_commit = run_git(evidence_checkout, "rev-parse", "HEAD^{commit}")
@@ -182,19 +184,29 @@ def create_repository_evidence_fixture(root):
   source["license"] = {
     "status": "component-scoped",
     "payloadPatterns": ["**/*.ttf"],
-    "patterns": ["**/LICENSE*"],
+    "patterns": ["**/LICENSE*", "**/NOTICE*"],
     "reason": "The exact external evidence mapping is reviewed.",
     "reviewedComponents": [{
       "id": "fonts",
       "spdx": "GPL-2.0-only",
-      "evidence": [{
-        "type": "repository-git-blob",
-        "path": "fonts/Example.ttf",
-        "repository": "license-evidence",
-        "referencePath": "fonts/Example.ttf",
-        "locator": "fonts/LICENSE.txt",
-        "sha256": hashlib.sha256(license_text).hexdigest(),
-      }],
+      "evidence": [
+        {
+          "type": "repository-git-blob",
+          "path": "fonts/Example.ttf",
+          "repository": "license-evidence",
+          "referencePath": "fonts/Example.ttf",
+          "locator": "fonts/LICENSE.txt",
+          "sha256": hashlib.sha256(license_text).hexdigest(),
+        },
+        {
+          "type": "repository-git-blob",
+          "path": "fonts/Example.ttf",
+          "repository": "license-evidence",
+          "referencePath": "fonts/Example.ttf",
+          "locator": "fonts/NOTICE.txt",
+          "sha256": hashlib.sha256(notice_text).hexdigest(),
+        },
+      ],
     }],
     "unresolvedComponents": [],
   }
@@ -203,7 +215,7 @@ def create_repository_evidence_fixture(root):
   evidence["license"] = {
     "status": "component-scoped",
     "payloadPatterns": ["**/*.ttf"],
-    "patterns": ["**/LICENSE*"],
+    "patterns": ["**/LICENSE*", "**/NOTICE*"],
     "reason": "Every mirrored payload has an in-tree license mapping.",
     "reviewedComponents": [{
       "id": "fonts",
@@ -211,11 +223,28 @@ def create_repository_evidence_fixture(root):
       "evidence": [
         {
           "type": "git-blob",
-          "path": path,
+          "path": "fonts/Example.ttf",
           "locator": "fonts/LICENSE.txt",
           "sha256": hashlib.sha256(license_text).hexdigest(),
-        }
-        for path in ["fonts/Example.ttf", "fonts/Mismatch.ttf"]
+        },
+        {
+          "type": "git-blob",
+          "path": "fonts/Example.ttf",
+          "locator": "fonts/NOTICE.txt",
+          "sha256": hashlib.sha256(notice_text).hexdigest(),
+        },
+        {
+          "type": "git-blob",
+          "path": "fonts/Mismatch.ttf",
+          "locator": "fonts/LICENSE.txt",
+          "sha256": hashlib.sha256(license_text).hexdigest(),
+        },
+        {
+          "type": "git-blob",
+          "path": "fonts/Mismatch.ttf",
+          "locator": "fonts/NOTICE.txt",
+          "sha256": hashlib.sha256(notice_text).hexdigest(),
+        },
       ],
     }],
     "unresolvedComponents": [],
@@ -648,7 +677,9 @@ class SourceResolverTests(unittest.TestCase):
         [
           (f"{locale}/{locale}.aff", f"{locale}/README_de_DE_frami.txt"),
           (f"{locale}/{locale}.dic", f"{locale}/README_de_DE_frami.txt"),
+          (f"{locale}/hyph_{locale}.dic", f"{locale}/LPPL-1.0.txt"),
           (f"{locale}/hyph_{locale}.dic", f"{locale}/README_hyph_de.txt"),
+          (f"{locale}/hyph_{locale}.dic", f"{locale}/dehyphn.tex"),
         ],
         [
           (record["path"], record["locator"])
@@ -816,18 +847,33 @@ class SourceResolverTests(unittest.TestCase):
       "cs_CZ": ("GPL-2.0-only", {"cs_CZ/cs_CZ_Czech.txt"}, 3),
       "de_AT": (
         german_spdx,
-        {"de_AT/README_de_DE_frami.txt", "de_AT/README_hyph_de.txt"},
-        3,
+        {
+          "de_AT/LPPL-1.0.txt",
+          "de_AT/README_de_DE_frami.txt",
+          "de_AT/README_hyph_de.txt",
+          "de_AT/dehyphn.tex",
+        },
+        5,
       ),
       "de_CH": (
         german_spdx,
-        {"de_CH/README_de_DE_frami.txt", "de_CH/README_hyph_de.txt"},
-        3,
+        {
+          "de_CH/LPPL-1.0.txt",
+          "de_CH/README_de_DE_frami.txt",
+          "de_CH/README_hyph_de.txt",
+          "de_CH/dehyphn.tex",
+        },
+        5,
       ),
       "de_DE": (
         german_spdx,
-        {"de_DE/README_de_DE_frami.txt", "de_DE/README_hyph_de.txt"},
-        3,
+        {
+          "de_DE/LPPL-1.0.txt",
+          "de_DE/README_de_DE_frami.txt",
+          "de_DE/README_hyph_de.txt",
+          "de_DE/dehyphn.tex",
+        },
+        5,
       ),
       "en_CA": (
         "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
@@ -1403,6 +1449,8 @@ class SourceResolverTests(unittest.TestCase):
       (checkout / "dictionary" / "dictionary.aff").write_bytes(b"SET UTF-8\n")
       (checkout / "dictionary" / "dictionary.dic").write_bytes(b"1\nword\n")
       (checkout / "dictionary" / "LICENSE.txt").write_bytes(license_bytes)
+      notice_bytes = b"Independent license provenance.\n"
+      (checkout / "dictionary" / "NOTICE.txt").write_bytes(notice_bytes)
       (checkout / "other").mkdir()
       (checkout / "other" / "LICENSE.txt").write_bytes(other_license_bytes)
       run_git(checkout, "add", "dictionary", "other")
@@ -1414,7 +1462,7 @@ class SourceResolverTests(unittest.TestCase):
       repository["license"] = {
         "status": "component-scoped",
         "payloadPatterns": ["**/*.aff", "**/*.dic"],
-        "patterns": ["**/LICENSE*"],
+        "patterns": ["**/LICENSE*", "**/NOTICE*"],
         "reason": "The dictionary license mapping was reviewed.",
         "reviewedComponents": [
           {
@@ -1423,14 +1471,22 @@ class SourceResolverTests(unittest.TestCase):
             "evidence": [
               {
                 "type": "git-blob",
-                "path": payload_path,
+                "path": "dictionary/dictionary.aff",
                 "locator": "dictionary/LICENSE.txt",
                 "sha256": hashlib.sha256(license_bytes).hexdigest(),
-              }
-              for payload_path in [
-                "dictionary/dictionary.aff",
-                "dictionary/dictionary.dic",
-              ]
+              },
+              {
+                "type": "git-blob",
+                "path": "dictionary/dictionary.aff",
+                "locator": "dictionary/NOTICE.txt",
+                "sha256": hashlib.sha256(notice_bytes).hexdigest(),
+              },
+              {
+                "type": "git-blob",
+                "path": "dictionary/dictionary.dic",
+                "locator": "dictionary/LICENSE.txt",
+                "sha256": hashlib.sha256(license_bytes).hexdigest(),
+              },
             ],
           }
         ],
@@ -1447,13 +1503,33 @@ class SourceResolverTests(unittest.TestCase):
       component = inventory["components"][0]
       self.assertEqual("resolved", component["status"])
       self.assertEqual(
-        ["dictionary/dictionary.aff", "dictionary/dictionary.dic"],
+        [
+          "dictionary/dictionary.aff",
+          "dictionary/dictionary.aff",
+          "dictionary/dictionary.dic",
+        ],
         [record["path"] for record in component["license"]["evidence"]],
       )
-      self.assertTrue(all(
-        record["locator"] == "dictionary/LICENSE.txt"
-        for record in component["license"]["evidence"]
-      ))
+      self.assertEqual(
+        [
+          "dictionary/LICENSE.txt",
+          "dictionary/NOTICE.txt",
+          "dictionary/LICENSE.txt",
+        ],
+        [record["locator"] for record in component["license"]["evidence"]],
+      )
+
+      missing = json.loads(json.dumps(repository))
+      missing["license"]["reviewedComponents"][0]["evidence"].pop()
+      with self.assertRaisesRegex(ResolutionError, "exactly cover payloads"):
+        repository_license_inventory(missing, bare, commit)
+
+      duplicate_inputs = json.loads(json.dumps(inputs))
+      duplicate_evidence = duplicate_inputs["repositories"][1]["license"] \
+        ["reviewedComponents"][0]["evidence"]
+      duplicate_evidence.insert(1, dict(duplicate_evidence[0]))
+      with self.assertRaisesRegex(ResolutionError, "sorted and unique"):
+        validate_inputs(duplicate_inputs)
 
       repository["license"]["reviewedComponents"][0]["evidence"][0][
         "sha256"
@@ -1498,9 +1574,8 @@ class SourceResolverTests(unittest.TestCase):
       source = next(
         item for item in inputs["repositories"] if item["id"] == "font-source"
       )
-      source["license"]["reviewedComponents"][0]["evidence"][0][
-        "referencePath"
-      ] = "fonts/Mismatch.ttf"
+      for evidence in source["license"]["reviewedComponents"][0]["evidence"]:
+        evidence["referencePath"] = "fonts/Mismatch.ttf"
       validate_inputs(inputs)
       with self.assertRaisesRegex(ResolutionError, "referenced payload bytes"):
         license_inventory_report(inputs, cache_root)
@@ -1561,9 +1636,9 @@ class SourceResolverTests(unittest.TestCase):
       next(
         item for item in mapping_drift["repositories"]
         if item["id"] == "font-source"
-      )["license"]["reviewedComponents"][0]["evidence"][0][
+      )["license"]["reviewedComponents"][0]["evidence"][1][
         "locator"
-      ] = "fonts/OTHER-LICENSE.txt"
+      ] = "fonts/OTHER-NOTICE.txt"
       with self.assertRaisesRegex(ResolutionError, "not mapped"):
         validate_inputs(mapping_drift)
 

@@ -1913,8 +1913,24 @@
                 "path": "de_AT/hyph_de_AT.dic",
                 "repository": "license-evidence",
                 "referencePath": "de_AT/hyph_de_AT.dic",
+                "locator": "de_AT/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "de_AT/hyph_de_AT.dic",
+                "repository": "license-evidence",
+                "referencePath": "de_AT/hyph_de_AT.dic",
                 "locator": "de_AT/README_hyph_de.txt",
                 "sha256": "be7b3c67a66ea7185a69a3ce3b1e712cd6bb904dce8ac0eecdefd2f1a948baf3"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "de_AT/hyph_de_AT.dic",
+                "repository": "license-evidence",
+                "referencePath": "de_AT/hyph_de_AT.dic",
+                "locator": "de_AT/dehyphn.tex",
+                "sha256": "0bf281fd020e40ec2ae81a6bf819f2451e8cfd027e04f99c101c3da5c97b9300"
               }
             ]
           },
@@ -1943,8 +1959,24 @@
                 "path": "de_CH/hyph_de_CH.dic",
                 "repository": "license-evidence",
                 "referencePath": "de_CH/hyph_de_CH.dic",
+                "locator": "de_CH/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "de_CH/hyph_de_CH.dic",
+                "repository": "license-evidence",
+                "referencePath": "de_CH/hyph_de_CH.dic",
                 "locator": "de_CH/README_hyph_de.txt",
                 "sha256": "be7b3c67a66ea7185a69a3ce3b1e712cd6bb904dce8ac0eecdefd2f1a948baf3"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "de_CH/hyph_de_CH.dic",
+                "repository": "license-evidence",
+                "referencePath": "de_CH/hyph_de_CH.dic",
+                "locator": "de_CH/dehyphn.tex",
+                "sha256": "0bf281fd020e40ec2ae81a6bf819f2451e8cfd027e04f99c101c3da5c97b9300"
               }
             ]
           },
@@ -1973,8 +2005,24 @@
                 "path": "de_DE/hyph_de_DE.dic",
                 "repository": "license-evidence",
                 "referencePath": "de_DE/hyph_de_DE.dic",
+                "locator": "de_DE/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "de_DE/hyph_de_DE.dic",
+                "repository": "license-evidence",
+                "referencePath": "de_DE/hyph_de_DE.dic",
                 "locator": "de_DE/README_hyph_de.txt",
                 "sha256": "be7b3c67a66ea7185a69a3ce3b1e712cd6bb904dce8ac0eecdefd2f1a948baf3"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "de_DE/hyph_de_DE.dic",
+                "repository": "license-evidence",
+                "referencePath": "de_DE/hyph_de_DE.dic",
+                "locator": "de_DE/dehyphn.tex",
+                "sha256": "0bf281fd020e40ec2ae81a6bf819f2451e8cfd027e04f99c101c3da5c97b9300"
               }
             ]
           },
@@ -2759,8 +2807,20 @@
               {
                 "type": "git-blob",
                 "path": "de_AT/hyph_de_AT.dic",
+                "locator": "de_AT/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "de_AT/hyph_de_AT.dic",
                 "locator": "de_AT/README_hyph_de.txt",
                 "sha256": "be7b3c67a66ea7185a69a3ce3b1e712cd6bb904dce8ac0eecdefd2f1a948baf3"
+              },
+              {
+                "type": "git-blob",
+                "path": "de_AT/hyph_de_AT.dic",
+                "locator": "de_AT/dehyphn.tex",
+                "sha256": "0bf281fd020e40ec2ae81a6bf819f2451e8cfd027e04f99c101c3da5c97b9300"
               }
             ]
           },
@@ -2783,8 +2843,20 @@
               {
                 "type": "git-blob",
                 "path": "de_CH/hyph_de_CH.dic",
+                "locator": "de_CH/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "de_CH/hyph_de_CH.dic",
                 "locator": "de_CH/README_hyph_de.txt",
                 "sha256": "be7b3c67a66ea7185a69a3ce3b1e712cd6bb904dce8ac0eecdefd2f1a948baf3"
+              },
+              {
+                "type": "git-blob",
+                "path": "de_CH/hyph_de_CH.dic",
+                "locator": "de_CH/dehyphn.tex",
+                "sha256": "0bf281fd020e40ec2ae81a6bf819f2451e8cfd027e04f99c101c3da5c97b9300"
               }
             ]
           },
@@ -2807,8 +2879,20 @@
               {
                 "type": "git-blob",
                 "path": "de_DE/hyph_de_DE.dic",
+                "locator": "de_DE/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "de_DE/hyph_de_DE.dic",
                 "locator": "de_DE/README_hyph_de.txt",
                 "sha256": "be7b3c67a66ea7185a69a3ce3b1e712cd6bb904dce8ac0eecdefd2f1a948baf3"
+              },
+              {
+                "type": "git-blob",
+                "path": "de_DE/hyph_de_DE.dic",
+                "locator": "de_DE/dehyphn.tex",
+                "sha256": "0bf281fd020e40ec2ae81a6bf819f2451e8cfd027e04f99c101c3da5c97b9300"
               }
             ]
           },

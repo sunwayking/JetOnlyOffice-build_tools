@@ -633,7 +633,7 @@ def _validate_source_lock(value):
         _validate_component_license_reference_bindings(
           component_license, component_prefix + ".license"
         )
-        if evidence_paths != payload_paths:
+        if sorted(set(evidence_paths)) != payload_paths:
           raise ContractError(
             component_prefix + ".license.evidence: must exactly cover payloadPaths"
           )
@@ -1416,7 +1416,7 @@ def _validate_source_license_audit(value):
         _validate_component_license_reference_bindings(
           license_record, component_path + ".license"
         )
-        if evidence_paths != component["payloadPaths"]:
+        if sorted(set(evidence_paths)) != component["payloadPaths"]:
           raise ContractError(
             component_path + ".license.evidence: must exactly cover component payload paths"
           )

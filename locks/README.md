@@ -63,8 +63,10 @@ this release payload; expanding the release profile must add them back and
 close their licenses before release. In all other cases,
 `patterns` defines candidate evidence only and does not declare a license.
 `reviewedComponents` is narrower: every payload in such a component must be
-covered by one immutable evidence record and an explicitly reviewed SPDX
-expression. The resolver accepts four primary evidence forms: an exact
+covered by one or more immutable evidence records and an explicitly reviewed
+SPDX expression. Distinct `path` plus `locator` mappings may bind cumulative
+terms to one payload; duplicate mappings are rejected. The resolver accepts
+four primary evidence forms: an exact
 license member inside a locked ZIP, copyright/license text in a locked OpenType
 `name` table, or an exact license file stored as a locked Git blob. For
 Git-blob evidence, each payload `path` names the covered payload and `locator`
@@ -133,7 +135,9 @@ binds byte-identical spelling and hyphenation payloads to the immutable
 `license-evidence` snapshot, with separate LGPL 3.0 and versioned hyphenation
 terms. The three German variants bind their byte-identical payloads to GPL 2
 or 3 spelling terms and the cumulative LGPL 2 or later plus LPPL 1.0
-hyphenation terms. `gl_ES` and both Serbian variants bind their payloads to
+hyphenation terms. Each hyphenation payload maps independently to the adaptation
+README, the original `dehyphn.tex` grant, and the canonical `LPPL-1.0` text.
+`gl_ES` and both Serbian variants bind their payloads to
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting

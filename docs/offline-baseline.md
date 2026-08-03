@@ -64,7 +64,10 @@ CycloneDX, SLSA provenance, and checksums manifest.
 Repository-level and component-scoped license records are both first-class
 source-lock inputs. Packaging copies a declared repository license or extracts
 the exact reviewed bytes from a Git blob, OpenType name record, or locked ZIP
-member for every component payload. The deterministic license bundle records
+member for every component payload. A payload may bind multiple distinct
+locators when its SPDX expression accumulates terms; the German hyphenation
+fixtures require the adaptation README, original `dehyphn.tex`, and full
+`LPPL-1.0` text. The deterministic license bundle records
 those paths and digests in its own canonical manifest. SPDX represents each
 component independently and includes `hasExtractedLicensingInfos` for every
 custom `LicenseRef-*`; CycloneDX preserves the same component expression,

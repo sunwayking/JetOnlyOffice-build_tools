@@ -1516,12 +1516,16 @@ class PackageDriverTests(unittest.TestCase):
       (source_checkout / "fonts").mkdir(parents=True)
       (evidence_checkout / "fonts").mkdir(parents=True)
       payload = b"byte-identical font payload\n"
-      license_text = b"GPL-2.0 license mapping\n"
       (source_checkout / "fonts" / "Example.ttf").write_bytes(payload)
       (evidence_checkout / "fonts" / "Example.ttf").write_bytes(payload)
-      (evidence_checkout / "fonts" / "LICENSE.txt").write_bytes(license_text)
+      license_materials = [
+        ("LPPL-1.0.txt", b"LPPL version 1.0 full text\n", "3" * 40),
+        ("README_hyph_de.txt", b"LGPL adaptation notice\n", "4" * 40),
+        ("dehyphn.tex", b"% Original patterns licensed under LPPL v1\n", "5" * 40),
+      ]
+      for name, material, _ in license_materials:
+        (evidence_checkout / "fonts" / name).write_bytes(material)
       payload_digest = hashlib.sha256(payload).hexdigest()
-      license_digest = hashlib.sha256(license_text).hexdigest()
 
       source = source_lock()
       source_repository = source["repositories"][0]
@@ -1534,19 +1538,22 @@ class PackageDriverTests(unittest.TestCase):
           "payloadPaths": ["fonts/Example.ttf"],
           "license": {
             "spdx": "GPL-2.0-only",
-            "evidence": [{
-              "type": "repository-git-blob",
-              "path": "fonts/Example.ttf",
-              "blob": "1" * 40,
-              "sha256": payload_digest,
-              "repository": "license-evidence",
-              "referencePath": "fonts/Example.ttf",
-              "referenceBlob": "2" * 40,
-              "referenceSha256": payload_digest,
-              "locator": "fonts/LICENSE.txt",
-              "evidenceBlob": "3" * 40,
-              "evidenceSha256": license_digest,
-            }],
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "fonts/Example.ttf",
+                "blob": "1" * 40,
+                "sha256": payload_digest,
+                "repository": "license-evidence",
+                "referencePath": "fonts/Example.ttf",
+                "referenceBlob": "2" * 40,
+                "referenceSha256": payload_digest,
+                "locator": "fonts/" + name,
+                "evidenceBlob": evidence_blob,
+                "evidenceSha256": hashlib.sha256(material).hexdigest(),
+              }
+              for name, material, evidence_blob in license_materials
+            ],
           },
         }],
       }
@@ -1565,15 +1572,18 @@ class PackageDriverTests(unittest.TestCase):
             "payloadPaths": ["fonts/Example.ttf"],
             "license": {
               "spdx": "GPL-2.0-only",
-              "evidence": [{
-                "type": "git-blob",
-                "path": "fonts/Example.ttf",
-                "blob": "2" * 40,
-                "sha256": payload_digest,
-                "locator": "fonts/LICENSE.txt",
-                "evidenceBlob": "3" * 40,
-                "evidenceSha256": license_digest,
-              }],
+              "evidence": [
+                {
+                  "type": "git-blob",
+                  "path": "fonts/Example.ttf",
+                  "blob": "2" * 40,
+                  "sha256": payload_digest,
+                  "locator": "fonts/" + name,
+                  "evidenceBlob": evidence_blob,
+                  "evidenceSha256": hashlib.sha256(material).hexdigest(),
+                }
+                for name, material, evidence_blob in license_materials
+              ],
             },
           }],
         },
@@ -1595,10 +1605,11 @@ class PackageDriverTests(unittest.TestCase):
           root / "NOTICE.txt",
           source["sourceDateEpoch"],
         )
-      bundled = root / "work" / "license-bundle" / "repositories" \
-        / "documentserver" / "components" / "fonts" / "evidence" \
-        / (license_digest + ".license")
-      self.assertEqual(license_text, bundled.read_bytes())
+      evidence_root = root / "work" / "license-bundle" / "repositories" \
+        / "documentserver" / "components" / "fonts" / "evidence"
+      for _, material, _ in license_materials:
+        bundled = evidence_root / (hashlib.sha256(material).hexdigest() + ".license")
+        self.assertEqual(material, bundled.read_bytes())
       self.assertEqual({}, extracted)
 
       bundle_root = root / "work" / "license-bundle"
@@ -1609,12 +1620,17 @@ class PackageDriverTests(unittest.TestCase):
         item for item in license_manifest_value["repositories"]
         if item["id"] == "documentserver"
       )
-      bundled_evidence = bundled_source["components"][0]["license"][
-        "evidence"
-      ][0]
-      self.assertEqual("license-evidence", bundled_evidence["repository"])
-      self.assertEqual("fonts/Example.ttf", bundled_evidence["referencePath"])
-      self.assertEqual(payload_digest, bundled_evidence["referenceSha256"])
+      bundled_evidence = bundled_source["components"][0]["license"]["evidence"]
+      self.assertEqual(
+        ["fonts/" + name for name, _, _ in license_materials],
+        [record["locator"] for record in bundled_evidence],
+      )
+      self.assertTrue(all(
+        record["repository"] == "license-evidence"
+        and record["referencePath"] == "fonts/Example.ttf"
+        and record["referenceSha256"] == payload_digest
+        for record in bundled_evidence
+      ))
 
       archive = root / "licenses.tar"
       with tarfile.open(archive, "w") as output:
@@ -1654,15 +1670,18 @@ class PackageDriverTests(unittest.TestCase):
           ),
         )
 
-      evidence_reference = (
-        "repository-git-blob:fonts/Example.ttf:sha256:" + payload_digest
-        + ":repository:license-evidence@" + "a" * 40
-        + ":tree:" + "b" * 40
-        + ":reference:fonts/Example.ttf@" + "2" * 40
-        + ":sha256:" + payload_digest
-        + ":license:fonts/LICENSE.txt@" + "3" * 40
-        + ":sha256:" + license_digest
-      )
+      evidence_references = [
+        (
+          "repository-git-blob:fonts/Example.ttf:sha256:" + payload_digest
+          + ":repository:license-evidence@" + "a" * 40
+          + ":tree:" + "b" * 40
+          + ":reference:fonts/Example.ttf@" + "2" * 40
+          + ":sha256:" + payload_digest
+          + ":license:fonts/" + name + "@" + evidence_blob
+          + ":sha256:" + hashlib.sha256(material).hexdigest()
+        )
+        for name, material, evidence_blob in license_materials
+      ]
       spdx = root / "release.spdx.json"
       cdx = root / "release.cdx.json"
       source_digest = canonical_sha256(source)
@@ -1677,19 +1696,21 @@ class PackageDriverTests(unittest.TestCase):
         item for item in spdx_value["packages"]
         if item["SPDXID"] == "SPDXRef-documentserver-fonts"
       )
-      self.assertIn(evidence_reference, source_package["comment"])
+      for evidence_reference in evidence_references:
+        self.assertIn(evidence_reference, source_package["comment"])
       cdx_value = json.loads(cdx.read_text(encoding="utf-8"))
       source_component = next(
         item for item in cdx_value["components"]
         if item["bom-ref"] == "repo:documentserver:fonts"
       )
-      self.assertIn(
-        {
-          "name": "jetonlyoffice.licenseEvidence",
-          "value": evidence_reference,
-        },
-        source_component["properties"],
-      )
+      for evidence_reference in evidence_references:
+        self.assertIn(
+          {
+            "name": "jetonlyoffice.licenseEvidence",
+            "value": evidence_reference,
+          },
+          source_component["properties"],
+        )
       verify_spdx_artifact(
         {"artifacts": [{"type": "spdx", "path": spdx.name}]},
         root,
@@ -1728,7 +1749,7 @@ class PackageDriverTests(unittest.TestCase):
         )
       (evidence_checkout / "fonts" / "Example.ttf").write_bytes(payload)
 
-      (evidence_checkout / "fonts" / "LICENSE.txt").write_bytes(b"tampered\n")
+      (evidence_checkout / "fonts" / "LPPL-1.0.txt").write_bytes(b"tampered\n")
       with self.assertRaisesRegex(
         package_driver.PackageError,
         "license evidence digest",

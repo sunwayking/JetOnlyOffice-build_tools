@@ -1136,7 +1136,7 @@ def repository_license_inventory(
       }
     if reviewed_component is not None:
       evidence_paths = [record["path"] for record in reviewed_component["evidence"]]
-      if evidence_paths != payloads_by_component[component_id]:
+      if sorted(set(evidence_paths)) != payloads_by_component[component_id]:
         raise ResolutionError(
           f"{repository['id']}:{component_id}: reviewed evidence must exactly cover payloads",
           3,

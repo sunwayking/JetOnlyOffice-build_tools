@@ -701,6 +701,22 @@ class ContractToolTests(unittest.TestCase):
 
     validate_contract(value, "source-lock", self.schema_dir)
 
+    evidence = value["repositories"][0]["license"]["components"][0]["license"][
+      "evidence"
+    ]
+    second_locator = json.loads(json.dumps(evidence[0]))
+    second_locator.update({
+      "locator": "fonts/NOTICE.txt",
+      "evidenceBlob": SHA1_B,
+      "evidenceSha256": SHA256_A,
+    })
+    evidence.append(second_locator)
+    validate_contract(value, "source-lock", self.schema_dir)
+
+    evidence.append(json.loads(json.dumps(second_locator)))
+    with self.assertRaisesRegex(ContractError, "item keys must be unique"):
+      validate_contract(value, "source-lock", self.schema_dir)
+
   def test_source_lock_binds_each_custom_license_to_its_evidence(self):
     value = source_lock()
     value["repositories"][0]["license"] = multi_reference_component_license_record()
@@ -742,6 +758,33 @@ class ContractToolTests(unittest.TestCase):
     value["repositories"].insert(1, reference)
 
     validate_contract(value, "source-lock", self.schema_dir)
+
+    multiple = json.loads(json.dumps(value))
+    source_evidence = multiple["repositories"][0]["license"]["components"][0][
+      "license"
+    ]["evidence"]
+    reference_evidence = multiple["repositories"][1]["license"]["components"][0][
+      "license"
+    ]["evidence"]
+    source_second = json.loads(json.dumps(source_evidence[0]))
+    source_second.update({
+      "locator": "fonts/NOTICE.txt",
+      "evidenceBlob": SHA1_B,
+      "evidenceSha256": SHA256_A,
+    })
+    reference_second = json.loads(json.dumps(reference_evidence[0]))
+    reference_second.update({
+      "locator": "fonts/NOTICE.txt",
+      "evidenceBlob": SHA1_B,
+      "evidenceSha256": SHA256_A,
+    })
+    source_evidence.append(source_second)
+    reference_evidence.append(reference_second)
+    validate_contract(multiple, "source-lock", self.schema_dir)
+
+    reference_evidence.pop()
+    with self.assertRaisesRegex(ContractError, "referenced component mapping"):
+      validate_contract(multiple, "source-lock", self.schema_dir)
 
     tampered = json.loads(json.dumps(value))
     tampered["repositories"][0]["license"]["components"][0]["license"][
