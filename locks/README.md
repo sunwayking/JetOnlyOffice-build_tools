@@ -118,12 +118,12 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Forty dictionary language packs are mapped payload by payload to exact
+Forty-one dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`, `de_CH`, `de_DE`,
 `el_GR`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`,
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
-`nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_PT`, `ro_RO`, `sk_SK`, `sl_SI`,
+`nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_PT`, `ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`,
 `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, `uk_UA`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
@@ -171,6 +171,10 @@ immutable `spell-uk` source commit under the same selected branch.
 and MPL 1.1 alternatives. Its hyphenation payload is reproduced from the Fedora
 source and retains both the versioned LGPL 2.1-or-later adaptation grant and the
 original LPPL 1.3-or-later patterns, selecting the canonical LPPL 1.3c branch.
+`ru_RU` binds all five locked payloads to the custom Lebedev terms. Current
+payloads are byte-identical to a locked LibreOffice commit and independently
+mapped by Debian; the historical OpenOffice payloads are reproduced from the
+original OXT with their required modification notice.
 `gl_ES` and both Serbian variants bind their payloads to
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
@@ -184,10 +188,10 @@ LPPL 1.3 or later. The locked blockers cover `hr_HR` and `pt_BR`, whose notices
 omit a license version; `pl_PL`, whose multi-license
 notice is not version-specific; `en_AU`, whose locked evidence does not
 establish a versioned SPDX expression; and both Uzbek variants, whose READMEs
-identify an upstream origin without granting a license. The remaining nine
+identify an upstream origin without granting a license. The remaining eight
 language packs stay incomplete; seven have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
-`az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
+`az_Latn_AZ` has no in-tree license candidate.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every

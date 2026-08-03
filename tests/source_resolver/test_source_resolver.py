@@ -563,8 +563,7 @@ class SourceResolverTests(unittest.TestCase):
         "en_AU",
         "hr_HR",
         "mn_MN", "pl_PL", "pt_BR",
-        "ru_RU", "uz_Cyrl_UZ",
-        "uz_Latn_UZ",
+        "uz_Cyrl_UZ", "uz_Latn_UZ",
       ],
       next(
         finding["unresolvedComponents"]
@@ -627,12 +626,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.11",
+        "ref": "refs/tags/v9.4.0-evidence.13",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "6028cef5ee13670c60036a2992e2b13aa1f7cc7b",
+      "43163cfada0dc75c873919b22474704b454f7f81",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -665,6 +664,7 @@ class SourceResolverTests(unittest.TestCase):
         "kk_KZ",
         "lt_LT",
         "pt_PT",
+        "ru_RU",
         "sl_SI",
         "uk_UA",
       ],
@@ -696,6 +696,26 @@ class SourceResolverTests(unittest.TestCase):
         (record["path"], record["locator"])
         for record in evidence_da_dk["evidence"]
       ],
+    )
+    evidence_ru_ru = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "ru_RU"
+    )
+    self.assertEqual(
+      "LicenseRef-Russian-Dictionaries-Lebedev-1997-2008",
+      evidence_ru_ru["spdx"],
+    )
+    self.assertEqual(15, len(evidence_ru_ru["evidence"]))
+    self.assertEqual(
+      {
+        "ru_RU/COPYRIGHT",
+        "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+        "ru_RU/MODIFICATION_NOTICE.txt",
+        "ru_RU/README_ru_RU.chromium.txt",
+        "ru_RU/README_ru_RU.libreoffice.txt",
+      },
+      {record["locator"] for record in evidence_ru_ru["evidence"]},
     )
     german_spdx = (
       "(GPL-2.0-only OR GPL-3.0-only) AND "
@@ -1171,6 +1191,17 @@ class SourceResolverTests(unittest.TestCase):
       "pt_PT": (
         "GPL-2.0-only", {"pt_PT/COPYING_GPLv2", "pt_PT/COPYRIGHT"}, 6
       ),
+      "ru_RU": (
+        "LicenseRef-Russian-Dictionaries-Lebedev-1997-2008",
+        {
+          "ru_RU/COPYRIGHT",
+          "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+          "ru_RU/MODIFICATION_NOTICE.txt",
+          "ru_RU/README_ru_RU.chromium.txt",
+          "ru_RU/README_ru_RU.libreoffice.txt",
+        },
+        15,
+      ),
       "sl_SI": (
         "LGPL-2.1-only AND LPPL-1.0",
         {
@@ -1229,11 +1260,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      9, len(dictionaries["license"]["unresolvedComponents"])
+      8, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
       "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID",
-      "it_IT", "kk_KZ", "lt_LT", "pt_PT", "sl_SI"
+      "it_IT", "kk_KZ", "lt_LT", "pt_PT", "ru_RU", "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]

@@ -1586,7 +1586,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Forty language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Forty-one language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "en_AU",
@@ -2640,6 +2640,132 @@
             ]
           },
           {
+            "id": "ru_RU",
+            "spdx": "LicenseRef-Russian-Dictionaries-Lebedev-1997-2008",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/hyph_ru_RU.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/hyph_ru_RU.dic",
+                "locator": "ru_RU/COPYRIGHT",
+                "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/hyph_ru_RU.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/hyph_ru_RU.dic",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/hyph_ru_RU.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/hyph_ru_RU.dic",
+                "locator": "ru_RU/README_ru_RU.libreoffice.txt",
+                "sha256": "262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU.aff",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU.aff",
+                "locator": "ru_RU/COPYRIGHT",
+                "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU.aff",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU.aff",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU.aff",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU.aff",
+                "locator": "ru_RU/README_ru_RU.libreoffice.txt",
+                "sha256": "262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU.dic",
+                "locator": "ru_RU/COPYRIGHT",
+                "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU.dic",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU.dic",
+                "locator": "ru_RU/README_ru_RU.libreoffice.txt",
+                "sha256": "262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU_oo3.aff",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU_oo3.aff",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU_oo3.aff",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU_oo3.aff",
+                "locator": "ru_RU/MODIFICATION_NOTICE.txt",
+                "sha256": "26030dffe25731f0557d81db4e83223651b97fb97cec393023b97502a43dc20c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU_oo3.aff",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU_oo3.aff",
+                "locator": "ru_RU/README_ru_RU.chromium.txt",
+                "sha256": "ab0a15a2977d17936f8361c0644834aaa286aa0f76ff4a707e9435212b1387b2"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU_oo3.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU_oo3.dic",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU_oo3.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU_oo3.dic",
+                "locator": "ru_RU/MODIFICATION_NOTICE.txt",
+                "sha256": "26030dffe25731f0557d81db4e83223651b97fb97cec393023b97502a43dc20c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "ru_RU/ru_RU_oo3.dic",
+                "repository": "license-evidence",
+                "referencePath": "ru_RU/ru_RU_oo3.dic",
+                "locator": "ru_RU/README_ru_RU.chromium.txt",
+                "sha256": "ab0a15a2977d17936f8361c0644834aaa286aa0f76ff4a707e9435212b1387b2"
+              }
+            ]
+          },
+          {
             "id": "sk_SK",
             "spdx": "GPL-2.0-only",
             "evidence": [
@@ -2881,7 +3007,6 @@
           "mn_MN",
           "pl_PL",
           "pt_BR",
-          "ru_RU",
           "uz_Cyrl_UZ",
           "uz_Latn_UZ"
         ]
@@ -3063,11 +3188,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "6028cef5ee13670c60036a2992e2b13aa1f7cc7b",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 11",
+      "commit": "43163cfada0dc75c873919b22474704b454f7f81",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 13",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.11"
+        "ref": "refs/tags/v9.4.0-evidence.13"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3647,6 +3772,102 @@
                 "path": "pt_PT/pt_PT.dic",
                 "locator": "pt_PT/COPYRIGHT",
                 "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              }
+            ]
+          },
+          {
+            "id": "ru_RU",
+            "spdx": "LicenseRef-Russian-Dictionaries-Lebedev-1997-2008",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "ru_RU/hyph_ru_RU.dic",
+                "locator": "ru_RU/COPYRIGHT",
+                "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/hyph_ru_RU.dic",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/hyph_ru_RU.dic",
+                "locator": "ru_RU/README_ru_RU.libreoffice.txt",
+                "sha256": "262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU.aff",
+                "locator": "ru_RU/COPYRIGHT",
+                "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU.aff",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU.aff",
+                "locator": "ru_RU/README_ru_RU.libreoffice.txt",
+                "sha256": "262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU.dic",
+                "locator": "ru_RU/COPYRIGHT",
+                "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU.dic",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU.dic",
+                "locator": "ru_RU/README_ru_RU.libreoffice.txt",
+                "sha256": "262af2f6ad70a61e5ee1332ff44fa8ee50edca819cf33207d8ad6ba6a0c9be52"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU_oo3.aff",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU_oo3.aff",
+                "locator": "ru_RU/MODIFICATION_NOTICE.txt",
+                "sha256": "26030dffe25731f0557d81db4e83223651b97fb97cec393023b97502a43dc20c"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU_oo3.aff",
+                "locator": "ru_RU/README_ru_RU.chromium.txt",
+                "sha256": "ab0a15a2977d17936f8361c0644834aaa286aa0f76ff4a707e9435212b1387b2"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU_oo3.dic",
+                "locator": "ru_RU/LICENSERef-Russian-Dictionaries-Lebedev-1997-2008.txt",
+                "sha256": "6327fa3b084fd87abf8f8779af3a7143da0ffbcc92498dcbd95f1d23b3d82bf7"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU_oo3.dic",
+                "locator": "ru_RU/MODIFICATION_NOTICE.txt",
+                "sha256": "26030dffe25731f0557d81db4e83223651b97fb97cec393023b97502a43dc20c"
+              },
+              {
+                "type": "git-blob",
+                "path": "ru_RU/ru_RU_oo3.dic",
+                "locator": "ru_RU/README_ru_RU.chromium.txt",
+                "sha256": "ab0a15a2977d17936f8361c0644834aaa286aa0f76ff4a707e9435212b1387b2"
               }
             ]
           },
