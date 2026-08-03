@@ -84,10 +84,16 @@ materialized locked checkout; they never fetch evidence during an offline step.
 `repository-cef-pak-resource` covers the CEF distribution case without copying
 the 92 MB archive into the evidence repository. It binds the original LFS
 payload, exact 7z member, Chromium DataPack v5 resource id, and optional
-eight-byte-header Brotli transform, then compares the derived bytes with a
-regular Git blob in the immutable evidence snapshot. Resolver, package, and
-verify repeat the extraction and byte comparison; malformed PAK indexes,
-unsupported transforms, LFS evidence blobs, and digest drift fail closed.
+`chromium-grit-brotli` transform, then compares the derived bytes with a regular
+Git blob in the immutable evidence snapshot. The transform requires Chromium's
+two-byte `1e 9b` magic and six-byte little-endian uncompressed length before the
+raw Brotli stream. DataPack encoding, zero padding, the terminal entry, ordered
+unique resource and alias ids, alias indexes, and all offsets are validated.
+7z output is read through a hard-bounded stream and terminated as soon as the
+limit is exceeded. Resolver, package, and verify share this implementation;
+verify re-extracts both the payload and evidence bytes from the source archive.
+Malformed resources, unsupported transforms, LFS evidence blobs, trailing
+Brotli input, and digest drift fail closed.
 When a component expression contains multiple `LicenseRef-*` identifiers, every
 evidence record carries a sorted `licenseRefs` binding, including an empty list
 for evidence that belongs only to a standard SPDX license. The resolver,
@@ -122,6 +128,10 @@ resource 31061 in `cef_binary/Resources/resources.pak`. After the locked Brotli
 transform, their SHA-256 values are respectively
 `058c3827ffb827ff3edda471ae7e1bb1d1aa5931985f0126043ccd33409e792f` and
 `4323092783bb888b8cacdd0f4e6173a69eedc29b747015376f17d337bbe304ef`.
+The credits resource declares 6,692,103 output bytes in its GRIT header, exactly
+matching the reviewed evidence blob. CEF locks Chromium `109.0.5414.120`; its
+GRIT writer and resource loader define this 2-byte magic plus 6-byte length
+framing rather than an opaque eight-byte prefix.
 The selected Qt 5.9.9 Linux archive (LFS/SHA-256
 `84181f983a5e76c2f8a63f8bf06d5ce27675f543c45febe014514633a1289f0e`)
 still has no complete reviewed binary-to-source license inventory.

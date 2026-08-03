@@ -233,6 +233,9 @@ class ContainerMaterializationTests(unittest.TestCase):
       (container_scripts / "package-driver.py").write_text(
         "#!/usr/bin/env python3\n", encoding="ascii"
       )
+      (container_scripts.parent / "cef_evidence.py").write_text(
+        "# locked CEF evidence helper\n", encoding="ascii"
+      )
       (container_scripts / "jwt-entrypoint.sh").write_text(
         "#!/bin/sh\nexit 78\n", encoding="ascii"
       )

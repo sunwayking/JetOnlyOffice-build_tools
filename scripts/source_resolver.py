@@ -19,6 +19,7 @@ import urllib.request
 from urllib.parse import urlparse
 import zipfile
 
+from cef_evidence import CefEvidenceError, derived_cef_pak_resource
 from contracts.contract_tool import (
   ContractError,
   SOURCE_LICENSE_EXPRESSIONS,
@@ -556,7 +557,7 @@ def _validate_reviewed_components(value, path):
           raise ResolutionError(
             f"{evidence_path}.resourceId: expected a positive uint16", 2
           )
-        if record["compression"] not in {"none", "brotli-header-8"}:
+        if record["compression"] not in {"none", "chromium-grit-brotli"}:
           raise ResolutionError(
             f"{evidence_path}.compression: unsupported transform", 2
           )
@@ -926,100 +927,11 @@ def _zip_member_bytes(content, member_path, context):
     raise ResolutionError(f"{context}: invalid ZIP license evidence", 3) from error
 
 
-def _seven_zip_executable():
-  executable = shutil.which("7z") or shutil.which("7zz")
-  if executable:
-    return executable
-  if os.name == "nt":
-    candidate = Path(os.environ.get("ProgramFiles", "C:/Program Files")) / "7-Zip/7z.exe"
-    if candidate.is_file():
-      return str(candidate)
-  raise ResolutionError("7-Zip is required for derived archive evidence", 3)
-
-
-def _seven_zip_member_bytes(content, member_path, context):
-  temporary_path = None
-  try:
-    with tempfile.NamedTemporaryFile(suffix=".7z", delete=False) as temporary:
-      temporary.write(content)
-      temporary_path = Path(temporary.name)
-    result = subprocess.run(
-      [_seven_zip_executable(), "e", "-so", str(temporary_path), member_path],
-      check=False,
-      capture_output=True,
-    )
-    if result.returncode != 0:
-      detail = result.stderr.decode("utf-8", "replace").strip() or "7z failed"
-      raise ResolutionError(f"{context}: cannot extract archive member: {detail}", 3)
-    if len(result.stdout) > 16 * 1024 * 1024:
-      raise ResolutionError(f"{context}: derived archive member is too large", 3)
-    return result.stdout
-  except OSError as error:
-    raise ResolutionError(f"{context}: cannot extract archive member", 3) from error
-  finally:
-    if temporary_path is not None:
-      temporary_path.unlink(missing_ok=True)
-
-
-def _chromium_pak_resource(content, resource_id, context):
-  if len(content) < 12 or struct.unpack_from("<I", content, 0)[0] != 5:
-    raise ResolutionError(f"{context}: unsupported Chromium DataPack", 3)
-  resource_count, alias_count = struct.unpack_from("<HH", content, 8)
-  index_end = 12 + (resource_count + 1) * 6 + alias_count * 4
-  if index_end > len(content):
-    raise ResolutionError(f"{context}: truncated Chromium DataPack index", 3)
-  entries = [
-    struct.unpack_from("<HI", content, 12 + index * 6)
-    for index in range(resource_count + 1)
-  ]
-  identifiers = [item[0] for item in entries[:-1]]
-  offsets = [item[1] for item in entries]
-  if (
-    identifiers != sorted(set(identifiers))
-    or offsets != sorted(offsets)
-    or offsets[0] != index_end
-    or offsets[-1] != len(content)
-  ):
-    raise ResolutionError(f"{context}: invalid Chromium DataPack index", 3)
-  try:
-    index = identifiers.index(resource_id)
-  except ValueError as error:
-    raise ResolutionError(f"{context}: Chromium resource is missing", 3) from error
-  resource = content[offsets[index]:offsets[index + 1]]
-  if len(resource) > 8 * 1024 * 1024:
-    raise ResolutionError(f"{context}: Chromium resource is too large", 3)
-  return resource
-
-
-def _brotli_with_header_8(content, context):
-  if len(content) < 8:
-    raise ResolutionError(f"{context}: Brotli resource header is truncated", 3)
-  script = (
-    "const z=require('node:zlib'),c=[];"
-    "process.stdin.on('data',x=>c.push(x));"
-    "process.stdin.on('end',()=>process.stdout.write("
-    "z.brotliDecompressSync(Buffer.concat(c),{maxOutputLength:8388608})))"
-  )
-  try:
-    result = subprocess.run(
-      ["node", "-e", script],
-      input=content[8:],
-      check=False,
-      capture_output=True,
-    )
-  except OSError as error:
-    raise ResolutionError(f"{context}: Node.js is required for Brotli evidence", 3) from error
-  if result.returncode != 0 or len(result.stdout) > 8 * 1024 * 1024:
-    raise ResolutionError(f"{context}: invalid Brotli license evidence", 3)
-  return result.stdout
-
-
 def _derived_cef_pak_resource(content, evidence, context):
-  pak = _seven_zip_member_bytes(content, evidence["archiveMember"], context)
-  resource = _chromium_pak_resource(pak, evidence["resourceId"], context)
-  if evidence["compression"] == "brotli-header-8":
-    return _brotli_with_header_8(resource, context)
-  return resource
+  try:
+    return derived_cef_pak_resource(content, evidence, context)
+  except CefEvidenceError as error:
+    raise ResolutionError(str(error), 3) from error
 
 
 def _locked_git_blob(cache, commit, path, context):

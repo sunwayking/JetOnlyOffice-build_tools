@@ -18,6 +18,13 @@ import sys
 import tempfile
 import zipfile
 
+SCRIPT_DIRECTORY = Path(__file__).resolve().parent
+for shared_directory in (SCRIPT_DIRECTORY, SCRIPT_DIRECTORY.parent):
+  if str(shared_directory) not in sys.path:
+    sys.path.insert(0, str(shared_directory))
+
+from cef_evidence import CefEvidenceError, derived_cef_pak_resource as derive_cef_evidence
+
 
 class PackageError(RuntimeError):
   pass
@@ -78,95 +85,11 @@ def run(command, description, env=None, cwd=None):
   return result
 
 
-def seven_zip_executable():
-  executable = shutil.which("7z") or shutil.which("7zz")
-  if executable:
-    return executable
-  fail("7-Zip is required for derived archive evidence")
-
-
-def seven_zip_member_bytes(content, member_path, context):
-  temporary_path = None
-  try:
-    with tempfile.NamedTemporaryFile(suffix=".7z", delete=False) as temporary:
-      temporary.write(content)
-      temporary_path = Path(temporary.name)
-    result = subprocess.run(
-      [seven_zip_executable(), "e", "-so", str(temporary_path), member_path],
-      check=False,
-      capture_output=True,
-    )
-    if result.returncode != 0:
-      detail = result.stderr.decode("utf-8", "replace").strip() or "7z failed"
-      fail(f"{context}: cannot extract archive member: {detail}")
-    if len(result.stdout) > 16 * 1024 * 1024:
-      fail(f"{context}: derived archive member is too large")
-    return result.stdout
-  except OSError as error:
-    fail(f"{context}: cannot extract archive member: {error}")
-  finally:
-    if temporary_path is not None:
-      temporary_path.unlink(missing_ok=True)
-
-
-def chromium_pak_resource(content, resource_id, context):
-  if len(content) < 12 or struct.unpack_from("<I", content, 0)[0] != 5:
-    fail(f"{context}: unsupported Chromium DataPack")
-  resource_count, alias_count = struct.unpack_from("<HH", content, 8)
-  index_end = 12 + (resource_count + 1) * 6 + alias_count * 4
-  if index_end > len(content):
-    fail(f"{context}: truncated Chromium DataPack index")
-  entries = [
-    struct.unpack_from("<HI", content, 12 + index * 6)
-    for index in range(resource_count + 1)
-  ]
-  identifiers = [item[0] for item in entries[:-1]]
-  offsets = [item[1] for item in entries]
-  if (
-    identifiers != sorted(set(identifiers))
-    or offsets != sorted(offsets)
-    or offsets[0] != index_end
-    or offsets[-1] != len(content)
-  ):
-    fail(f"{context}: invalid Chromium DataPack index")
-  if resource_id not in identifiers:
-    fail(f"{context}: Chromium resource is missing")
-  index = identifiers.index(resource_id)
-  resource = content[offsets[index]:offsets[index + 1]]
-  if len(resource) > 8 * 1024 * 1024:
-    fail(f"{context}: Chromium resource is too large")
-  return resource
-
-
-def brotli_with_header_8(content, context):
-  if len(content) < 8:
-    fail(f"{context}: Brotli resource header is truncated")
-  script = (
-    "const z=require('node:zlib'),c=[];"
-    "process.stdin.on('data',x=>c.push(x));"
-    "process.stdin.on('end',()=>process.stdout.write("
-    "z.brotliDecompressSync(Buffer.concat(c),{maxOutputLength:8388608})))"
-  )
-  try:
-    result = subprocess.run(
-      ["node", "-e", script],
-      input=content[8:],
-      check=False,
-      capture_output=True,
-    )
-  except OSError as error:
-    fail(f"{context}: Node.js is required for Brotli evidence: {error}")
-  if result.returncode != 0 or len(result.stdout) > 8 * 1024 * 1024:
-    fail(f"{context}: invalid Brotli license evidence")
-  return result.stdout
-
-
 def derived_cef_pak_resource(content, evidence, context):
-  pak = seven_zip_member_bytes(content, evidence["archiveMember"], context)
-  resource = chromium_pak_resource(pak, evidence["resourceId"], context)
-  if evidence["compression"] == "brotli-header-8":
-    return brotli_with_header_8(resource, context)
-  return resource
+  try:
+    return derive_cef_evidence(content, evidence, context)
+  except CefEvidenceError as error:
+    fail(str(error))
 
 
 def ensure_command(name):

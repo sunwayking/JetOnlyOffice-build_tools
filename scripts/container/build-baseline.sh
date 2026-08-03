@@ -68,6 +68,8 @@ cp -a --no-preserve=ownership "$build_tools/out/." /output/build-output/
 mkdir -p /output/build-output/packaging
 cp "$build_tools/scripts/container/package-driver.py" \
   /output/build-output/packaging/package-driver.py
+cp "$build_tools/scripts/cef_evidence.py" \
+  /output/build-output/packaging/cef_evidence.py
 cp "$build_tools/scripts/container/jwt-entrypoint.sh" \
   /output/build-output/packaging/jwt-entrypoint.sh
 cat > /output/build-output/packaging/package.sh <<'EOF'

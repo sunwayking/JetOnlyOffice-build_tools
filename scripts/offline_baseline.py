@@ -16,6 +16,7 @@ import tempfile
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+from cef_evidence import CefEvidenceError, derived_cef_pak_resource
 from contracts.contract_tool import ContractError, load_json, validate_contract
 from contracts.contract_tool import canonical_json_bytes, canonical_sha256
 from source_resolver import ResolutionError, verify_materialized
@@ -1822,6 +1823,50 @@ def verify_source_tree_repository(
     )
 
 
+def verify_derived_source_evidence(archive, members, source_lock):
+  repositories_by_id = {
+    repository["id"]: repository for repository in source_lock["repositories"]
+  }
+  for repository in source_lock["repositories"]:
+    if not repository["active"] or not repository["buildInput"]:
+      continue
+    license_record = repository["license"]
+    if license_record.get("scope") != "component":
+      continue
+    for component in license_record["components"]:
+      for evidence in component["license"]["evidence"]:
+        if evidence["type"] != "repository-cef-pak-resource":
+          continue
+        context = f"{repository['id']}:{component['id']}:{evidence['path']}"
+        reference_repository = repositories_by_id.get(evidence["repository"])
+        if reference_repository is None:
+          raise BaselineError(f"{context}: evidence repository is not locked", 4)
+        payload_name = (
+          PurePosixPath(repository["checkoutPath"]) / evidence["path"]
+        ).as_posix()
+        evidence_name = (
+          PurePosixPath(reference_repository["checkoutPath"]) / evidence["locator"]
+        ).as_posix()
+        payload = read_tar_member(
+          archive, members, payload_name, "source archive CEF payload"
+        )
+        evidence_bytes = read_tar_member(
+          archive, members, evidence_name, "source archive CEF evidence"
+        )
+        try:
+          derived = derived_cef_pak_resource(payload, evidence, context)
+        except CefEvidenceError as error:
+          raise BaselineError(str(error), 4) from error
+        if derived != evidence_bytes:
+          raise BaselineError(
+            f"{context}: derived source evidence does not match archived bytes", 4
+          )
+        if hashlib.sha256(evidence_bytes).hexdigest() != evidence["evidenceSha256"]:
+          raise BaselineError(
+            f"{context}: archived source evidence digest does not match", 4
+          )
+
+
 def verify_source_artifact(
   manifest,
   artifact_root,
@@ -1896,6 +1941,7 @@ def verify_source_artifact(
         tree_repository,
         relationship_context,
       )
+    verify_derived_source_evidence(archive, members, source_lock)
 
     expected_members = set(lock_values) | {tree_record["path"]}
     for repository, tree_repository in zip(

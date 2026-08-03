@@ -260,7 +260,7 @@
             "compression": {
               "enum": [
                 "none",
-                "brotli-header-8"
+                "chromium-grit-brotli"
               ]
             },
             "licenseRefs": {

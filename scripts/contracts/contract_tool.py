@@ -495,7 +495,7 @@ def _validate_component_evidence_record(
       or not 0 < evidence_record["resourceId"] <= 65535
     ):
       raise ContractError(path + ".resourceId: expected a positive uint16")
-    if evidence_record["compression"] not in {"none", "brotli-header-8"}:
+    if evidence_record["compression"] not in {"none", "chromium-grit-brotli"}:
       raise ContractError(path + ".compression: unsupported transform")
   if evidence_type == "git-blob" and "evidenceBlob" not in evidence_record:
     raise ContractError(path + ".evidenceBlob: locked git-blob evidence must bind its locator blob")

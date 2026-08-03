@@ -47,6 +47,7 @@ from offline_baseline import (  # noqa: E402
   open_license_archive,
   pinned_image_reference,
   verify_cyclonedx_artifact,
+  verify_derived_source_evidence,
   verify_license_artifact,
   verify_oci_artifact,
   verify_provenance_artifact,
@@ -497,6 +498,93 @@ def font_with_license_name(license_text):
 
 
 class PackageDriverTests(unittest.TestCase):
+  def test_source_archive_invokes_derived_evidence_verification(self):
+    with tempfile.TemporaryDirectory() as directory:
+      root = Path(directory)
+      source_path, expanded, source, tools, images = source_archive_fixture(root)
+      manifest = {"artifacts": [{
+        "id": "source", "type": "source", "path": source_path.name,
+      }]}
+
+      def fake_run(_command, **kwargs):
+        kwargs["stdout"].write(expanded)
+        return SimpleNamespace(returncode=0, stderr=b"")
+
+      with (
+        patch("offline_baseline.subprocess.run", side_effect=fake_run),
+        patch("offline_baseline.verify_derived_source_evidence") as verify_derived,
+      ):
+        verify_source_artifact(
+          manifest, root, source, tools, root / "cache", images, "docker"
+        )
+      verify_derived.assert_called_once()
+
+  def test_source_archive_rederives_cef_evidence_from_archived_bytes(self):
+    payload = b"locked CEF archive"
+    license_text = b"CEF license\n"
+    evidence = {
+      "type": "repository-cef-pak-resource",
+      "path": "cef/cef_binary.7z",
+      "blob": "1" * 40,
+      "sha256": "2" * 64,
+      "repository": "license-evidence",
+      "locator": "cef/LICENSE.txt",
+      "evidenceBlob": "3" * 40,
+      "evidenceSha256": hashlib.sha256(license_text).hexdigest(),
+      "archiveMember": "cef_binary/Resources/chrome_100_percent.pak",
+      "resourceId": 63001,
+      "compression": "none",
+    }
+    source = source_lock()
+    source_repository = source["repositories"][0]
+    source_repository["license"] = {
+      "scope": "component",
+      "payloadPatterns": ["cef/cef_binary.7z"],
+      "components": [{
+        "id": "cef",
+        "payloadPaths": ["cef/cef_binary.7z"],
+        "license": {"spdx": "BSD-3-Clause", "evidence": [evidence]},
+      }],
+    }
+    evidence_repository = json.loads(json.dumps(source_repository))
+    evidence_repository.update({
+      "id": "license-evidence",
+      "checkoutPath": "sources/license-evidence",
+    })
+    evidence_repository["license"] = {
+      "scope": "component", "payloadPatterns": ["cef/LICENSE.txt"],
+      "components": [],
+    }
+    source["repositories"].append(evidence_repository)
+
+    archive_bytes = io.BytesIO()
+    with tarfile.open(fileobj=archive_bytes, mode="w") as archive:
+      for name, content in (
+        ("sources/DocumentServer/cef/cef_binary.7z", payload),
+        ("sources/license-evidence/cef/LICENSE.txt", license_text),
+      ):
+        member = tarfile.TarInfo(name)
+        member.size = len(content)
+        archive.addfile(member, io.BytesIO(content))
+    archive_bytes.seek(0)
+
+    with tarfile.open(fileobj=archive_bytes, mode="r:") as archive:
+      members = {member.name: member for member in archive.getmembers()}
+      with patch(
+        "offline_baseline.derived_cef_pak_resource", return_value=license_text
+      ) as derive:
+        verify_derived_source_evidence(archive, members, source)
+      derive.assert_called_once_with(payload, evidence, "documentserver:cef:cef/cef_binary.7z")
+
+    archive_bytes.seek(0)
+    with tarfile.open(fileobj=archive_bytes, mode="r:") as archive:
+      members = {member.name: member for member in archive.getmembers()}
+      with (
+        patch("offline_baseline.derived_cef_pak_resource", return_value=b"other"),
+        self.assertRaisesRegex(BaselineError, "derived source evidence"),
+      ):
+        verify_derived_source_evidence(archive, members, source)
+
   def test_source_archive_independently_matches_locked_git_tree(self):
     with tempfile.TemporaryDirectory() as directory:
       root = Path(directory)

@@ -91,7 +91,11 @@ build-tools-data LFS archive remains the licensed payload; the lock names the
 exact 7z member, Chromium DataPack v5 resource id, and Brotli transform. The
 derived bytes must equal the ordinary Git blob in the immutable evidence
 snapshot during resolve, package, and verify, so the evidence repository never
-becomes a substitute runtime or a duplicate carrier for the CEF archive.
+becomes a substitute runtime or a duplicate carrier for the CEF archive. All
+three stages use the same bounded extractor. It validates the complete DataPack
+resource and alias tables plus Chromium GRIT's `1e 9b` magic and six-byte
+little-endian output length; verify reads both sides from the published source
+archive and repeats the derivation instead of trusting license-bundle metadata.
 
 Each container invocation receives new staging and work directories. The
 expected output manifest must resolve inside the artifact root and any

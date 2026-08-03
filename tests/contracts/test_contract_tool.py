@@ -150,7 +150,7 @@ def derived_cef_license_record():
     (
       "cef/chromium-credits.html",
       31061,
-      "brotli-header-8",
+      "chromium-grit-brotli",
       SHA256_B,
       SHA1_B,
       ["LicenseRef-Chromium-Third-Party-Credits"],
