@@ -1523,6 +1523,10 @@ class PackageDriverTests(unittest.TestCase):
         ("README_hyph_de.txt", b"LGPL adaptation notice\n", "4" * 40),
         ("dehyphn.tex", b"% Original patterns licensed under LPPL v1\n", "5" * 40),
       ]
+      german_spdx = (
+        "(GPL-2.0-only OR GPL-3.0-only) AND "
+        "LGPL-2.0-or-later AND LPPL-1.0"
+      )
       for name, material, _ in license_materials:
         (evidence_checkout / "fonts" / name).write_bytes(material)
       payload_digest = hashlib.sha256(payload).hexdigest()
@@ -1537,7 +1541,7 @@ class PackageDriverTests(unittest.TestCase):
           "id": "fonts",
           "payloadPaths": ["fonts/Example.ttf"],
           "license": {
-            "spdx": "GPL-2.0-only",
+            "spdx": german_spdx,
             "evidence": [
               {
                 "type": "repository-git-blob",
@@ -1571,7 +1575,7 @@ class PackageDriverTests(unittest.TestCase):
             "id": "fonts",
             "payloadPaths": ["fonts/Example.ttf"],
             "license": {
-              "spdx": "GPL-2.0-only",
+              "spdx": german_spdx,
               "evidence": [
                 {
                   "type": "git-blob",
@@ -1696,6 +1700,8 @@ class PackageDriverTests(unittest.TestCase):
         item for item in spdx_value["packages"]
         if item["SPDXID"] == "SPDXRef-documentserver-fonts"
       )
+      self.assertEqual(german_spdx, source_package["licenseConcluded"])
+      self.assertEqual(german_spdx, source_package["licenseDeclared"])
       for evidence_reference in evidence_references:
         self.assertIn(evidence_reference, source_package["comment"])
       cdx_value = json.loads(cdx.read_text(encoding="utf-8"))
@@ -1703,6 +1709,7 @@ class PackageDriverTests(unittest.TestCase):
         item for item in cdx_value["components"]
         if item["bom-ref"] == "repo:documentserver:fonts"
       )
+      self.assertEqual([{"expression": german_spdx}], source_component["licenses"])
       for evidence_reference in evidence_references:
         self.assertIn(
           {
