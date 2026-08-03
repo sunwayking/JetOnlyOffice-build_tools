@@ -560,7 +560,7 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       [
         "az_Latn_AZ",
-        "da_DK", "en_AU",
+        "en_AU",
         "hr_HR",
         "mn_MN", "pl_PL", "pt_BR",
         "ru_RU", "uz_Cyrl_UZ",
@@ -627,12 +627,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.8",
+        "ref": "refs/tags/v9.4.0-evidence.11",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "13e98d7bf2be2f83f82973384e32a4b2f25e668e",
+      "6028cef5ee13670c60036a2992e2b13aa1f7cc7b",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -650,6 +650,7 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
+        "da_DK",
         "de_AT",
         "de_CH",
         "de_DE",
@@ -670,6 +671,30 @@ class SourceResolverTests(unittest.TestCase):
       [
         component["id"]
         for component in evidence_repository["license"]["reviewedComponents"]
+      ],
+    )
+    evidence_da_dk = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "da_DK"
+    )
+    self.assertEqual(
+      "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1) AND "
+      "LGPL-2.1-or-later AND LPPL-1.3c",
+      evidence_da_dk["spdx"],
+    )
+    self.assertEqual(
+      [
+        ("da_DK/da_DK.aff", "da_DK/da_DK_Danish.txt"),
+        ("da_DK/da_DK.dic", "da_DK/da_DK_Danish.txt"),
+        ("da_DK/hyph_da_DK.dic", "da_DK/LPPL-1.3c.txt"),
+        ("da_DK/hyph_da_DK.dic", "da_DK/README_hyph_da_DK.txt"),
+        ("da_DK/hyph_da_DK.dic", "da_DK/dkhyph.tex"),
+        ("da_DK/hyph_da_DK.dic", "da_DK/hyphen-da.spec"),
+      ],
+      [
+        (record["path"], record["locator"])
+        for record in evidence_da_dk["evidence"]
       ],
     )
     german_spdx = (
@@ -1025,6 +1050,18 @@ class SourceResolverTests(unittest.TestCase):
         2,
       ),
       "cs_CZ": ("GPL-2.0-only", {"cs_CZ/cs_CZ_Czech.txt"}, 3),
+      "da_DK": (
+        "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1) AND "
+        "LGPL-2.1-or-later AND LPPL-1.3c",
+        {
+          "da_DK/LPPL-1.3c.txt",
+          "da_DK/README_hyph_da_DK.txt",
+          "da_DK/da_DK_Danish.txt",
+          "da_DK/dkhyph.tex",
+          "da_DK/hyphen-da.spec",
+        },
+        6,
+      ),
       "de_AT": (
         german_spdx,
         {
@@ -1192,11 +1229,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      10, len(dictionaries["license"]["unresolvedComponents"])
+      9, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
-      "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID", "it_IT",
-      "kk_KZ", "lt_LT", "pt_PT", "sl_SI"
+      "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID",
+      "it_IT", "kk_KZ", "lt_LT", "pt_PT", "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1222,7 +1259,6 @@ class SourceResolverTests(unittest.TestCase):
       for review in dictionaries["license"]["blockingReviews"]
     }
     expected_blocking_reviews = {
-      "da_DK": ("AMBIGUOUS_VERSION", ["da_DK/README_hyph_da_DK.txt"]),
       "en_AU": ("MISSING_EVIDENCE", ["en_AU/README_en_AU.txt"]),
       "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),

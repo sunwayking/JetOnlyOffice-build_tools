@@ -1586,19 +1586,8 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Thirty-nine language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Forty language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
-          {
-            "id": "da_DK",
-            "code": "AMBIGUOUS_VERSION",
-            "reason": "The spelling README names exact GPL 2.0, LGPL 2.1, and MPL 1.1 terms, but the locked hyphenation README states only GNU LGPL without identifying a version.",
-            "evidence": [
-              {
-                "path": "da_DK/README_hyph_da_DK.txt",
-                "sha256": "600759b9f68b57a8432b9647bb132bb00a91953cf52b35c5daf65b7956b06501"
-              }
-            ]
-          },
           {
             "id": "en_AU",
             "code": "MISSING_EVIDENCE",
@@ -1789,6 +1778,60 @@
                 "path": "cs_CZ/hyph_cs_CZ.dic",
                 "locator": "cs_CZ/cs_CZ_Czech.txt",
                 "sha256": "c3bc15289865d136d7bf79f516f40052fd8ab6af6f8c9285f3da3cf90fd5a978"
+              }
+            ]
+          },
+          {
+            "id": "da_DK",
+            "spdx": "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1) AND LGPL-2.1-or-later AND LPPL-1.3c",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "da_DK/da_DK.aff",
+                "repository": "license-evidence",
+                "referencePath": "da_DK/da_DK.aff",
+                "locator": "da_DK/da_DK_Danish.txt",
+                "sha256": "c65431a4aa94ed2200139e7f4e8e74e4e5e468366e5fbc7d2af2a32a671db647"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "da_DK/da_DK.dic",
+                "repository": "license-evidence",
+                "referencePath": "da_DK/da_DK.dic",
+                "locator": "da_DK/da_DK_Danish.txt",
+                "sha256": "c65431a4aa94ed2200139e7f4e8e74e4e5e468366e5fbc7d2af2a32a671db647"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "repository": "license-evidence",
+                "referencePath": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/LPPL-1.3c.txt",
+                "sha256": "f0f307427080e67974f58f6b7f732039a966b3a7ae480dedee3275907104ac1f"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "repository": "license-evidence",
+                "referencePath": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/README_hyph_da_DK.txt",
+                "sha256": "600759b9f68b57a8432b9647bb132bb00a91953cf52b35c5daf65b7956b06501"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "repository": "license-evidence",
+                "referencePath": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/dkhyph.tex",
+                "sha256": "be9678c13462d2a277602c48e0a422c0bf3b79e89f601fb20fc2deb1dfbf9363"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "repository": "license-evidence",
+                "referencePath": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/hyphen-da.spec",
+                "sha256": "4340a04bbb9133797662ab8e3436da94604388de372105eeb0417d493f80af81"
               }
             ]
           },
@@ -2833,7 +2876,6 @@
         ],
         "unresolvedComponents": [
           "az_Latn_AZ",
-          "da_DK",
           "en_AU",
           "hr_HR",
           "mn_MN",
@@ -3021,11 +3063,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "13e98d7bf2be2f83f82973384e32a4b2f25e668e",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 8",
+      "commit": "6028cef5ee13670c60036a2992e2b13aa1f7cc7b",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 11",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.8"
+        "ref": "refs/tags/v9.4.0-evidence.11"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3051,6 +3093,48 @@
         ],
         "reason": "All mirrored payloads have an exact component-scoped license mapping.",
         "reviewedComponents": [
+          {
+            "id": "da_DK",
+            "spdx": "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1) AND LGPL-2.1-or-later AND LPPL-1.3c",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "da_DK/da_DK.aff",
+                "locator": "da_DK/da_DK_Danish.txt",
+                "sha256": "c65431a4aa94ed2200139e7f4e8e74e4e5e468366e5fbc7d2af2a32a671db647"
+              },
+              {
+                "type": "git-blob",
+                "path": "da_DK/da_DK.dic",
+                "locator": "da_DK/da_DK_Danish.txt",
+                "sha256": "c65431a4aa94ed2200139e7f4e8e74e4e5e468366e5fbc7d2af2a32a671db647"
+              },
+              {
+                "type": "git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/LPPL-1.3c.txt",
+                "sha256": "f0f307427080e67974f58f6b7f732039a966b3a7ae480dedee3275907104ac1f"
+              },
+              {
+                "type": "git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/README_hyph_da_DK.txt",
+                "sha256": "600759b9f68b57a8432b9647bb132bb00a91953cf52b35c5daf65b7956b06501"
+              },
+              {
+                "type": "git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/dkhyph.tex",
+                "sha256": "be9678c13462d2a277602c48e0a422c0bf3b79e89f601fb20fc2deb1dfbf9363"
+              },
+              {
+                "type": "git-blob",
+                "path": "da_DK/hyph_da_DK.dic",
+                "locator": "da_DK/hyphen-da.spec",
+                "sha256": "4340a04bbb9133797662ab8e3436da94604388de372105eeb0417d493f80af81"
+              }
+            ]
+          },
           {
             "id": "de_AT",
             "spdx": "(GPL-2.0-only OR GPL-3.0-only) AND LGPL-2.0-or-later AND LPPL-1.0",
