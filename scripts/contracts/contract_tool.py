@@ -76,6 +76,13 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "OFL-1.1",
   "UFL-1.0",
 }
+SOURCE_LICENSE_REVIEW_CODES = {
+  "AMBIGUOUS_CHOICE",
+  "AMBIGUOUS_VERSION",
+  "CONFLICTING_TERMS",
+  "INCOMPLETE_SCOPE",
+  "MISSING_EVIDENCE",
+}
 WINDOWS_DEVICE_PATTERN = re.compile(r"^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\.|$)", re.I)
 
 MAX_SAFE_INTEGER = 9007199254740991
@@ -1163,10 +1170,40 @@ def _validate_source_license_audit(value):
       _validate_sorted_unique(evidence, lambda item: item["path"], component_path + ".candidateEvidence")
       for evidence_record in evidence:
         _validate_relative_path(evidence_record["path"], component_path + ".candidateEvidence.path")
+      evidence_by_path = {record["path"]: record for record in evidence}
       if component["status"] == "unresolved" and evidence:
         raise ContractError(component_path + ": unresolved component cannot have candidate evidence")
       if component["status"] == "review-required" and not evidence:
         raise ContractError(component_path + ": review-required component needs candidate evidence")
+      blocking_review = component.get("blockingReview")
+      if component["status"] == "blocked":
+        if blocking_review is None:
+          raise ContractError(component_path + ": blocked component needs a blocking review")
+        if blocking_review["code"] not in SOURCE_LICENSE_REVIEW_CODES:
+          raise ContractError(component_path + ".blockingReview.code: unsupported review code")
+        blocking_evidence = blocking_review["evidence"]
+        _validate_sorted_unique(
+          blocking_evidence,
+          lambda item: item["path"],
+          component_path + ".blockingReview.evidence",
+        )
+        for evidence_record in blocking_evidence:
+          _validate_relative_path(
+            evidence_record["path"],
+            component_path + ".blockingReview.evidence.path",
+          )
+          if evidence_by_path.get(evidence_record["path"]) != evidence_record:
+            raise ContractError(
+              component_path
+              + ".blockingReview.evidence: must exactly match component candidate evidence"
+            )
+          if evidence_record["path"].partition("/")[0] != component["id"]:
+            raise ContractError(
+              component_path
+              + ".blockingReview.evidence: path must belong to the blocked component"
+            )
+      elif blocking_review is not None:
+        raise ContractError(component_path + ": only blocked components may have a blocking review")
       license_record = component.get("license")
       if component["status"] == "resolved":
         if evidence:

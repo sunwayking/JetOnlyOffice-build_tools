@@ -34,7 +34,7 @@
               "required": ["id", "status", "payloadPaths", "candidateEvidence"],
               "properties": {
                 "id": {"type": "string", "minLength": 1},
-                "status": {"enum": ["resolved", "review-required", "unresolved"]},
+                "status": {"enum": ["blocked", "resolved", "review-required", "unresolved"]},
                 "payloadPaths": {
                   "type": "array",
                   "minItems": 1,
@@ -50,6 +50,37 @@
                       "path": {"$ref": "common.schema.json#/$defs/relativePath"},
                       "blob": {"$ref": "common.schema.json#/$defs/sha1"},
                       "sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+                    }
+                  }
+                },
+                "blockingReview": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["code", "reason", "evidence"],
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        "AMBIGUOUS_CHOICE",
+                        "AMBIGUOUS_VERSION",
+                        "CONFLICTING_TERMS",
+                        "INCOMPLETE_SCOPE",
+                        "MISSING_EVIDENCE"
+                      ]
+                    },
+                    "reason": {"type": "string", "minLength": 1},
+                    "evidence": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["path", "blob", "sha256"],
+                        "properties": {
+                          "path": {"$ref": "common.schema.json#/$defs/relativePath"},
+                          "blob": {"$ref": "common.schema.json#/$defs/sha1"},
+                          "sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+                        }
+                      }
                     }
                   }
                 },

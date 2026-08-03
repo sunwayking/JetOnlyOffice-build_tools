@@ -617,6 +617,16 @@ class SourceResolverTests(unittest.TestCase):
       self.assertIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
       )
+    blocking_reviews = {
+      review["id"]: review
+      for review in dictionaries["license"]["blockingReviews"]
+    }
+    self.assertEqual(["mn_MN"], sorted(blocking_reviews))
+    self.assertEqual("CONFLICTING_TERMS", blocking_reviews["mn_MN"]["code"])
+    self.assertEqual(
+      ["mn_MN/Readme_mn_MN.txt"],
+      [record["path"] for record in blocking_reviews["mn_MN"]["evidence"]],
+    )
     expected_lgpl_evidence = {
       "bg_BG": "bg_BG/Readme_bg_BG.txt",
       "en_ZA": "en_ZA/Readme_en_ZA.txt",
@@ -697,6 +707,95 @@ class SourceResolverTests(unittest.TestCase):
     value["repositories"][1]["license"]["unresolvedComponents"] = ["z", "a"]
     with self.assertRaisesRegex(ResolutionError, "sorted unique strings"):
       validate_inputs(value)
+
+  def test_blocking_license_reviews_are_locked_and_stay_unresolved(self):
+    value = source_inputs()
+    value["repositories"][1]["license"] = {
+      "status": "component-scoped",
+      "payloadPatterns": ["**/*.ttf"],
+      "patterns": ["**/LICENSE*"],
+      "reason": "A component has conflicting license terms.",
+      "blockingReviews": [
+        {
+          "id": "blocked-font",
+          "code": "CONFLICTING_TERMS",
+          "reason": "The locked notice grants and prohibits redistribution.",
+          "evidence": [
+            {
+              "path": "blocked-font/LICENSE.txt",
+              "sha256": "a" * 64,
+            }
+          ],
+        }
+      ],
+      "unresolvedComponents": ["blocked-font"],
+    }
+    validate_inputs(value)
+
+    value["repositories"][1]["license"]["unresolvedComponents"] = []
+    with self.assertRaisesRegex(ResolutionError, "blocking review.*unresolved"):
+      validate_inputs(value)
+
+    value["repositories"][1]["license"]["unresolvedComponents"] = [
+      "blocked-font"
+    ]
+    value["repositories"][1]["license"]["blockingReviews"][0]["code"] = (
+      "UNREVIEWED"
+    )
+    with self.assertRaisesRegex(ResolutionError, "unsupported review code"):
+      validate_inputs(value)
+
+  def test_blocking_license_review_is_verified_from_locked_git_bytes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      license_bytes = b"Conflicting license terms\n"
+      (checkout / "blocked").mkdir()
+      (checkout / "blocked" / "Font.ttf").write_bytes(b"font\n")
+      (checkout / "blocked" / "LICENSE.txt").write_bytes(license_bytes)
+      run_git(checkout, "add", "blocked")
+      run_git(checkout, "commit", "-m", "add blocked component")
+      commit = run_git(checkout, "rev-parse", "HEAD")
+      bare = Path(directory) / "inventory.git"
+      run_git(directory, "clone", "--bare", str(checkout), str(bare))
+      repository = repository_input("fonts", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf"],
+        "patterns": ["**/LICENSE*"],
+        "reason": "A component has conflicting license terms.",
+        "blockingReviews": [
+          {
+            "id": "blocked",
+            "code": "CONFLICTING_TERMS",
+            "reason": "The locked notice contains conflicting terms.",
+            "evidence": [
+              {
+                "path": "blocked/LICENSE.txt",
+                "sha256": hashlib.sha256(license_bytes).hexdigest(),
+              }
+            ],
+          }
+        ],
+        "unresolvedComponents": ["blocked"],
+      }
+
+      inventory = repository_license_inventory(repository, bare, commit)
+
+      component = inventory["components"][0]
+      self.assertEqual("blocked", component["status"])
+      self.assertEqual(
+        "CONFLICTING_TERMS", component["blockingReview"]["code"]
+      )
+      self.assertEqual(
+        hashlib.sha256(license_bytes).hexdigest(),
+        component["blockingReview"]["evidence"][0]["sha256"],
+      )
+
+      repository["license"]["blockingReviews"][0]["evidence"][0][
+        "sha256"
+      ] = "0" * 64
+      with self.assertRaisesRegex(ResolutionError, "blocking review digest"):
+        repository_license_inventory(repository, bare, commit)
 
   def test_component_license_inventory_is_derived_from_locked_git_bytes(self):
     with tempfile.TemporaryDirectory() as directory:

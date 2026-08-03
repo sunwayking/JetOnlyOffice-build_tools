@@ -22,6 +22,7 @@ import zipfile
 from contracts.contract_tool import (
   ContractError,
   SOURCE_LICENSE_EXPRESSIONS,
+  SOURCE_LICENSE_REVIEW_CODES,
   canonical_json_bytes,
   load_json,
   validate_contract,
@@ -340,7 +341,7 @@ def _validate_license_input(value, path):
         "reason",
         "unresolvedComponents",
       },
-      {"reviewedComponents"},
+      {"blockingReviews", "reviewedComponents"},
       path,
     )
     if (
@@ -353,6 +354,7 @@ def _validate_license_input(value, path):
       raise ResolutionError(f"{path}.patterns: values must be sorted and unique", 2)
     _validate_patterns(value["payloadPatterns"], path + ".payloadPatterns")
     _validate_unresolved_components(value["unresolvedComponents"], path)
+    _validate_blocking_reviews(value.get("blockingReviews", []), path)
     _validate_reviewed_components(value.get("reviewedComponents", []), path)
     reviewed_ids = {
       component["id"] for component in value.get("reviewedComponents", [])
@@ -362,6 +364,16 @@ def _validate_license_input(value, path):
       raise ResolutionError(
         f"{path}: components cannot be both reviewed and unresolved: "
         + ", ".join(sorted(overlap)),
+        2,
+      )
+    blocking_ids = {
+      review["id"] for review in value.get("blockingReviews", [])
+    }
+    missing_unresolved = blocking_ids.difference(value["unresolvedComponents"])
+    if missing_unresolved:
+      raise ResolutionError(
+        f"{path}: every blocking review must remain unresolved: "
+        + ", ".join(sorted(missing_unresolved)),
         2,
       )
     if not isinstance(value["reason"], str) or not value["reason"]:
@@ -391,6 +403,53 @@ def _validate_unresolved_components(value, path):
       f"{path}.unresolvedComponents: expected sorted unique strings",
       2,
     )
+
+
+def _validate_blocking_reviews(value, path):
+  if not isinstance(value, list):
+    raise ResolutionError(f"{path}.blockingReviews: expected array", 2)
+  review_ids = []
+  for review_index, review in enumerate(value):
+    review_path = f"{path}.blockingReviews[{review_index}]"
+    _require_exact_keys(
+      review,
+      {"id", "code", "reason", "evidence"},
+      set(),
+      review_path,
+    )
+    review_id = review["id"]
+    if not isinstance(review_id, str) or not review_id:
+      raise ResolutionError(f"{review_path}.id: expected non-empty string", 2)
+    review_ids.append(review_id)
+    if review["code"] not in SOURCE_LICENSE_REVIEW_CODES:
+      raise ResolutionError(f"{review_path}.code: unsupported review code", 2)
+    if not isinstance(review["reason"], str) or not review["reason"]:
+      raise ResolutionError(f"{review_path}.reason: expected non-empty string", 2)
+    evidence = review["evidence"]
+    if not isinstance(evidence, list) or not evidence:
+      raise ResolutionError(f"{review_path}.evidence: expected non-empty array", 2)
+    evidence_paths = []
+    for evidence_index, record in enumerate(evidence):
+      evidence_path = f"{review_path}.evidence[{evidence_index}]"
+      _require_exact_keys(record, {"path", "sha256"}, set(), evidence_path)
+      _validate_relative_path(record["path"], evidence_path + ".path")
+      if record["path"].partition("/")[0] != review_id:
+        raise ResolutionError(
+          f"{evidence_path}.path: must belong to the reviewed component",
+          2,
+        )
+      if not isinstance(record["sha256"], str) or not SHA256_PATTERN.fullmatch(
+        record["sha256"]
+      ):
+        raise ResolutionError(f"{evidence_path}.sha256: expected SHA-256", 2)
+      evidence_paths.append(record["path"])
+    if evidence_paths != sorted(set(evidence_paths)):
+      raise ResolutionError(
+        f"{review_path}.evidence: entries must be sorted and unique",
+        2,
+      )
+  if review_ids != sorted(set(review_ids)):
+    raise ResolutionError(f"{path}.blockingReviews: ids must be sorted and unique", 2)
 
 
 def _validate_reviewed_components(value, path):
@@ -787,11 +846,22 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
     component["id"]: component
     for component in license_input.get("reviewedComponents", [])
   }
+  blocking_reviews = {
+    review["id"]: review
+    for review in license_input.get("blockingReviews", [])
+  }
   unknown_reviewed = sorted(set(reviewed_components) - set(payloads_by_component))
   if unknown_reviewed:
     raise ResolutionError(
       f"{repository['id']}: reviewed component inventory is stale; "
       f"unknown {unknown_reviewed}",
+      3,
+    )
+  unknown_blocked = sorted(set(blocking_reviews) - set(payloads_by_component))
+  if unknown_blocked:
+    raise ResolutionError(
+      f"{repository['id']}: blocking review inventory is stale; "
+      f"unknown {unknown_blocked}",
       3,
     )
 
@@ -800,6 +870,7 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
   for component_id in sorted(payloads_by_component):
     component_evidence = evidence_by_component.get(component_id, [])
     reviewed_component = reviewed_components.get(component_id)
+    blocking_review = blocking_reviews.get(component_id)
     if reviewed_component is None:
       actual_unresolved.append(component_id)
     component_record = {
@@ -807,6 +878,8 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
       "status": (
         "resolved"
         if reviewed_component is not None
+        else "blocked"
+        if blocking_review is not None
         else "review-required"
         if component_evidence
         else "unresolved"
@@ -816,6 +889,28 @@ def repository_license_inventory(repository, cache, commit, lfs_objects=None):
         _license_evidence(cache, commit, path) for path in component_evidence
       ] if reviewed_component is None else [],
     }
+    if blocking_review is not None:
+      candidate_paths = set(component_evidence)
+      verified_evidence = []
+      for evidence_input in blocking_review["evidence"]:
+        if evidence_input["path"] not in candidate_paths:
+          raise ResolutionError(
+            f"{repository['id']}:{component_id}: blocking review evidence is not "
+            "a component license candidate",
+            3,
+          )
+        evidence_record = _license_evidence(cache, commit, evidence_input["path"])
+        if evidence_record["sha256"] != evidence_input["sha256"]:
+          raise ResolutionError(
+            f"{repository['id']}:{component_id}: blocking review digest does not match",
+            3,
+          )
+        verified_evidence.append(evidence_record)
+      component_record["blockingReview"] = {
+        "code": blocking_review["code"],
+        "reason": blocking_review["reason"],
+        "evidence": verified_evidence,
+      }
     if reviewed_component is not None:
       evidence_paths = [record["path"] for record in reviewed_component["evidence"]]
       if evidence_paths != payloads_by_component[component_id]:

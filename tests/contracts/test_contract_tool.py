@@ -374,6 +374,29 @@ def source_license_audit():
             "payloadPaths": ["missing-family/font.ttf"],
             "candidateEvidence": [],
           },
+          {
+            "id": "zz-blocked-family",
+            "status": "blocked",
+            "payloadPaths": ["zz-blocked-family/font.ttf"],
+            "candidateEvidence": [
+              {
+                "path": "zz-blocked-family/LICENSE.txt",
+                "blob": SHA1_A,
+                "sha256": SHA256_A,
+              }
+            ],
+            "blockingReview": {
+              "code": "CONFLICTING_TERMS",
+              "reason": "The locked notice contains conflicting terms.",
+              "evidence": [
+                {
+                  "path": "zz-blocked-family/LICENSE.txt",
+                  "blob": SHA1_A,
+                  "sha256": SHA256_A,
+                }
+              ],
+            },
+          },
         ],
       }
     ],
@@ -601,6 +624,34 @@ class ContractToolTests(unittest.TestCase):
     value = source_license_audit()
     value["repositories"][0]["components"][0]["status"] = "unresolved"
     with self.assertRaisesRegex(ContractError, "candidate evidence"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    del value["repositories"][0]["components"][-1]["blockingReview"]
+    with self.assertRaisesRegex(ContractError, "blocking review"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"][-1]["blockingReview"]["evidence"][0][
+      "path"
+    ] = "other/LICENSE.txt"
+    with self.assertRaisesRegex(ContractError, "component candidate evidence"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    value["repositories"][0]["components"][-1]["blockingReview"]["evidence"][0][
+      "sha256"
+    ] = SHA256_B
+    with self.assertRaisesRegex(ContractError, "component candidate evidence"):
+      validate_contract(value, "source-license-audit", self.schema_dir)
+
+    value = source_license_audit()
+    blocked_component = value["repositories"][0]["components"][-1]
+    blocked_component["candidateEvidence"][0]["path"] = "other/LICENSE.txt"
+    blocked_component["blockingReview"]["evidence"][0]["path"] = (
+      "other/LICENSE.txt"
+    )
+    with self.assertRaisesRegex(ContractError, "belong to the blocked component"):
       validate_contract(value, "source-license-audit", self.schema_dir)
 
     value = source_license_audit()

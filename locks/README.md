@@ -116,7 +116,11 @@ substituted for that blob.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
-also remain fail-closed. This includes `kk_KZ`, whose grant lists GPL, LGPL,
+also remain fail-closed. Machine-verified `blockingReviews` bind these findings
+to the exact locked evidence bytes and prevent a blocked component from entering
+`reviewedComponents`. `mn_MN` is blocked because its README both prohibits
+modified redistribution and later offers redistribution or modification under
+LPPL 1.3 or later. This also includes `kk_KZ`, whose grant lists GPL, LGPL,
 and MPL without establishing an alternative choice, and `pt_BR`, whose
 hyphenation notice names LGPLv3 together with an unspecified Mozilla Public
 License. The remaining
