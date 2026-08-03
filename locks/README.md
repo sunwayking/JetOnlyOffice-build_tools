@@ -118,14 +118,13 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. All three components therefore remain unresolved; no SPDX expression
 is inferred from product identity or adjacent upstream sources.
 
-Thirty-six dictionary language packs are mapped payload by payload to exact
+Thirty-nine dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `de_AT`, `de_CH`, `de_DE`,
-`en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`, `hu_HU`,
-`id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`, `nb_NO`, `nl_NL`,
-`nn_NO`,
-`oc_FR`, `ro_RO`, `sk_SK`, `sl_SI`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`,
-`tr_TR`, and `vi_VN`.
+`el_GR`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`,
+`hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
+`nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_PT`, `ro_RO`, `sk_SK`, `sl_SI`,
+`sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, `uk_UA`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
@@ -158,6 +157,16 @@ hyphenation bytes.
 extension source, whose complete GPL 3 grant expressly covers spelling and
 hyphenation. The original hyphenation notice independently grants LGPL 2.1 or
 later, so the reviewed expression retains both cumulative terms.
+`el_GR` selects LGPL 2.1 or later for its spelling payloads and binds the
+hyphenation payload to the matching Fedora 11 source RPM, whose spec declares
+`LGPLv2+`. Deterministic ISO-8859-7-to-UTF-8 conversion reproduces the locked
+hyphenation bytes.
+`pt_PT` binds all three payloads to Debian `libreoffice-dictionaries 1:7.2.0-1`.
+The source record offers GPL 2 for the spelling payloads and assigns GPL 2 to
+hyphenation, so the reviewed mapping consistently selects `GPL-2.0-only`.
+`uk_UA` retains the in-tree GPL 2-or-later spelling and hyphenation notices,
+while the thesaurus data and deterministically generated index bind to an
+immutable `spell-uk` source commit under the same selected branch.
 `gl_ES` and both Serbian variants bind their payloads to
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
@@ -167,13 +176,12 @@ also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
-LPPL 1.3 or later. The locked blockers also cover `da_DK`, `el_GR`, `hr_HR`,
-and `pt_BR`, whose notices omit a license version; `pl_PL`
-and `uk_UA`, whose multi-license notices are not version-specific; `pt_PT`,
-whose notices conflict; `en_AU`, whose locked evidence does not establish a
-versioned SPDX expression; and both Uzbek variants, whose READMEs identify an
-upstream origin without granting a license. The remaining
-thirteen language packs stay incomplete; eleven have candidate text
+LPPL 1.3 or later. The locked blockers also cover `da_DK`, `hr_HR`, and
+`pt_BR`, whose notices omit a license version; `pl_PL`, whose multi-license
+notice is not version-specific; `en_AU`, whose locked evidence does not
+establish a versioned SPDX expression; and both Uzbek variants, whose READMEs
+identify an upstream origin without granting a license. The remaining
+ten language packs stay incomplete; eight have candidate text
 that does not yet provide a complete, version-specific payload mapping, while
 `az_Latn_AZ` and `ru_RU` have no in-tree license candidate.
 

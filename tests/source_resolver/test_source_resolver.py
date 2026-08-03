@@ -560,10 +560,10 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       [
         "az_Latn_AZ",
-        "da_DK", "el_GR", "en_AU",
+        "da_DK", "en_AU",
         "hr_HR",
-        "mn_MN", "pl_PL", "pt_BR", "pt_PT",
-        "ru_RU", "uk_UA", "uz_Cyrl_UZ",
+        "mn_MN", "pl_PL", "pt_BR",
+        "ru_RU", "uz_Cyrl_UZ",
         "uz_Latn_UZ",
       ],
       next(
@@ -627,22 +627,23 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.7",
+        "ref": "refs/tags/v9.4.0-evidence.8",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "c191c69fa63c7b9521cb372bb177c079f6a72c8b",
+      "13e98d7bf2be2f83f82973384e32a4b2f25e668e",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
     self.assertEqual(
-      ["**/*.aff", "**/*.dic", "**/*.ttf"],
+      ["**/*.aff", "**/*.dat", "**/*.dic", "**/*.idx", "**/*.ttf"],
       evidence_repository["license"]["payloadPatterns"],
     )
     self.assertEqual(
       [
-        "**/*.README", "**/*.tex", "**/*.txt", "**/*.xml", "**/COPYING*",
+        "**/*.README", "**/*.spec", "**/*.tex", "**/*.txt", "**/*.xml",
+        "**/COPYING*",
         "**/COPYRIGHT", "**/LICENSE*"
       ],
       evidence_repository["license"]["patterns"],
@@ -652,6 +653,7 @@ class SourceResolverTests(unittest.TestCase):
         "de_AT",
         "de_CH",
         "de_DE",
+        "el_GR",
         "en_GB",
         "fonts-beng-extra",
         "fonts-gujr-extra",
@@ -661,7 +663,9 @@ class SourceResolverTests(unittest.TestCase):
         "kacst-one",
         "kk_KZ",
         "lt_LT",
+        "pt_PT",
         "sl_SI",
+        "uk_UA",
       ],
       [
         component["id"]
@@ -780,6 +784,64 @@ class SourceResolverTests(unittest.TestCase):
       [
         (record["path"], record["locator"])
         for record in evidence_it_it["evidence"]
+      ],
+    )
+    evidence_el_gr = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "el_GR"
+    )
+    self.assertEqual("LGPL-2.1-or-later", evidence_el_gr["spdx"])
+    self.assertEqual(
+      [
+        ("el_GR/el_GR.aff", "el_GR/COPYING_LGPL_v2.1.txt"),
+        ("el_GR/el_GR.aff", "el_GR/el_GR_Greek.txt"),
+        ("el_GR/el_GR.dic", "el_GR/COPYING_LGPL_v2.1.txt"),
+        ("el_GR/el_GR.dic", "el_GR/el_GR_Greek.txt"),
+        ("el_GR/hyph_el_GR.dic", "el_GR/COPYING_LGPL_v2.1.txt"),
+        ("el_GR/hyph_el_GR.dic", "el_GR/hyphen-el.spec"),
+      ],
+      [
+        (record["path"], record["locator"])
+        for record in evidence_el_gr["evidence"]
+      ],
+    )
+    evidence_pt_pt = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "pt_PT"
+    )
+    self.assertEqual("GPL-2.0-only", evidence_pt_pt["spdx"])
+    self.assertEqual(
+      [
+        ("pt_PT/hyph_pt_PT.dic", "pt_PT/COPYING_GPLv2"),
+        ("pt_PT/hyph_pt_PT.dic", "pt_PT/COPYRIGHT"),
+        ("pt_PT/pt_PT.aff", "pt_PT/COPYING_GPLv2"),
+        ("pt_PT/pt_PT.aff", "pt_PT/COPYRIGHT"),
+        ("pt_PT/pt_PT.dic", "pt_PT/COPYING_GPLv2"),
+        ("pt_PT/pt_PT.dic", "pt_PT/COPYRIGHT"),
+      ],
+      [
+        (record["path"], record["locator"])
+        for record in evidence_pt_pt["evidence"]
+      ],
+    )
+    evidence_uk_ua = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "uk_UA"
+    )
+    self.assertEqual("GPL-2.0-or-later", evidence_uk_ua["spdx"])
+    self.assertEqual(
+      [
+        ("uk_UA/th_uk_UA.dat", "uk_UA/COPYING_GPLv2"),
+        ("uk_UA/th_uk_UA.dat", "uk_UA/COPYRIGHT"),
+        ("uk_UA/th_uk_UA.idx", "uk_UA/COPYING_GPLv2"),
+        ("uk_UA/th_uk_UA.idx", "uk_UA/COPYRIGHT"),
+      ],
+      [
+        (record["path"], record["locator"])
+        for record in evidence_uk_ua["evidence"]
       ],
     )
     evidence_sl_si = next(
@@ -996,6 +1058,15 @@ class SourceResolverTests(unittest.TestCase):
       "en_CA": (
         "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
       ),
+      "el_GR": (
+        "LGPL-2.1-or-later",
+        {
+          "el_GR/COPYING_LGPL_v2.1.txt",
+          "el_GR/el_GR_Greek.txt",
+          "el_GR/hyphen-el.spec",
+        },
+        6,
+      ),
       "en_GB": (
         "LGPL-3.0-only AND LicenseRef-Hyphen-en-GB-2011-10-07",
         {"en_GB/README_hyph_en_GB.txt", "en_GB/lgpl-3.0.txt"},
@@ -1060,6 +1131,9 @@ class SourceResolverTests(unittest.TestCase):
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
       "ro_RO": ("GPL-2.0-only", {"ro_RO/ro_RO_Romanian.txt"}, 3),
+      "pt_PT": (
+        "GPL-2.0-only", {"pt_PT/COPYING_GPLv2", "pt_PT/COPYRIGHT"}, 6
+      ),
       "sl_SI": (
         "LGPL-2.1-only AND LPPL-1.0",
         {
@@ -1075,6 +1149,16 @@ class SourceResolverTests(unittest.TestCase):
       ),
       "sr_Latn_RS": (
         "LGPL-3.0-only", {"sr_Latn_RS/Readme_sr_Latn_RS.txt"}, 3
+      ),
+      "uk_UA": (
+        "GPL-2.0-or-later",
+        {
+          "uk_UA/COPYING_GPLv2",
+          "uk_UA/COPYRIGHT",
+          "uk_UA/README_hyph_uk_UA.txt",
+          "uk_UA/README_uk_UA.txt",
+        },
+        7,
       ),
     }
     for component_id, (spdx, locators, evidence_count) in (
@@ -1108,11 +1192,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      13, len(dictionaries["license"]["unresolvedComponents"])
+      10, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
-      "de_AT", "de_CH", "de_DE", "en_GB", "id_ID", "it_IT", "kk_KZ",
-      "lt_LT", "sl_SI"
+      "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID", "it_IT",
+      "kk_KZ", "lt_LT", "pt_PT", "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1122,6 +1206,10 @@ class SourceResolverTests(unittest.TestCase):
         and record["repository"] == "license-evidence"
         for record in reviewed_dictionaries[component_id]["evidence"]
       ))
+    self.assertEqual(
+      {"git-blob", "repository-git-blob"},
+      {record["type"] for record in reviewed_dictionaries["uk_UA"]["evidence"]},
+    )
     self.assertIn(
       "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
     )
@@ -1135,21 +1223,11 @@ class SourceResolverTests(unittest.TestCase):
     }
     expected_blocking_reviews = {
       "da_DK": ("AMBIGUOUS_VERSION", ["da_DK/README_hyph_da_DK.txt"]),
-      "el_GR": ("AMBIGUOUS_VERSION", ["el_GR/README_hyph_el_GR.txt"]),
       "en_AU": ("MISSING_EVIDENCE", ["en_AU/README_en_AU.txt"]),
       "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
       "pt_BR": ("AMBIGUOUS_VERSION", ["pt_BR/README_hyph_pt_BR.txt"]),
-      "pt_PT": (
-        "CONFLICTING_TERMS",
-        [
-          "pt_PT/LICENSES.txt",
-          "pt_PT/README_hyph_pt_PT.txt",
-          "pt_PT/README_pt_PT.txt",
-        ],
-      ),
-      "uk_UA": ("AMBIGUOUS_VERSION", ["uk_UA/README_th_uk_UA.txt"]),
       "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
       "uz_Latn_UZ": ("MISSING_EVIDENCE", ["uz_Latn_UZ/README.md"]),
     }
