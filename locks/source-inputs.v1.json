@@ -1606,7 +1606,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Forty-two language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Forty-three language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "en_AU",
@@ -1616,17 +1616,6 @@
               {
                 "path": "en_AU/README_en_AU.txt",
                 "sha256": "f0897dcfdf058bcfc93fbc8e7e1b5da4c27ae9e175ee3a9242e887f02eb84a8b"
-              }
-            ]
-          },
-          {
-            "id": "hr_HR",
-            "code": "AMBIGUOUS_VERSION",
-            "reason": "The locked hyphenation README states only GNU LGPL without identifying a version; the separate spelling README does not license the hyphenation payload.",
-            "evidence": [
-              {
-                "path": "hr_HR/README_hyph_hr_HR.txt",
-                "sha256": "2ba15b47f64eba01489d2962a8c04c6e457a33bba418d6384bda30dfe9e23b65"
               }
             ]
           },
@@ -2241,6 +2230,56 @@
                 "path": "gl_ES/hyph_gl_ES.dic",
                 "locator": "gl_ES/README_hyph_gl_ES.txt",
                 "sha256": "2830f43a0a7e503765d59cc553a32bf1d342fee4e5dd7f0f19136b07e63e371b"
+              }
+            ]
+          },
+          {
+            "id": "hr_HR",
+            "spdx": "LGPL-3.0-only AND LPPL-1.0",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hr_HR.aff",
+                "locator": "hr_HR/Readme_hr_HR.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hr_HR.dic",
+                "locator": "hr_HR/Readme_hr_HR.txt",
+                "sha256": "23d426e575567fcc095afb9f26ca3cc3704f1ef4d3656e586d5925c6503d8a0c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "repository": "license-evidence",
+                "referencePath": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "repository": "license-evidence",
+                "referencePath": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/README_hyph_hr_HR.txt",
+                "sha256": "2ba15b47f64eba01489d2962a8c04c6e457a33bba418d6384bda30dfe9e23b65"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "repository": "license-evidence",
+                "referencePath": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/hyph-hr.tex",
+                "sha256": "53fd09c47832a7c35df05090cd3c87d88212d2abc5e2a475f860986392c3ba24"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "repository": "license-evidence",
+                "referencePath": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/registration-license_hr.txt",
+                "sha256": "c4071157f028fb936bf974872572806415dabdeabdf4fd357a87847148ce7101"
               }
             ]
           },
@@ -3074,7 +3113,6 @@
         "unresolvedComponents": [
           "az_Latn_AZ",
           "en_AU",
-          "hr_HR",
           "mn_MN",
           "pl_PL",
           "uz_Cyrl_UZ",
@@ -3258,11 +3296,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "c585a4490c4a5aafa8becbd6ec21cb1b1e6f6b6d",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 14",
+      "commit": "7355f820796f7035783c0b28496520050f457972",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 15",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.14"
+        "ref": "refs/tags/v9.4.0-evidence.15"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3592,6 +3630,60 @@
                 "path": "fonts-gujr-extra/padmaa.ttf",
                 "locator": "fonts-gujr-extra/LICENSE",
                 "sha256": "3bb9e458484c1403105e72e6653fd5af0dffa91bdc60042bd395584b77f7bd60"
+              }
+            ]
+          },
+          {
+            "id": "hr_HR",
+            "spdx": "LGPL-3.0-only AND LPPL-1.0",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/README_hyph_hr_HR.txt",
+                "sha256": "2ba15b47f64eba01489d2962a8c04c6e457a33bba418d6384bda30dfe9e23b65"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/hyph-hr.tex",
+                "sha256": "53fd09c47832a7c35df05090cd3c87d88212d2abc5e2a475f860986392c3ba24"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.dic",
+                "locator": "hr_HR/registration-license_hr.txt",
+                "sha256": "c4071157f028fb936bf974872572806415dabdeabdf4fd357a87847148ce7101"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.iso-8859-2.source.dic",
+                "locator": "hr_HR/LPPL-1.0.txt",
+                "sha256": "7790736e17a15a9e30f8adaacb3951c7b3a9e102c2cf48b9ac9a51bdf26297a0"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.iso-8859-2.source.dic",
+                "locator": "hr_HR/README_hyph_hr_HR.txt",
+                "sha256": "2ba15b47f64eba01489d2962a8c04c6e457a33bba418d6384bda30dfe9e23b65"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.iso-8859-2.source.dic",
+                "locator": "hr_HR/hyph-hr.tex",
+                "sha256": "53fd09c47832a7c35df05090cd3c87d88212d2abc5e2a475f860986392c3ba24"
+              },
+              {
+                "type": "git-blob",
+                "path": "hr_HR/hyph_hr_HR.iso-8859-2.source.dic",
+                "locator": "hr_HR/registration-license_hr.txt",
+                "sha256": "c4071157f028fb936bf974872572806415dabdeabdf4fd357a87847148ce7101"
               }
             ]
           },

@@ -738,6 +738,7 @@ class ContractToolTests(unittest.TestCase):
     for reviewed_expression in (
       "BSD-3-Clause",
       "LGPL-2.1-only AND LPPL-1.0",
+      "LGPL-3.0-only AND LPPL-1.0",
     ):
       value = source_lock()
       value["repositories"][0]["license"]["spdx"] = reviewed_expression

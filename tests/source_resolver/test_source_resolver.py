@@ -574,7 +574,6 @@ class SourceResolverTests(unittest.TestCase):
       [
         "az_Latn_AZ",
         "en_AU",
-        "hr_HR",
         "mn_MN", "pl_PL",
         "uz_Cyrl_UZ", "uz_Latn_UZ",
       ],
@@ -672,12 +671,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.14",
+        "ref": "refs/tags/v9.4.0-evidence.15",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "c585a4490c4a5aafa8becbd6ec21cb1b1e6f6b6d",
+      "7355f820796f7035783c0b28496520050f457972",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -713,6 +712,7 @@ class SourceResolverTests(unittest.TestCase):
         "en_GB",
         "fonts-beng-extra",
         "fonts-gujr-extra",
+        "hr_HR",
         "id_ID",
         "it_IT",
         "kacst",
@@ -792,6 +792,28 @@ class SourceResolverTests(unittest.TestCase):
         "pt_BR/hyphen-pt.spec",
       },
       {record["locator"] for record in evidence_pt_br["evidence"]},
+    )
+    evidence_hr_hr = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "hr_HR"
+    )
+    self.assertEqual(
+      "LGPL-3.0-only AND LPPL-1.0", evidence_hr_hr["spdx"]
+    )
+    self.assertEqual(8, len(evidence_hr_hr["evidence"]))
+    self.assertEqual(
+      {
+        "hr_HR/LPPL-1.0.txt",
+        "hr_HR/README_hyph_hr_HR.txt",
+        "hr_HR/hyph-hr.tex",
+        "hr_HR/registration-license_hr.txt",
+      },
+      {record["locator"] for record in evidence_hr_hr["evidence"]},
+    )
+    self.assertEqual(
+      {"hr_HR/hyph_hr_HR.dic", "hr_HR/hyph_hr_HR.iso-8859-2.source.dic"},
+      {record["path"] for record in evidence_hr_hr["evidence"]},
     )
     german_spdx = (
       "(GPL-2.0-only OR GPL-3.0-only) AND "
@@ -1229,6 +1251,17 @@ class SourceResolverTests(unittest.TestCase):
         {"hu_HU/README_hu_HU.txt", "hu_HU/hyph_hu_HU.dic"},
         3,
       ),
+      "hr_HR": (
+        "LGPL-3.0-only AND LPPL-1.0",
+        {
+          "hr_HR/LPPL-1.0.txt",
+          "hr_HR/README_hyph_hr_HR.txt",
+          "hr_HR/Readme_hr_HR.txt",
+          "hr_HR/hyph-hr.tex",
+          "hr_HR/registration-license_hr.txt",
+        },
+        6,
+      ),
       "id_ID": (
         "LGPL-3.0-only",
         {
@@ -1347,7 +1380,7 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      7, len(dictionaries["license"]["unresolvedComponents"])
+      6, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
       "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID",
@@ -1365,6 +1398,10 @@ class SourceResolverTests(unittest.TestCase):
       {"git-blob", "repository-git-blob"},
       {record["type"] for record in reviewed_dictionaries["uk_UA"]["evidence"]},
     )
+    self.assertEqual(
+      {"git-blob", "repository-git-blob"},
+      {record["type"] for record in reviewed_dictionaries["hr_HR"]["evidence"]},
+    )
     self.assertIn(
       "hu_HU/hyph_hu_HU.dic", dictionaries["license"]["patterns"]
     )
@@ -1376,7 +1413,6 @@ class SourceResolverTests(unittest.TestCase):
     }
     expected_blocking_reviews = {
       "en_AU": ("MISSING_EVIDENCE", ["en_AU/README_en_AU.txt"]),
-      "hr_HR": ("AMBIGUOUS_VERSION", ["hr_HR/README_hyph_hr_HR.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
       "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
