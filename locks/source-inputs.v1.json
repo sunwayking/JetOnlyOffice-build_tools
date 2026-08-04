@@ -1606,7 +1606,7 @@
           "hu_HU/hyph_hu_HU.dic",
           "ko_KR/ko_KR.aff"
         ],
-        "reason": "Forty-three language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
+        "reason": "Forty-four language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
         "blockingReviews": [
           {
             "id": "en_AU",
@@ -1686,6 +1686,60 @@
                 "path": "ar/th_ar.dat",
                 "locator": "ar/COPYING.txt",
                 "sha256": "73480d918cd78d655508e80aa88c022cbd53634524a0f714b5f2519f2cf19124"
+              }
+            ]
+          },
+          {
+            "id": "az_Latn_AZ",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.aff",
+                "repository": "license-evidence",
+                "referencePath": "az_Latn_AZ/az_Latn_AZ.aff",
+                "locator": "az_Latn_AZ/COPYING_GPL_v2.txt",
+                "sha256": "204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.aff",
+                "repository": "license-evidence",
+                "referencePath": "az_Latn_AZ/az_Latn_AZ.aff",
+                "locator": "az_Latn_AZ/COPYRIGHT",
+                "sha256": "f8802a13346e5c3e4563b55b9494dd7146cc916367ac78e9757735b23ba3996f"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.aff",
+                "repository": "license-evidence",
+                "referencePath": "az_Latn_AZ/az_Latn_AZ.aff",
+                "locator": "az_Latn_AZ/hunspell-az.spec",
+                "sha256": "2f4ae6cef4f3edcd2e2946a1cd0d1fe77567564392cb1244326319d8e3561ff3"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.dic",
+                "repository": "license-evidence",
+                "referencePath": "az_Latn_AZ/az_Latn_AZ.dic",
+                "locator": "az_Latn_AZ/COPYING_GPL_v2.txt",
+                "sha256": "204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.dic",
+                "repository": "license-evidence",
+                "referencePath": "az_Latn_AZ/az_Latn_AZ.dic",
+                "locator": "az_Latn_AZ/COPYRIGHT",
+                "sha256": "f8802a13346e5c3e4563b55b9494dd7146cc916367ac78e9757735b23ba3996f"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.dic",
+                "repository": "license-evidence",
+                "referencePath": "az_Latn_AZ/az_Latn_AZ.dic",
+                "locator": "az_Latn_AZ/hunspell-az.spec",
+                "sha256": "2f4ae6cef4f3edcd2e2946a1cd0d1fe77567564392cb1244326319d8e3561ff3"
               }
             ]
           },
@@ -3111,7 +3165,6 @@
           }
         ],
         "unresolvedComponents": [
-          "az_Latn_AZ",
           "en_AU",
           "mn_MN",
           "pl_PL",
@@ -3296,11 +3349,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "7355f820796f7035783c0b28496520050f457972",
-      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 15",
+      "commit": "fed4212cc216feda28e981362229c6c07f4e5255",
+      "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 19",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.15"
+        "ref": "refs/tags/v9.4.0-evidence.19"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3320,9 +3373,11 @@
           "**/*.README",
           "**/*.TXT",
           "**/*.html",
+          "**/*.mk",
           "**/*.spec",
           "**/*.tex",
           "**/*.txt",
+          "**/*.xcu",
           "**/*.xml",
           "**/COPYING*",
           "**/COPYRIGHT",
@@ -3330,6 +3385,48 @@
         ],
         "reason": "All mirrored payloads have an exact component-scoped license mapping.",
         "reviewedComponents": [
+          {
+            "id": "az_Latn_AZ",
+            "spdx": "GPL-2.0-or-later",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.aff",
+                "locator": "az_Latn_AZ/COPYING_GPL_v2.txt",
+                "sha256": "204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994"
+              },
+              {
+                "type": "git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.aff",
+                "locator": "az_Latn_AZ/COPYRIGHT",
+                "sha256": "f8802a13346e5c3e4563b55b9494dd7146cc916367ac78e9757735b23ba3996f"
+              },
+              {
+                "type": "git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.aff",
+                "locator": "az_Latn_AZ/hunspell-az.spec",
+                "sha256": "2f4ae6cef4f3edcd2e2946a1cd0d1fe77567564392cb1244326319d8e3561ff3"
+              },
+              {
+                "type": "git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.dic",
+                "locator": "az_Latn_AZ/COPYING_GPL_v2.txt",
+                "sha256": "204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994"
+              },
+              {
+                "type": "git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.dic",
+                "locator": "az_Latn_AZ/COPYRIGHT",
+                "sha256": "f8802a13346e5c3e4563b55b9494dd7146cc916367ac78e9757735b23ba3996f"
+              },
+              {
+                "type": "git-blob",
+                "path": "az_Latn_AZ/az_Latn_AZ.dic",
+                "locator": "az_Latn_AZ/hunspell-az.spec",
+                "sha256": "2f4ae6cef4f3edcd2e2946a1cd0d1fe77567564392cb1244326319d8e3561ff3"
+              }
+            ]
+          },
           {
             "id": "cef",
             "spdx": "BSD-3-Clause AND LicenseRef-Chromium-Third-Party-Credits",
@@ -3541,6 +3638,86 @@
                 "path": "el_GR/hyph_el_GR.dic",
                 "locator": "el_GR/hyphen-el.spec",
                 "sha256": "076c586f8ca3a4f7b5c62c0f815e3570c14bbc8a598baae3e0b013cea34c86ea"
+              }
+            ]
+          },
+          {
+            "id": "en_AU",
+            "spdx": "LGPL-3.0-only AND LicenseRef-SCOWL-2020-12-07",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "en_AU/en_AU.aff",
+                "locator": "en_AU/README_en_AU.txt",
+                "licenseRefs": [
+                  "LicenseRef-SCOWL-2020-12-07"
+                ],
+                "sha256": "f0897dcfdf058bcfc93fbc8e7e1b5da4c27ae9e175ee3a9242e887f02eb84a8b"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/en_AU.dic",
+                "locator": "en_AU/README_en_AU.txt",
+                "licenseRefs": [
+                  "LicenseRef-SCOWL-2020-12-07"
+                ],
+                "sha256": "f0897dcfdf058bcfc93fbc8e7e1b5da4c27ae9e175ee3a9242e887f02eb84a8b"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_AU.dic",
+                "locator": "en_AU/COPYING_LGPL_v3.txt",
+                "licenseRefs": [],
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_AU.dic",
+                "locator": "en_AU/description.xml",
+                "licenseRefs": [],
+                "sha256": "f99d84220d3733f147b651ec006b4fef91bdd274fbaab8ced7ddc7d25537664b"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_AU.dic",
+                "locator": "en_AU/extension-makefile.mk",
+                "licenseRefs": [],
+                "sha256": "0d34cc6efaebbfb8260a33ea27309df5b470da69af9a7b1c7fdd91ee148ce609"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_AU.dic",
+                "locator": "en_AU/package-dictionaries.xcu",
+                "licenseRefs": [],
+                "sha256": "0e700a7ca4a1cf434c5a0ec870007d78e05cbbd99c58d7a0c0805ab4cdc2deee"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+                "locator": "en_AU/COPYING_LGPL_v3.txt",
+                "licenseRefs": [],
+                "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+                "locator": "en_AU/description.xml",
+                "licenseRefs": [],
+                "sha256": "f99d84220d3733f147b651ec006b4fef91bdd274fbaab8ced7ddc7d25537664b"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+                "locator": "en_AU/extension-makefile.mk",
+                "licenseRefs": [],
+                "sha256": "0d34cc6efaebbfb8260a33ea27309df5b470da69af9a7b1c7fdd91ee148ce609"
+              },
+              {
+                "type": "git-blob",
+                "path": "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+                "locator": "en_AU/package-dictionaries.xcu",
+                "licenseRefs": [],
+                "sha256": "0e700a7ca4a1cf434c5a0ec870007d78e05cbbd99c58d7a0c0805ab4cdc2deee"
               }
             ]
           },

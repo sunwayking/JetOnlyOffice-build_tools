@@ -572,7 +572,6 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "az_Latn_AZ",
         "en_AU",
         "mn_MN", "pl_PL",
         "uz_Cyrl_UZ", "uz_Latn_UZ",
@@ -671,12 +670,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.15",
+        "ref": "refs/tags/v9.4.0-evidence.19",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "7355f820796f7035783c0b28496520050f457972",
+      "fed4212cc216feda28e981362229c6c07f4e5255",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -694,8 +693,8 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "**/*.README", "**/*.TXT", "**/*.html", "**/*.spec", "**/*.tex",
-        "**/*.txt", "**/*.xml",
+        "**/*.README", "**/*.TXT", "**/*.html", "**/*.mk", "**/*.spec",
+        "**/*.tex", "**/*.txt", "**/*.xcu", "**/*.xml",
         "**/COPYING*",
         "**/COPYRIGHT", "**/LICENSE*"
       ],
@@ -703,12 +702,14 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
+        "az_Latn_AZ",
         "cef",
         "da_DK",
         "de_AT",
         "de_CH",
         "de_DE",
         "el_GR",
+        "en_AU",
         "en_GB",
         "fonts-beng-extra",
         "fonts-gujr-extra",
@@ -729,6 +730,69 @@ class SourceResolverTests(unittest.TestCase):
         component["id"]
         for component in evidence_repository["license"]["reviewedComponents"]
       ],
+    )
+    evidence_az_latn = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "az_Latn_AZ"
+    )
+    self.assertEqual("GPL-2.0-or-later", evidence_az_latn["spdx"])
+    self.assertEqual(
+      [
+        (
+          "az_Latn_AZ/az_Latn_AZ.aff",
+          "az_Latn_AZ/COPYING_GPL_v2.txt",
+          "204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994",
+        ),
+        (
+          "az_Latn_AZ/az_Latn_AZ.aff",
+          "az_Latn_AZ/COPYRIGHT",
+          "f8802a13346e5c3e4563b55b9494dd7146cc916367ac78e9757735b23ba3996f",
+        ),
+        (
+          "az_Latn_AZ/az_Latn_AZ.aff",
+          "az_Latn_AZ/hunspell-az.spec",
+          "2f4ae6cef4f3edcd2e2946a1cd0d1fe77567564392cb1244326319d8e3561ff3",
+        ),
+        (
+          "az_Latn_AZ/az_Latn_AZ.dic",
+          "az_Latn_AZ/COPYING_GPL_v2.txt",
+          "204d8eff92f95aac4df6c8122bc1505f468f3a901e5a4cc08940e0ede1938994",
+        ),
+        (
+          "az_Latn_AZ/az_Latn_AZ.dic",
+          "az_Latn_AZ/COPYRIGHT",
+          "f8802a13346e5c3e4563b55b9494dd7146cc916367ac78e9757735b23ba3996f",
+        ),
+        (
+          "az_Latn_AZ/az_Latn_AZ.dic",
+          "az_Latn_AZ/hunspell-az.spec",
+          "2f4ae6cef4f3edcd2e2946a1cd0d1fe77567564392cb1244326319d8e3561ff3",
+        ),
+      ],
+      [
+        (record["path"], record["locator"], record["sha256"])
+        for record in evidence_az_latn["evidence"]
+      ],
+    )
+    evidence_en_au = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "en_AU"
+    )
+    self.assertEqual(
+      "LGPL-3.0-only AND LicenseRef-SCOWL-2020-12-07",
+      evidence_en_au["spdx"],
+    )
+    self.assertEqual(10, len(evidence_en_au["evidence"]))
+    self.assertEqual(
+      {
+        "en_AU/en_AU.aff",
+        "en_AU/en_AU.dic",
+        "en_AU/hyph_en_AU.dic",
+        "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+      },
+      {record["path"] for record in evidence_en_au["evidence"]},
     )
     evidence_da_dk = next(
       component
@@ -1157,6 +1221,15 @@ class SourceResolverTests(unittest.TestCase):
       for component in dictionaries["license"]["reviewedComponents"]
     }
     expected_dictionary_licenses = {
+      "az_Latn_AZ": (
+        "GPL-2.0-or-later",
+        {
+          "az_Latn_AZ/COPYING_GPL_v2.txt",
+          "az_Latn_AZ/COPYRIGHT",
+          "az_Latn_AZ/hunspell-az.spec",
+        },
+        6,
+      ),
       "ca_ES": (
         "GPL-2.0-or-later AND GPL-3.0-or-later",
         {"ca_ES/ca_ES.aff", "ca_ES/hyph_ca_ES.dic"},
@@ -1380,11 +1453,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      6, len(dictionaries["license"]["unresolvedComponents"])
+      5, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
-      "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID",
-      "it_IT", "kk_KZ", "lt_LT", "pt_BR", "pt_PT", "ru_RU", "sl_SI"
+      "az_Latn_AZ", "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB",
+      "id_ID", "it_IT", "kk_KZ", "lt_LT", "pt_BR", "pt_PT", "ru_RU", "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]

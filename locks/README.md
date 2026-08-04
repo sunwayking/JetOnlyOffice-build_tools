@@ -142,9 +142,9 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. Python and Qt therefore remain unresolved; no SPDX expression is
 inferred from product identity or adjacent upstream sources.
 
-Forty-three dictionary language packs are mapped payload by payload to exact
+Forty-four dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
-`ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`, `de_CH`, `de_DE`,
+`ar`, `az_Latn_AZ`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`, `de_CH`, `de_DE`,
 `el_GR`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`, `hr_HR`,
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
 `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`,
@@ -189,6 +189,10 @@ hyphenation bytes.
 payload to the versioned Croatian LibreOffice extension. Its registration
 license supplies LGPL 3.0, the original pattern source supplies LPPL 1.0, and
 deterministic ISO-8859-2-to-UTF-8 conversion reproduces the locked bytes.
+`az_Latn_AZ` binds its byte-identical UTF-8-BOM and LF spelling payloads to the
+immutable Fedora `hunspell-az` source record. The upstream copyright grants GPL
+2 or later, the package spec independently declares `GPL+`, and the evidence
+snapshot retains the complete GPL 2 text.
 `pt_PT` binds all three payloads to Debian `libreoffice-dictionaries 1:7.2.0-1`.
 The source record offers GPL 2 for the spelling payloads and assigns GPL 2 to
 hyphenation, so the reviewed mapping consistently selects `GPL-2.0-only`.
@@ -218,12 +222,11 @@ to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
 LPPL 1.3 or later. The locked blockers cover `pl_PL`, whose multi-license
-notice is not version-specific; `en_AU`, whose locked evidence does not
-establish a versioned SPDX expression; and both Uzbek variants, whose READMEs
-identify an upstream origin without granting a license. The remaining six
-language packs stay incomplete; five have candidate text
-that does not yet provide a complete, version-specific payload mapping, while
-`az_Latn_AZ` has no in-tree license candidate.
+notice is not version-specific; `en_AU`, whose newly locked external evidence
+has not yet been bound into the dictionaries mapping; and both Uzbek variants,
+whose READMEs identify an upstream origin without granting a license. The
+remaining five language packs stay incomplete because their current mappings
+do not yet provide complete, version-specific payload evidence.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
