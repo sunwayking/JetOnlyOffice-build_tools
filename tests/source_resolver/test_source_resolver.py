@@ -863,6 +863,57 @@ class SourceResolverTests(unittest.TestCase):
         for record in evidence_en_gb["evidence"]
       ],
     )
+    evidence_en_au = next(
+      component
+      for component in evidence_repository["license"]["reviewedComponents"]
+      if component["id"] == "en_AU"
+    )
+    self.assertEqual(
+      "LGPL-3.0-only AND LicenseRef-SCOWL-2020-12-07",
+      evidence_en_au["spdx"],
+    )
+    self.assertEqual(
+      [
+        (
+          "en_AU/en_AU.aff",
+          "en_AU/README_en_AU.txt",
+          ["LicenseRef-SCOWL-2020-12-07"],
+        ),
+        (
+          "en_AU/en_AU.dic",
+          "en_AU/README_en_AU.txt",
+          ["LicenseRef-SCOWL-2020-12-07"],
+        ),
+        ("en_AU/hyph_en_AU.dic", "en_AU/COPYING_LGPL_v3.txt", []),
+        ("en_AU/hyph_en_AU.dic", "en_AU/description.xml", []),
+        ("en_AU/hyph_en_AU.dic", "en_AU/extension-makefile.mk", []),
+        ("en_AU/hyph_en_AU.dic", "en_AU/package-dictionaries.xcu", []),
+        (
+          "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+          "en_AU/COPYING_LGPL_v3.txt",
+          [],
+        ),
+        (
+          "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+          "en_AU/description.xml",
+          [],
+        ),
+        (
+          "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+          "en_AU/extension-makefile.mk",
+          [],
+        ),
+        (
+          "en_AU/hyph_en_GB.iso-8859-1.source.dic",
+          "en_AU/package-dictionaries.xcu",
+          [],
+        ),
+      ],
+      [
+        (record["path"], record["locator"], record["licenseRefs"])
+        for record in evidence_en_au["evidence"]
+      ],
+    )
     evidence_lt_lt = next(
       component
       for component in evidence_repository["license"]["reviewedComponents"]
