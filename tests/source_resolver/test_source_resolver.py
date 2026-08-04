@@ -572,8 +572,6 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "az_Latn_AZ",
-        "en_AU",
         "mn_MN", "pl_PL",
         "uz_Cyrl_UZ", "uz_Latn_UZ",
       ],
@@ -671,12 +669,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.15",
+        "ref": "refs/tags/v9.4.0-evidence.19",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "7355f820796f7035783c0b28496520050f457972",
+      "fed4212cc216feda28e981362229c6c07f4e5255",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -694,8 +692,8 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
-        "**/*.README", "**/*.TXT", "**/*.html", "**/*.spec", "**/*.tex",
-        "**/*.txt", "**/*.xml",
+        "**/*.README", "**/*.TXT", "**/*.html", "**/*.mk", "**/*.spec",
+        "**/*.tex", "**/*.txt", "**/*.xcu", "**/*.xml",
         "**/COPYING*",
         "**/COPYRIGHT", "**/LICENSE*"
       ],
@@ -703,12 +701,14 @@ class SourceResolverTests(unittest.TestCase):
     )
     self.assertEqual(
       [
+        "az_Latn_AZ",
         "cef",
         "da_DK",
         "de_AT",
         "de_CH",
         "de_DE",
         "el_GR",
+        "en_AU",
         "en_GB",
         "fonts-beng-extra",
         "fonts-gujr-extra",
@@ -1156,7 +1156,17 @@ class SourceResolverTests(unittest.TestCase):
       component["id"]: component
       for component in dictionaries["license"]["reviewedComponents"]
     }
+    self.assertEqual(45, len(reviewed_dictionaries))
     expected_dictionary_licenses = {
+      "az_Latn_AZ": (
+        "GPL-2.0-or-later",
+        {
+          "az_Latn_AZ/COPYING_GPL_v2.txt",
+          "az_Latn_AZ/COPYRIGHT",
+          "az_Latn_AZ/hunspell-az.spec",
+        },
+        6,
+      ),
       "ca_ES": (
         "GPL-2.0-or-later AND GPL-3.0-or-later",
         {"ca_ES/ca_ES.aff", "ca_ES/hyph_ca_ES.dic"},
@@ -1209,6 +1219,17 @@ class SourceResolverTests(unittest.TestCase):
           "de_DE/dehyphn.tex",
         },
         5,
+      ),
+      "en_AU": (
+        "LGPL-3.0-only AND LicenseRef-SCOWL-2020-12-07",
+        {
+          "en_AU/COPYING_LGPL_v3.txt",
+          "en_AU/README_en_AU.txt",
+          "en_AU/description.xml",
+          "en_AU/extension-makefile.mk",
+          "en_AU/package-dictionaries.xcu",
+        },
+        6,
       ),
       "en_CA": (
         "LicenseRef-SCOWL-2020-12-07", {"en_CA/Readme_en_CA.txt"}, 2
@@ -1380,11 +1401,23 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      6, len(dictionaries["license"]["unresolvedComponents"])
+      [
+        ["LicenseRef-SCOWL-2020-12-07"],
+        ["LicenseRef-SCOWL-2020-12-07"],
+        [], [], [], [],
+      ],
+      [
+        record["licenseRefs"]
+        for record in reviewed_dictionaries["en_AU"]["evidence"]
+      ],
+    )
+    self.assertEqual(
+      4, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
-      "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_GB", "id_ID",
-      "it_IT", "kk_KZ", "lt_LT", "pt_BR", "pt_PT", "ru_RU", "sl_SI"
+      "az_Latn_AZ", "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
+      "en_GB", "id_ID", "it_IT", "kk_KZ", "lt_LT", "pt_BR", "pt_PT",
+      "ru_RU", "sl_SI"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1412,7 +1445,6 @@ class SourceResolverTests(unittest.TestCase):
       for review in dictionaries["license"]["blockingReviews"]
     }
     expected_blocking_reviews = {
-      "en_AU": ("MISSING_EVIDENCE", ["en_AU/README_en_AU.txt"]),
       "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
       "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),

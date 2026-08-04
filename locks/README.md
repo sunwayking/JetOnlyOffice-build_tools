@@ -142,10 +142,11 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. Python and Qt therefore remain unresolved; no SPDX expression is
 inferred from product identity or adjacent upstream sources.
 
-Forty-three dictionary language packs are mapped payload by payload to exact
+Forty-five dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
-`ar`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`, `de_CH`, `de_DE`,
-`el_GR`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`, `eu_ES`, `fr_FR`, `gl_ES`, `hr_HR`,
+`ar`, `az_Latn_AZ`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`,
+`de_CH`, `de_DE`, `el_GR`, `en_AU`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`,
+`eu_ES`, `fr_FR`, `gl_ES`, `hr_HR`,
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
 `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`,
 `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, `uk_UA`, and `vi_VN`.
@@ -162,6 +163,14 @@ terms. The three German variants bind their byte-identical payloads to GPL 2
 or 3 spelling terms and the cumulative LGPL 2 or later plus LPPL 1.0
 hyphenation terms. Each hyphenation payload maps independently to the adaptation
 README, the original `dehyphn.tex` grant, and the canonical `LPPL-1.0` text.
+`az_Latn_AZ` binds both locked spelling payloads to an immutable Hunspell/Aspell
+source snapshot. The digest-bound Fedora package spec and RPM provide the
+payload provenance and select GPL 2 or later, while the upstream copyright
+notice and complete GPL 2 text preserve the grant and attribution evidence.
+`en_AU` keeps the SCOWL compound terms embedded in its locked spelling README
+and binds the generated hyphenation payload to an immutable OpenOffice source
+blob. The extension metadata and build manifest identify the source-derived
+payload and declare LGPL 3.0 for the hyphenation package.
 `kk_KZ` binds byte-identical locked payloads to an immutable Debian copyright
 record that establishes GPL 2 or later, LGPL 2.1 or later, and MPL 1.1 as
 alternative choices. The independent package payloads reproduce the locked
@@ -218,12 +227,9 @@ to the exact locked evidence bytes and prevent a blocked component from entering
 `reviewedComponents`. `mn_MN` is blocked because its README both prohibits
 modified redistribution and later offers redistribution or modification under
 LPPL 1.3 or later. The locked blockers cover `pl_PL`, whose multi-license
-notice is not version-specific; `en_AU`, whose locked evidence does not
-establish a versioned SPDX expression; and both Uzbek variants, whose READMEs
-identify an upstream origin without granting a license. The remaining six
-language packs stay incomplete; five have candidate text
-that does not yet provide a complete, version-specific payload mapping, while
-`az_Latn_AZ` has no in-tree license candidate.
+notice is not version-specific, and both Uzbek variants, whose READMEs identify
+an upstream origin without granting a license. These four language packs remain
+incomplete until their exact payload terms are proved without inference.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
