@@ -77,6 +77,8 @@ SOURCE_LICENSE_EXPRESSIONS = {
   "LGPL-3.0-only AND LPPL-1.0",
   "LGPL-3.0-only AND LicenseRef-Hyphen-en-GB-2011-10-07",
   "LGPL-3.0-only AND LicenseRef-SCOWL-2020-12-07",
+  "LPPL-1.3c",
+  "LicenseRef-Liberation",
   "LicenseRef-Russian-Dictionaries-Lebedev-1997-2008",
   "LicenseRef-SCOWL-2020-12-07",
   "LicenseRef-SCOWL-2020-12-07 AND LicenseRef-Hyphen-en-US-2011-10-07 AND WordNet",

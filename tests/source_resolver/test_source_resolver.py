@@ -572,8 +572,7 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "mn_MN", "pl_PL",
-        "uz_Cyrl_UZ", "uz_Latn_UZ",
+        "pl_PL", "uz_Cyrl_UZ", "uz_Latn_UZ",
       ],
       next(
         finding["unresolvedComponents"]
@@ -659,7 +658,7 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      ["ASC.ttf", "liberation"],
+      ["ASC.ttf"],
       next(
         finding["unresolvedComponents"]
         for finding in findings
@@ -669,12 +668,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.19",
+        "ref": "refs/tags/v9.4.0-evidence.20",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "fed4212cc216feda28e981362229c6c07f4e5255",
+      "c51dad9b4c1c1d4867134811a618dd57f335304b",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -695,7 +694,9 @@ class SourceResolverTests(unittest.TestCase):
         "**/*.README", "**/*.TXT", "**/*.html", "**/*.mk", "**/*.spec",
         "**/*.tex", "**/*.txt", "**/*.xcu", "**/*.xml",
         "**/COPYING*",
-        "**/COPYRIGHT", "**/LICENSE*"
+        "**/COPYRIGHT", "**/LICENSE*",
+        "liberation/License.txt",
+        "liberation/LicenseRef-Liberation.toml",
       ],
       evidence_repository["license"]["patterns"],
     )
@@ -718,7 +719,9 @@ class SourceResolverTests(unittest.TestCase):
         "kacst",
         "kacst-one",
         "kk_KZ",
+        "liberation",
         "lt_LT",
+        "mn_MN",
         "pt_BR",
         "pt_PT",
         "ru_RU",
@@ -1085,7 +1088,7 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      ["ASC.ttf", "liberation"],
+      ["ASC.ttf"],
       [
         review["id"]
         for review in repositories_by_id["core-fonts"]["license"][
@@ -1114,6 +1117,7 @@ class SourceResolverTests(unittest.TestCase):
         "freefont",
         "kacst",
         "kacst-one",
+        "liberation",
         "lohit-assamese",
         "lohit-bengali",
         "lohit-devanagari",
@@ -1159,6 +1163,7 @@ class SourceResolverTests(unittest.TestCase):
       "fonts-gujr-extra": ("GPL-2.0-or-later", 2),
       "kacst": ("GPL-2.0-only", 15),
       "kacst-one": ("GPL-2.0-only", 2),
+      "liberation": ("LicenseRef-Liberation", 32),
       "lohit-assamese": ("OFL-1.1", 1),
       "lohit-bengali": ("OFL-1.1", 1),
       "lohit-devanagari": ("OFL-1.1", 1),
@@ -1190,13 +1195,26 @@ class SourceResolverTests(unittest.TestCase):
       for record in reviewed_by_id["wqy-zenhei"]["evidence"]
     ))
     for component_id in (
-      "fonts-beng-extra", "fonts-gujr-extra", "kacst", "kacst-one"
+      "fonts-beng-extra", "fonts-gujr-extra", "kacst", "kacst-one",
+      "liberation",
     ):
       self.assertTrue(all(
         record["type"] == "repository-git-blob"
         and record["repository"] == "license-evidence"
         for record in reviewed_by_id[component_id]["evidence"]
       ))
+    self.assertEqual(
+      {"liberation/License.txt", "liberation/LicenseRef-Liberation.toml"},
+      {record["locator"] for record in reviewed_by_id["liberation"]["evidence"]},
+    )
+    self.assertEqual(
+      {"LicenseRef-Liberation"},
+      {
+        license_ref
+        for record in reviewed_by_id["liberation"]["evidence"]
+        for license_ref in record.get("licenseRefs", [])
+      },
+    )
 
     dictionaries = next(
       repository
@@ -1207,7 +1225,7 @@ class SourceResolverTests(unittest.TestCase):
       component["id"]: component
       for component in dictionaries["license"]["reviewedComponents"]
     }
-    self.assertEqual(45, len(reviewed_dictionaries))
+    self.assertEqual(46, len(reviewed_dictionaries))
     expected_dictionary_licenses = {
       "az_Latn_AZ": (
         "GPL-2.0-or-later",
@@ -1365,6 +1383,7 @@ class SourceResolverTests(unittest.TestCase):
       ),
       "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
       "lt_LT": ("BSD-3-Clause", {"lt_LT/COPYING"}, 2),
+      "mn_MN": ("LPPL-1.3c", {"mn_MN/LICENSE"}, 3),
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
@@ -1433,6 +1452,21 @@ class SourceResolverTests(unittest.TestCase):
       )
     self.assertEqual(
       [
+        (
+          "mn_MN/hyph_mn_MN.dic",
+          "mn_MN/hyph_mn_MN.dic",
+          "mn_MN/LICENSE",
+        ),
+        ("mn_MN/mn_MN.aff", "mn_MN/mn_MN.aff", "mn_MN/LICENSE"),
+        ("mn_MN/mn_MN.dic", "mn_MN/mn_MN.dic", "mn_MN/LICENSE"),
+      ],
+      [
+        (record["path"], record["referencePath"], record["locator"])
+        for record in reviewed_dictionaries["mn_MN"]["evidence"]
+      ],
+    )
+    self.assertEqual(
+      [
         ["LicenseRef-SCOWL-2020-12-07"],
         ["LicenseRef-SCOWL-2020-12-07"],
         [],
@@ -1463,11 +1497,11 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      4, len(dictionaries["license"]["unresolvedComponents"])
+      3, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
       "az_Latn_AZ", "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-      "en_GB", "id_ID", "it_IT", "kk_KZ", "lt_LT", "pt_BR", "pt_PT",
+      "en_GB", "id_ID", "it_IT", "kk_KZ", "lt_LT", "mn_MN", "pt_BR", "pt_PT",
       "ru_RU", "sl_SI"
     ):
       self.assertNotIn(
@@ -1496,7 +1530,6 @@ class SourceResolverTests(unittest.TestCase):
       for review in dictionaries["license"]["blockingReviews"]
     }
     expected_blocking_reviews = {
-      "mn_MN": ("CONFLICTING_TERMS", ["mn_MN/Readme_mn_MN.txt"]),
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
       "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
       "uz_Latn_UZ": ("MISSING_EVIDENCE", ["uz_Latn_UZ/README.md"]),
@@ -1860,6 +1893,71 @@ class SourceResolverTests(unittest.TestCase):
       )
       repository["license"]["unresolvedComponents"] = ["licensed"]
       with self.assertRaisesRegex(ResolutionError, "inventory is stale"):
+        repository_license_inventory(repository, bare, commit)
+
+  def test_exact_toml_license_pattern_survives_real_inventory(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, _, _ = create_repository(directory)
+      component = checkout / "liberation"
+      component.mkdir()
+      font_bytes = b"liberation font\n"
+      license_bytes = b"liberation license terms\n"
+      metadata_bytes = b'[license]\nexpression = "LicenseRef-Liberation"\n'
+      (component / "Font.ttf").write_bytes(font_bytes)
+      (component / "License.txt").write_bytes(license_bytes)
+      (component / "LicenseRef-Liberation.toml").write_bytes(metadata_bytes)
+      run_git(checkout, "add", "liberation")
+      run_git(checkout, "commit", "-m", "add Liberation evidence")
+      commit = run_git(checkout, "rev-parse", "HEAD")
+      bare = Path(directory) / "inventory.git"
+      run_git(directory, "clone", "--bare", str(checkout), str(bare))
+      repository = repository_input("license-evidence", commit)
+      repository["license"] = {
+        "status": "component-scoped",
+        "payloadPatterns": ["**/*.ttf"],
+        "patterns": [
+          "**/LICENSE*",
+          "liberation/License.txt",
+          "liberation/LicenseRef-Liberation.toml",
+        ],
+        "reason": "The Liberation license mapping was reviewed.",
+        "reviewedComponents": [{
+          "id": "liberation",
+          "spdx": "LicenseRef-Liberation",
+          "evidence": [
+            {
+              "type": "git-blob",
+              "path": "liberation/Font.ttf",
+              "locator": "liberation/License.txt",
+              "sha256": hashlib.sha256(license_bytes).hexdigest(),
+            },
+            {
+              "type": "git-blob",
+              "path": "liberation/Font.ttf",
+              "locator": "liberation/LicenseRef-Liberation.toml",
+              "licenseRefs": ["LicenseRef-Liberation"],
+              "sha256": hashlib.sha256(metadata_bytes).hexdigest(),
+            },
+          ],
+        }],
+        "unresolvedComponents": [],
+      }
+
+      inventory = repository_license_inventory(repository, bare, commit)
+
+      reviewed = inventory["components"][0]
+      self.assertEqual("resolved", reviewed["status"])
+      self.assertEqual(
+        [
+          "liberation/License.txt",
+          "liberation/LicenseRef-Liberation.toml",
+        ],
+        [record["locator"] for record in reviewed["license"]["evidence"]],
+      )
+      repository["license"]["patterns"].pop()
+      with self.assertRaisesRegex(
+        ResolutionError, "git-blob locator is not a component license candidate"
+      ):
         repository_license_inventory(repository, bare, commit)
 
   def test_reviewed_component_evidence_is_verified_from_locked_payload_bytes(self):

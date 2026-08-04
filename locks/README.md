@@ -105,18 +105,19 @@ evidence with its SHA-256, and rejects stale `unresolvedComponents`. It returns
 exit code 3 while legal mappings are incomplete, even when candidate files
 exist.
 
-At the current lock, this closes thirty-seven font
+At the current lock, this closes thirty-eight font
 components. In addition to the previously reviewed families, the lock now
-maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `nanum`, `openoffice`,
-`takao-gothic`, and `wqy-zenhei` to exact Git blobs or embedded font license
-records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and `kacst-one` use
-byte-identical payload and license mappings from the immutable-tag-selected
-`license-evidence` repository. The selected `build-tools-data` CEF payload is
-now closed from its embedded CEF and Chromium license resources. The release
-gate remains blocked for the selected Python and Qt payloads. `ASC.ttf` remains
-blocked on missing redistribution terms and `liberation` remains blocked on
-conflicting custom terms. A product name, copyright line, package family,
-external URL, or unrelated nearby license is not accepted as a substitute.
+maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `liberation`, `nanum`,
+`openoffice`, `takao-gothic`, and `wqy-zenhei` to exact Git blobs or embedded
+font license records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
+`kacst-one` use byte-identical payload and license mappings from the
+immutable-tag-selected `license-evidence` repository, locked at
+`v9.4.0-evidence.20`. The selected `build-tools-data` CEF payload is now closed
+from its embedded CEF and Chromium license resources. The release gate remains
+blocked for the selected Python and Qt payloads. `ASC.ttf` is the only
+unresolved font component and remains blocked on missing redistribution terms.
+A product name, copyright line, package family, external URL, or unrelated
+nearby license is not accepted as a substitute.
 
 At build-tools-data commit
 `743e8e55f0431523248d16b7521e01aa11744ffc`, the selected CEF 5414 Linux
@@ -142,14 +143,15 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. Python and Qt therefore remain unresolved; no SPDX expression is
 inferred from product identity or adjacent upstream sources.
 
-Forty-five dictionary language packs are mapped payload by payload to exact
+Forty-six dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `az_Latn_AZ`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`,
 `de_CH`, `de_DE`, `el_GR`, `en_AU`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`,
 `eu_ES`, `fr_FR`, `gl_ES`, `hr_HR`,
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
-`nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`,
-`sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`, `uk_UA`, and `vi_VN`.
+`mn_MN`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`,
+`ru_RU`, `sk_SK`, `sl_SI`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`,
+`uk_UA`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
@@ -219,17 +221,19 @@ mapped by Debian; the historical OpenOffice payloads are reproduced from the
 original OXT with their required modification notice.
 `gl_ES` and both Serbian variants bind their payloads to
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
+`mn_MN` binds its spelling and hyphenation payloads to the complete LPPL 1.3c
+text in the immutable evidence snapshot.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
 also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
-`reviewedComponents`. `mn_MN` is blocked because its README both prohibits
-modified redistribution and later offers redistribution or modification under
-LPPL 1.3 or later. The locked blockers cover `pl_PL`, whose multi-license
+`reviewedComponents`. The locked blockers cover `pl_PL`, whose multi-license
 notice is not version-specific, and both Uzbek variants, whose READMEs identify
-an upstream origin without granting a license. These four language packs remain
-incomplete until their exact payload terms are proved without inference.
+an upstream origin without granting a license. These three language packs
+remain incomplete until their exact payload terms are proved without inference.
+Together with the selected Python and Qt payloads and `ASC.ttf`, they account
+for the six unresolved components in the current lock.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
