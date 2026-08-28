@@ -572,7 +572,7 @@ class SourceResolverTests(unittest.TestCase):
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
       [
-        "pl_PL", "uz_Cyrl_UZ", "uz_Latn_UZ",
+        "pl_PL",
       ],
       next(
         finding["unresolvedComponents"]
@@ -668,12 +668,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.20",
+        "ref": "refs/tags/v9.4.0-evidence.21",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "c51dad9b4c1c1d4867134811a618dd57f335304b",
+      "7f6209e0e0189440e7116174209ed92e04292295",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -727,6 +727,8 @@ class SourceResolverTests(unittest.TestCase):
         "ru_RU",
         "sl_SI",
         "uk_UA",
+        "uz_Cyrl_UZ",
+        "uz_Latn_UZ",
       ],
       [
         component["id"]
@@ -1225,7 +1227,7 @@ class SourceResolverTests(unittest.TestCase):
       component["id"]: component
       for component in dictionaries["license"]["reviewedComponents"]
     }
-    self.assertEqual(46, len(reviewed_dictionaries))
+    self.assertEqual(48, len(reviewed_dictionaries))
     expected_dictionary_licenses = {
       "az_Latn_AZ": (
         "GPL-2.0-or-later",
@@ -1439,6 +1441,8 @@ class SourceResolverTests(unittest.TestCase):
         },
         7,
       ),
+      "uz_Cyrl_UZ": ("MIT", {"uz_Cyrl_UZ/LICENSE"}, 2),
+      "uz_Latn_UZ": ("MIT", {"uz_Latn_UZ/LICENSE"}, 2),
     }
     for component_id, (spdx, locators, evidence_count) in (
       expected_dictionary_licenses.items()
@@ -1465,6 +1469,25 @@ class SourceResolverTests(unittest.TestCase):
         for record in reviewed_dictionaries["mn_MN"]["evidence"]
       ],
     )
+    for uz_component in ("uz_Cyrl_UZ", "uz_Latn_UZ"):
+      self.assertEqual(
+        [
+          (
+            f"{uz_component}/{uz_component}.aff",
+            f"{uz_component}/{uz_component}.aff",
+            f"{uz_component}/LICENSE",
+          ),
+          (
+            f"{uz_component}/{uz_component}.dic",
+            f"{uz_component}/{uz_component}.dic",
+            f"{uz_component}/LICENSE",
+          ),
+        ],
+        [
+          (record["path"], record["referencePath"], record["locator"])
+          for record in reviewed_dictionaries[uz_component]["evidence"]
+        ],
+      )
     self.assertEqual(
       [
         ["LicenseRef-SCOWL-2020-12-07"],
@@ -1497,12 +1520,12 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      3, len(dictionaries["license"]["unresolvedComponents"])
+      1, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
       "az_Latn_AZ", "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
       "en_GB", "id_ID", "it_IT", "kk_KZ", "lt_LT", "mn_MN", "pt_BR", "pt_PT",
-      "ru_RU", "sl_SI"
+      "ru_RU", "sl_SI", "uz_Cyrl_UZ", "uz_Latn_UZ"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1531,8 +1554,6 @@ class SourceResolverTests(unittest.TestCase):
     }
     expected_blocking_reviews = {
       "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
-      "uz_Cyrl_UZ": ("MISSING_EVIDENCE", ["uz_Cyrl_UZ/README.md"]),
-      "uz_Latn_UZ": ("MISSING_EVIDENCE", ["uz_Latn_UZ/README.md"]),
     }
     self.assertEqual(sorted(expected_blocking_reviews), sorted(blocking_reviews))
     for component_id, (code, evidence_paths) in expected_blocking_reviews.items():

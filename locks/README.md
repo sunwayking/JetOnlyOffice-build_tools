@@ -112,7 +112,7 @@ maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `liberation`, `nanum`,
 font license records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
 `kacst-one` use byte-identical payload and license mappings from the
 immutable-tag-selected `license-evidence` repository, locked at
-`v9.4.0-evidence.20`. The selected `build-tools-data` CEF payload is now closed
+`v9.4.0-evidence.21`. The selected `build-tools-data` CEF payload is now closed
 from its embedded CEF and Chromium license resources. The release gate remains
 blocked for the selected Python and Qt payloads. `ASC.ttf` is the only
 unresolved font component and remains blocked on missing redistribution terms.
@@ -143,7 +143,7 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. Python and Qt therefore remain unresolved; no SPDX expression is
 inferred from product identity or adjacent upstream sources.
 
-Forty-six dictionary language packs are mapped payload by payload to exact
+Forty-eight dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `az_Latn_AZ`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`,
 `de_CH`, `de_DE`, `el_GR`, `en_AU`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`,
@@ -151,7 +151,7 @@ license blobs in the locked tree or immutable `license-evidence` snapshot:
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
 `mn_MN`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`,
 `ru_RU`, `sk_SK`, `sl_SI`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`,
-`uk_UA`, and `vi_VN`.
+`uk_UA`, `uz_Cyrl_UZ`, `uz_Latn_UZ`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
@@ -223,15 +223,19 @@ original OXT with their required modification notice.
 exact in-tree GPL 3.0 and LGPL 3.0 evidence respectively.
 `mn_MN` binds its spelling and hyphenation payloads to the complete LPPL 1.3c
 text in the immutable evidence snapshot.
+Both Uzbek variants bind their byte-identical spelling payloads to the MIT
+text their sole author published in `u2b3k/uz-hunspell` at commit `6de6532`,
+where the exact locked bytes coexist with the MIT `LICENSE`. The ONLYOFFICE
+import (2022-01-20) falls inside that grant window; the author's later GPL v3
+switch accompanies replacement payloads, not the locked ones.
 Mixed-origin payloads stay unresolved when a grant covers only an adaptation
 but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
 also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
-`reviewedComponents`. The locked blockers cover `pl_PL`, whose multi-license
-notice is not version-specific, and both Uzbek variants, whose READMEs identify
-an upstream origin without granting a license. These three language packs
-remain incomplete until their exact payload terms are proved without inference.
+`reviewedComponents`. The locked blocker covers `pl_PL`, whose multi-license
+notice is not version-specific. That language pack remains incomplete until its
+exact payload terms are proved without inference.
 Together with the selected Python and Qt payloads and `ASC.ttf`, they account
 for the six unresolved components in the current lock.
 

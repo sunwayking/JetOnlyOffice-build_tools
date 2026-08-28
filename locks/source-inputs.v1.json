@@ -783,7 +783,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationMono-Bold.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -800,7 +802,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationMono-BoldItalic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -817,7 +821,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationMono-Italic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -834,7 +840,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationMono-Regular.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -851,7 +859,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSans-Bold.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -868,7 +878,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSans-BoldItalic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -885,7 +897,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSans-Italic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -902,7 +916,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSans-Regular.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -919,7 +935,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSansNarrow-Bold.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -936,7 +954,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSansNarrow-BoldItalic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -953,7 +973,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSansNarrow-Italic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -970,7 +992,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSansNarrow-Regular.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -987,7 +1011,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSerif-Bold.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -1004,7 +1030,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSerif-BoldItalic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -1021,7 +1049,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSerif-Italic.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               },
               {
@@ -1038,7 +1068,9 @@
                 "repository": "license-evidence",
                 "referencePath": "liberation/LiberationSerif-Regular.ttf",
                 "locator": "liberation/LicenseRef-Liberation.toml",
-                "licenseRefs": ["LicenseRef-Liberation"],
+                "licenseRefs": [
+                  "LicenseRef-Liberation"
+                ],
                 "sha256": "11e4dd5a35e5f2640a68e2153b272ecc9e1b7e70fa0c5ef99a74ff2e6aeb0582"
               }
             ]
@@ -1822,28 +1854,6 @@
               {
                 "path": "pl_PL/pl_PL_Polish.txt",
                 "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
-              }
-            ]
-          },
-          {
-            "id": "uz_Cyrl_UZ",
-            "code": "MISSING_EVIDENCE",
-            "reason": "The locked README identifies the upstream dictionary origin but contains no license grant for the locked payloads.",
-            "evidence": [
-              {
-                "path": "uz_Cyrl_UZ/README.md",
-                "sha256": "e599543ee5ae57f302fd08765f01927a87d197163422fec03eb6ce78892d5e1f"
-              }
-            ]
-          },
-          {
-            "id": "uz_Latn_UZ",
-            "code": "MISSING_EVIDENCE",
-            "reason": "The locked README identifies the upstream dictionary origin but contains no license grant for the locked payloads.",
-            "evidence": [
-              {
-                "path": "uz_Latn_UZ/README.md",
-                "sha256": "7b312f91d8a18dc255af5673a2b09a095fa884c135b4b051f1b3904cbdb33914"
               }
             ]
           }
@@ -3424,6 +3434,50 @@
             ]
           },
           {
+            "id": "uz_Cyrl_UZ",
+            "spdx": "MIT",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "uz_Cyrl_UZ/uz_Cyrl_UZ.aff",
+                "repository": "license-evidence",
+                "referencePath": "uz_Cyrl_UZ/uz_Cyrl_UZ.aff",
+                "locator": "uz_Cyrl_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "uz_Cyrl_UZ/uz_Cyrl_UZ.dic",
+                "repository": "license-evidence",
+                "referencePath": "uz_Cyrl_UZ/uz_Cyrl_UZ.dic",
+                "locator": "uz_Cyrl_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              }
+            ]
+          },
+          {
+            "id": "uz_Latn_UZ",
+            "spdx": "MIT",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "uz_Latn_UZ/uz_Latn_UZ.aff",
+                "repository": "license-evidence",
+                "referencePath": "uz_Latn_UZ/uz_Latn_UZ.aff",
+                "locator": "uz_Latn_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "uz_Latn_UZ/uz_Latn_UZ.dic",
+                "repository": "license-evidence",
+                "referencePath": "uz_Latn_UZ/uz_Latn_UZ.dic",
+                "locator": "uz_Latn_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              }
+            ]
+          },
+          {
             "id": "vi_VN",
             "spdx": "GPL-2.0-only",
             "evidence": [
@@ -3443,9 +3497,7 @@
           }
         ],
         "unresolvedComponents": [
-          "pl_PL",
-          "uz_Cyrl_UZ",
-          "uz_Latn_UZ"
+          "pl_PL"
         ]
       }
     },
@@ -3625,11 +3677,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "c51dad9b4c1c1d4867134811a618dd57f335304b",
+      "commit": "7f6209e0e0189440e7116174209ed92e04292295",
       "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 20",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.20"
+        "ref": "refs/tags/v9.4.0-evidence.21"
       },
       "projectFork": false,
       "buildInput": true,
@@ -4895,6 +4947,42 @@
                 "path": "uk_UA/th_uk_UA.idx",
                 "locator": "uk_UA/COPYRIGHT",
                 "sha256": "d4ae120c2b0559043aaa6f92f586316e9cbd3cd62fcd3c2d605c82476a022dff"
+              }
+            ]
+          },
+          {
+            "id": "uz_Cyrl_UZ",
+            "spdx": "MIT",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "uz_Cyrl_UZ/uz_Cyrl_UZ.aff",
+                "locator": "uz_Cyrl_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              },
+              {
+                "type": "git-blob",
+                "path": "uz_Cyrl_UZ/uz_Cyrl_UZ.dic",
+                "locator": "uz_Cyrl_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              }
+            ]
+          },
+          {
+            "id": "uz_Latn_UZ",
+            "spdx": "MIT",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "uz_Latn_UZ/uz_Latn_UZ.aff",
+                "locator": "uz_Latn_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
+              },
+              {
+                "type": "git-blob",
+                "path": "uz_Latn_UZ/uz_Latn_UZ.dic",
+                "locator": "uz_Latn_UZ/LICENSE",
+                "sha256": "d7d9e4eccc3f46417c7ed802bc483a999c0cddebf5714320c5ed18b7b6860711"
               }
             ]
           }

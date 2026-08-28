@@ -168,14 +168,14 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 - `core-fonts`
 - `dictionaries`
 
-Thirty-eight font components, forty-six dictionary packs, and the selected CEF
+Thirty-eight font components, forty-eight dictionary packs, and the selected CEF
 payload now have payload-complete locked evidence mappings. External evidence
-is locked at `v9.4.0-evidence.20`. These mappings pass contract and inventory
+is locked at `v9.4.0-evidence.21`. These mappings pass contract and inventory
 regression tests; a complete cache-backed `LicenseAudit` remains required before
 source-lock generation. The remaining blockers are the selected Python and Qt
-payloads, the `ASC.ttf` font component, and the `pl_PL`, `uz_Cyrl_UZ`, and
-`uz_Latn_UZ` dictionary packs enumerated in `locks/source-inputs.v1.json`, for
-six unresolved components in total.
+payloads, the `ASC.ttf` font component, and the `pl_PL` dictionary pack
+enumerated in `locks/source-inputs.v1.json`, for four unresolved components in
+total.
 The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
 V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
 behavior tests bind those exclusions to the published entrypoint and upstream
