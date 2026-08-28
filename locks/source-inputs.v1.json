@@ -3981,11 +3981,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "7b8ab46e78b318dacfd072e50325b7437fab2c35",
+      "commit": "d436820cb63c021dbec6d3fbf7a2b58663a5b9d6",
       "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 20",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.24"
+        "ref": "refs/tags/v9.4.0-evidence.25"
       },
       "projectFork": false,
       "buildInput": true,
