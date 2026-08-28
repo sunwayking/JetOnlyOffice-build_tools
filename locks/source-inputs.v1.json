@@ -177,7 +177,7 @@
           {
             "id": "ASC.ttf",
             "code": "MISSING_EVIDENCE",
-            "reason": "The locked font has no explicit copying, modification, or redistribution grant.",
+            "reason": "The locked font is ASCW3 by Ascensio System SIA; its name table reads \"Copyright (c) Ascensio System SIA 2012-2014. All rights reserved\" and no explicit copying, modification, or redistribution grant was found in the locked tree or upstream sources.",
             "evidence": [
               {
                 "path": "ASC.ttf",
