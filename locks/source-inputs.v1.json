@@ -60,17 +60,6 @@
         "reason": "The upstream repository contains no repository license. This release inventory is restricted to the exact linux_64 server payload candidates: Android is unreachable for the selected platform, sysroot is disabled by --sysroot 0, the Windows Mobile GLEW path returns immediately on Linux, and the locked Python is materialized without the upstream extraction helper. The selected CEF archive is closed from embedded license resources; Python and Qt still lack complete reviewed inventories.",
         "blockingReviews": [
           {
-            "id": "python",
-            "code": "INCOMPLETE_SCOPE",
-            "reason": "The locked Python bundle includes CPython, pip, setuptools, wheel, and vendored packages without a complete versioned package-to-license inventory for every shipped payload.",
-            "evidence": [
-              {
-                "path": "python/python3.tar.gz",
-                "sha256": "c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360"
-              }
-            ]
-          },
-          {
             "id": "qt",
             "code": "INCOMPLETE_SCOPE",
             "reason": "The locked Qt binary bundle contains multiple Qt modules and third-party runtime payloads but no license files or complete binary-to-source license inventory.",
@@ -112,10 +101,205 @@
                 "sha256": "4323092783bb888b8cacdd0f4e6173a69eedc29b747015376f17d337bbe304ef"
               }
             ]
+          },
+          {
+            "id": "python",
+            "spdx": "PSF-2.0 AND MIT AND Apache-2.0 AND MPL-2.0 AND LGPL-2.1-only AND BSD-3-Clause AND BSD-2-Clause AND ISC AND (BSD-2-Clause OR Apache-2.0) AND OpenSSL AND Zlib AND bzip2-1.0.6 AND LicenseRef-Public-Domain",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/Apache-2.0.txt",
+                "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/MPL-2.0.txt",
+                "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/OpenSSL-1.1.1j-LICENSE.txt",
+                "sha256": "c32913b33252e71190af2066f08115c69bc9fddadf3bf29296e20c835389841c"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/PSF-LICENSE.txt",
+                "sha256": "d4a223f033419313218c9b8444167e91e87a5bebdb43fb8490df441df5220a8b"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/SQLite-3.19.3-PublicDomain.txt",
+                "sha256": "44ca9f793055c8e32fc65f65a4f5bcf813a33f5bdaaa084067dd617a4ed3cc70",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/bzip2-1.0.6-LICENSE.txt",
+                "sha256": "4919cfb14a73cd64fcef67b107613970cf1659a09aa675dba31314f373bc7204"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/chardet-3.0.4-LGPL.txt",
+                "sha256": "6095e9ffa777dd22839f7801aa845b31c9ed07f3d6bf8a26dc5d2dec8ccc0ef3"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/colorama-0.4.4-BSD3.txt",
+                "sha256": "cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/expat-2.4.9-COPYING.txt",
+                "sha256": "122f2c27000472a201d337b9b31f7eb2b52d091b02857061a8880371612d9534"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/libedit-BSD3.txt",
+                "sha256": "a25e06619067279a72664c5763746c3493d41a8d47018552c6fe5d0bd2df52da"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/libffi-LICENSE.txt",
+                "sha256": "deaf3a42effb551a5b140fa9afefed183a27f1341c6d1bf430d106a5e6931fc0"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/libmpdec-1.70-LICENSE.txt",
+                "sha256": "b07528d8b1dbf1e2d2741052996f0876e23342ce2d30d0effa39c5457716c25a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/libuuid-BSD3.txt",
+                "sha256": "9b718a9460fed5952466421235bc79eb49d4e9eacc920d7a9dd6285ab8fd6c6d"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/ncurses-COPYING.txt",
+                "sha256": "a85ca5bef8ce71f013bc5f4306c681881b248450f3b63722589891f0b69ea52d"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/packaging-20.8-LICENSE.APACHE.txt",
+                "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/packaging-20.8-LICENSE.BSD.txt",
+                "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/pip-20.3.4-MIT.txt",
+                "sha256": "81d012fe03f24d49014efbe0a0d3651bd32fd4a1434e283a5b525d78c0f611f8"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/progress-1.5-ISC.txt",
+                "sha256": "71a13496c621f01b454f9aa54fa608a712f58eb253e6dd2c91027fe78340c773"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/pygments-2.12.0-BSD2.txt",
+                "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/setuptools-44.1.1-MIT.txt",
+                "sha256": "c32a3ac395af6321efd28be73d06a00f0db6ab887d1c21d4fec46128d2056d5a"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/wheel-0.37.1-MIT.txt",
+                "sha256": "cca9e20c6af1fcfbf69408f377769286cbeebcded336100c9b4a3f35fbe635e4"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/xz-5.2.4-COPYING.txt",
+                "sha256": "bcb02973ef6e87ea73d331b3a80df7748407f17efdb784b61b47e0e610d3bb5c",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "python/python3.tar.gz",
+                "repository": "license-evidence",
+                "referencePath": "python/python3.tar.gz",
+                "locator": "python/zlib-1.2.12-LICENSE.txt",
+                "sha256": "045cf777c6c9109b28ddcf3a413c5ca15e39fc513c13ef87bd9a3132a59d1b51"
+              }
+            ]
           }
         ],
         "unresolvedComponents": [
-          "python",
           "qt"
         ]
       }
@@ -3797,11 +3981,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "3389ccf0811e9a51c8dd2a5e11e224ba436abe58",
+      "commit": "7b8ab46e78b318dacfd072e50325b7437fab2c35",
       "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 20",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.22"
+        "ref": "refs/tags/v9.4.0-evidence.24"
       },
       "projectFork": false,
       "buildInput": true,
@@ -3815,7 +3999,8 @@
           "**/*.idx",
           "**/*.ttf",
           "cef/LICENSE.txt",
-          "cef/chromium-credits.html"
+          "cef/chromium-credits.html",
+          "python/python3.tar.gz"
         ],
         "patterns": [
           "**/*.README",
@@ -5007,6 +5192,156 @@
                 "path": "pt_PT/pt_PT.dic",
                 "locator": "pt_PT/COPYRIGHT",
                 "sha256": "15092e924d00de1c127e75f08089fac9579808d47ccd64dd661f5fac428fd4ab"
+              }
+            ]
+          },
+          {
+            "id": "python",
+            "spdx": "PSF-2.0 AND MIT AND Apache-2.0 AND MPL-2.0 AND LGPL-2.1-only AND BSD-3-Clause AND BSD-2-Clause AND ISC AND (BSD-2-Clause OR Apache-2.0) AND OpenSSL AND Zlib AND bzip2-1.0.6 AND LicenseRef-Public-Domain",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/Apache-2.0.txt",
+                "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/MPL-2.0.txt",
+                "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/OpenSSL-1.1.1j-LICENSE.txt",
+                "sha256": "c32913b33252e71190af2066f08115c69bc9fddadf3bf29296e20c835389841c"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/PSF-LICENSE.txt",
+                "sha256": "d4a223f033419313218c9b8444167e91e87a5bebdb43fb8490df441df5220a8b"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/SQLite-3.19.3-PublicDomain.txt",
+                "sha256": "44ca9f793055c8e32fc65f65a4f5bcf813a33f5bdaaa084067dd617a4ed3cc70",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/bzip2-1.0.6-LICENSE.txt",
+                "sha256": "4919cfb14a73cd64fcef67b107613970cf1659a09aa675dba31314f373bc7204"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/chardet-3.0.4-LGPL.txt",
+                "sha256": "6095e9ffa777dd22839f7801aa845b31c9ed07f3d6bf8a26dc5d2dec8ccc0ef3"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/colorama-0.4.4-BSD3.txt",
+                "sha256": "cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/expat-2.4.9-COPYING.txt",
+                "sha256": "122f2c27000472a201d337b9b31f7eb2b52d091b02857061a8880371612d9534"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/libedit-BSD3.txt",
+                "sha256": "a25e06619067279a72664c5763746c3493d41a8d47018552c6fe5d0bd2df52da"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/libffi-LICENSE.txt",
+                "sha256": "deaf3a42effb551a5b140fa9afefed183a27f1341c6d1bf430d106a5e6931fc0"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/libmpdec-1.70-LICENSE.txt",
+                "sha256": "b07528d8b1dbf1e2d2741052996f0876e23342ce2d30d0effa39c5457716c25a"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/libuuid-BSD3.txt",
+                "sha256": "9b718a9460fed5952466421235bc79eb49d4e9eacc920d7a9dd6285ab8fd6c6d"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/ncurses-COPYING.txt",
+                "sha256": "a85ca5bef8ce71f013bc5f4306c681881b248450f3b63722589891f0b69ea52d"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/packaging-20.8-LICENSE.APACHE.txt",
+                "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/packaging-20.8-LICENSE.BSD.txt",
+                "sha256": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/pip-20.3.4-MIT.txt",
+                "sha256": "81d012fe03f24d49014efbe0a0d3651bd32fd4a1434e283a5b525d78c0f611f8"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/progress-1.5-ISC.txt",
+                "sha256": "71a13496c621f01b454f9aa54fa608a712f58eb253e6dd2c91027fe78340c773"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/pygments-2.12.0-BSD2.txt",
+                "sha256": "a9d66f1d526df02e29dce73436d34e56e8632f46c275bbdffc70569e882f9f17"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/setuptools-44.1.1-MIT.txt",
+                "sha256": "c32a3ac395af6321efd28be73d06a00f0db6ab887d1c21d4fec46128d2056d5a"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/wheel-0.37.1-MIT.txt",
+                "sha256": "cca9e20c6af1fcfbf69408f377769286cbeebcded336100c9b4a3f35fbe635e4"
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/xz-5.2.4-COPYING.txt",
+                "sha256": "bcb02973ef6e87ea73d331b3a80df7748407f17efdb784b61b47e0e610d3bb5c",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "git-blob",
+                "path": "python/python3.tar.gz",
+                "locator": "python/zlib-1.2.12-LICENSE.txt",
+                "sha256": "045cf777c6c9109b28ddcf3a413c5ca15e39fc513c13ef87bd9a3132a59d1b51"
               }
             ]
           },

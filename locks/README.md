@@ -112,15 +112,24 @@ maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `liberation`, `nanum`,
 font license records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
 `kacst-one` use byte-identical payload and license mappings from the
 immutable-tag-selected `license-evidence` repository, locked at
-`v9.4.0-evidence.22`. The selected `build-tools-data` CEF payload is now closed
-from its embedded CEF and Chromium license resources. The release gate remains
-blocked for the selected Python and Qt payloads. `ASC.ttf` is the only
-unresolved font component and remains blocked on missing redistribution terms.
+`v9.4.0-evidence.24`. The selected `build-tools-data` CEF and Python payloads
+are now closed from their embedded license resources. The release gate remains
+blocked for the selected Qt payload. `ASC.ttf` is the only unresolved font
+component and remains blocked on missing redistribution terms.
 A product name, copyright line, package family, external URL, or unrelated
 nearby license is not accepted as a substitute.
 
 At build-tools-data commit
-`743e8e55f0431523248d16b7521e01aa11744ffc`, the selected CEF 5414 Linux
+`743e8e55f0431523248d16b7521e01aa11744ffc`, the selected Python bundle
+(`python/python3.tar.gz`, SHA-256
+`c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360`)
+is now closed with a complete versioned package-to-license inventory:
+CPython 3.10.8 (PSF-2.0), pip/setuptools/wheel and the ensurepip wheels
+(MIT) with every vendored package, plus the statically linked OpenSSL
+1.1.1j, expat 2.4.9, libmpdec 1.70, zlib 1.2.12, bzip2 1.0.6, XZ 5.2.4,
+SQLite 3.19.3, libffi, libedit, ncurses 6.0, and libuuid libraries, each
+with a version-pinned upstream license text mirrored in the evidence
+snapshot. The selected CEF 5414 Linux
 archive (SHA-256
 `dff9aa53c147fd0c6a03f57e17aef10b0cee3fe7c4dc18b3b1a8a7a20bf0a145`)
 contains CEF license resource 63001 in
@@ -135,13 +144,9 @@ GRIT writer and resource loader define this 2-byte magic plus 6-byte length
 framing rather than an opaque eight-byte prefix.
 The selected Qt 5.9.9 Linux archive (LFS/SHA-256
 `84181f983a5e76c2f8a63f8bf06d5ce27675f543c45febe014514633a1289f0e`)
-still has no complete reviewed binary-to-source license inventory.
-The Python archive (SHA-256
-`c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360`)
-contains the Python, pip, setuptools, and wheel license texts, but those files
-do not yet prove a complete payload-to-license expression for the bundled
-runtime. Python and Qt therefore remain unresolved; no SPDX expression is
-inferred from product identity or adjacent upstream sources.
+still has no complete reviewed binary-to-source license inventory. Qt
+therefore remains unresolved; no SPDX expression is inferred from product
+identity or adjacent upstream sources.
 
 Forty-nine dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
@@ -240,8 +245,8 @@ adaptation under LGPL 2.1, while the GPL/LGPL/MPL versions are pinned by the
 era-matched Debian `ipolish 20090225-1` copyright, the maintainer's own sjp.pl
 page, and the LibreOffice 2026-05-11 README. Complete GPL v2, LGPL 2.1,
 MPL 1.1, and CC-SA 1.0 texts are mirrored in the immutable evidence snapshot.
-Together with the selected Python and Qt payloads and `ASC.ttf`, they account
-for the three unresolved components in the current lock.
+Together with the selected Qt payload and `ASC.ttf`, they account for the
+two unresolved components in the current lock.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every

@@ -571,7 +571,7 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual("failed", report["status"])
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
     self.assertEqual(
-      ["python", "qt"],
+      ["qt"],
       next(
         finding["unresolvedComponents"]
         for finding in findings
@@ -592,10 +592,6 @@ class SourceResolverTests(unittest.TestCase):
       for review in build_tools_data["license"]["blockingReviews"]
     }
     expected_build_tools_blockers = {
-      "python": (
-        "python/python3.tar.gz",
-        "c251fd88959ad83a64711d37d7897d0bf7a3ed272f23b6ef6216e0eed0bf9360",
-      ),
       "qt": (
         "qt/qt_binary_5.9.9_gcc_64.7z",
         "2602239b1040af3ff1ee889b77740ef2c5f80a5eebb8630acf4d1d1dea900415",
@@ -658,12 +654,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.22",
+        "ref": "refs/tags/v9.4.0-evidence.24",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "3389ccf0811e9a51c8dd2a5e11e224ba436abe58",
+      "7b8ab46e78b318dacfd072e50325b7437fab2c35",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -676,6 +672,7 @@ class SourceResolverTests(unittest.TestCase):
         "**/*.ttf",
         "cef/LICENSE.txt",
         "cef/chromium-credits.html",
+        "python/python3.tar.gz",
       ],
       evidence_repository["license"]["payloadPatterns"],
     )
@@ -715,6 +712,7 @@ class SourceResolverTests(unittest.TestCase):
         "pl_PL",
         "pt_BR",
         "pt_PT",
+        "python",
         "ru_RU",
         "sl_SI",
         "uk_UA",

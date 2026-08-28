@@ -742,6 +742,7 @@ class ContractToolTests(unittest.TestCase):
       "LGPL-3.0-only AND LicenseRef-SCOWL-2020-12-07",
       "LPPL-1.3c",
       "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1 OR CC-SA-1.0) AND LGPL-2.1-only",
+      "PSF-2.0 AND MIT AND Apache-2.0 AND MPL-2.0 AND LGPL-2.1-only AND BSD-3-Clause AND BSD-2-Clause AND ISC AND (BSD-2-Clause OR Apache-2.0) AND OpenSSL AND Zlib AND bzip2-1.0.6 AND LicenseRef-Public-Domain",
     ):
       value = source_lock()
       value["repositories"][0]["license"]["spdx"] = reviewed_expression
