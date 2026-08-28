@@ -112,7 +112,7 @@ maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `liberation`, `nanum`,
 font license records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
 `kacst-one` use byte-identical payload and license mappings from the
 immutable-tag-selected `license-evidence` repository, locked at
-`v9.4.0-evidence.21`. The selected `build-tools-data` CEF payload is now closed
+`v9.4.0-evidence.22`. The selected `build-tools-data` CEF payload is now closed
 from its embedded CEF and Chromium license resources. The release gate remains
 blocked for the selected Python and Qt payloads. `ASC.ttf` is the only
 unresolved font component and remains blocked on missing redistribution terms.
@@ -143,15 +143,15 @@ do not yet prove a complete payload-to-license expression for the bundled
 runtime. Python and Qt therefore remain unresolved; no SPDX expression is
 inferred from product identity or adjacent upstream sources.
 
-Forty-eight dictionary language packs are mapped payload by payload to exact
+Forty-nine dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
 `ar`, `az_Latn_AZ`, `bg_BG`, `ca_ES`, `ca_ES_valencia`, `cs_CZ`, `da_DK`, `de_AT`,
 `de_CH`, `de_DE`, `el_GR`, `en_AU`, `en_CA`, `en_GB`, `en_US`, `en_ZA`, `es_ES`,
 `eu_ES`, `fr_FR`, `gl_ES`, `hr_HR`,
 `hu_HU`, `id_ID`, `it_IT`, `kk_KZ`, `ko_KR`, `lb_LU`, `lt_LT`, `lv_LV`,
-`mn_MN`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pt_BR`, `pt_PT`, `ro_RO`,
-`ru_RU`, `sk_SK`, `sl_SI`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`, `tr_TR`,
-`uk_UA`, `uz_Cyrl_UZ`, `uz_Latn_UZ`, and `vi_VN`.
+`mn_MN`, `nb_NO`, `nl_NL`, `nn_NO`, `oc_FR`, `pl_PL`, `pt_BR`, `pt_PT`,
+`ro_RO`, `ru_RU`, `sk_SK`, `sl_SI`, `sr_Cyrl_RS`, `sr_Latn_RS`, `sv_SE`,
+`tr_TR`, `uk_UA`, `uz_Cyrl_UZ`, `uz_Latn_UZ`, and `vi_VN`.
 Embedded grants are accepted only when the
 payload identifies itself or explicitly identifies its paired word list.
 `en_CA` uses `LicenseRef-SCOWL-2020-12-07` because its locked README contains
@@ -233,11 +233,15 @@ but not the version-specific license of the underlying material. Conflicting
 terms and license lists that do not establish whether choices are alternatives
 also remain fail-closed. Machine-verified `blockingReviews` bind these findings
 to the exact locked evidence bytes and prevent a blocked component from entering
-`reviewedComponents`. The locked blocker covers `pl_PL`, whose multi-license
-notice is not version-specific. That language pack remains incomplete until its
-exact payload terms are proved without inference.
+`reviewedComponents`. The `pl_PL` spelling and hyphenation payloads bind to the
+pl.openoffice.org 2008.12.06 release: the locked notice pins the Creative
+Commons branch to CC-SA-1.0 via its `/sa/1.0` URL and grants the hyphenation
+adaptation under LGPL 2.1, while the GPL/LGPL/MPL versions are pinned by the
+era-matched Debian `ipolish 20090225-1` copyright, the maintainer's own sjp.pl
+page, and the LibreOffice 2026-05-11 README. Complete GPL v2, LGPL 2.1,
+MPL 1.1, and CC-SA 1.0 texts are mirrored in the immutable evidence snapshot.
 Together with the selected Python and Qt payloads and `ASC.ttf`, they account
-for the six unresolved components in the current lock.
+for the three unresolved components in the current lock.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every

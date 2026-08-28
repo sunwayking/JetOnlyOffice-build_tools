@@ -1845,19 +1845,7 @@
           "ko_KR/ko_KR.aff"
         ],
         "reason": "Forty-six language packs are mapped to exact in-tree or locked repository evidence; the listed language packs still lack a complete reviewed payload-to-license mapping.",
-        "blockingReviews": [
-          {
-            "id": "pl_PL",
-            "code": "AMBIGUOUS_VERSION",
-            "reason": "The locked spelling notice lists GPL, LGPL, MPL, and Creative Commons ShareAlike without identifying versions for the first three licenses or establishing an unambiguous alternative expression.",
-            "evidence": [
-              {
-                "path": "pl_PL/pl_PL_Polish.txt",
-                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
-              }
-            ]
-          }
-        ],
+        "blockingReviews": [],
         "reviewedComponents": [
           {
             "id": "ar",
@@ -2952,6 +2940,140 @@
             ]
           },
           {
+            "id": "pl_PL",
+            "spdx": "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1 OR CC-SA-1.0) AND LGPL-2.1-only",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/hyph_pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/hyph_pl_PL.dic",
+                "locator": "pl_PL/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/hyph_pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/hyph_pl_PL.dic",
+                "locator": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/CC-SA-1.0.txt",
+                "sha256": "fae7ba01de33fd09bef880f2265d71690247a024945d474b44a54ec0571a4228"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/COPYING_GPLv2",
+                "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/MPL-1.1.txt",
+                "sha256": "e039e3253cafabeea1aeabc4d0d14b28a56c470ecd3394c7f16ff23130c28860"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/debian-copyright-ipolish-20090225.txt",
+                "sha256": "27c531391a284a1e7b05d5d95cbba26c186e3361bd2b0aaaa9f9f7952fd502ff"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/sjp-license-page.html",
+                "sha256": "c2c3cf8260d34262287bf1cfc505cb8a2aa5aa75411e750affb6c06e5e9ee9b8"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/CC-SA-1.0.txt",
+                "sha256": "fae7ba01de33fd09bef880f2265d71690247a024945d474b44a54ec0571a4228"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/COPYING_GPLv2",
+                "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/MPL-1.1.txt",
+                "sha256": "e039e3253cafabeea1aeabc4d0d14b28a56c470ecd3394c7f16ff23130c28860"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/debian-copyright-ipolish-20090225.txt",
+                "sha256": "27c531391a284a1e7b05d5d95cbba26c186e3361bd2b0aaaa9f9f7952fd502ff"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "repository": "license-evidence",
+                "referencePath": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/sjp-license-page.html",
+                "sha256": "c2c3cf8260d34262287bf1cfc505cb8a2aa5aa75411e750affb6c06e5e9ee9b8"
+              }
+            ]
+          },
+          {
             "id": "pt_BR",
             "spdx": "LGPL-2.1-only AND LGPL-3.0-only",
             "evidence": [
@@ -3496,9 +3618,7 @@
             ]
           }
         ],
-        "unresolvedComponents": [
-          "pl_PL"
-        ]
+        "unresolvedComponents": []
       }
     },
     {
@@ -3677,11 +3797,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "7f6209e0e0189440e7116174209ed92e04292295",
+      "commit": "3389ccf0811e9a51c8dd2a5e11e224ba436abe58",
       "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 20",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.21"
+        "ref": "refs/tags/v9.4.0-evidence.22"
       },
       "projectFork": false,
       "buildInput": true,
@@ -4695,6 +4815,108 @@
                 "path": "mn_MN/mn_MN.dic",
                 "locator": "mn_MN/LICENSE",
                 "sha256": "27597ab18210ecf1285ec984cb153df71cf17119347a3fb5ca52b15eccba53f6"
+              }
+            ]
+          },
+          {
+            "id": "pl_PL",
+            "spdx": "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1 OR CC-SA-1.0) AND LGPL-2.1-only",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "pl_PL/hyph_pl_PL.dic",
+                "locator": "pl_PL/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/hyph_pl_PL.dic",
+                "locator": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/CC-SA-1.0.txt",
+                "sha256": "fae7ba01de33fd09bef880f2265d71690247a024945d474b44a54ec0571a4228"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/COPYING_GPLv2",
+                "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/MPL-1.1.txt",
+                "sha256": "e039e3253cafabeea1aeabc4d0d14b28a56c470ecd3394c7f16ff23130c28860"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/debian-copyright-ipolish-20090225.txt",
+                "sha256": "27c531391a284a1e7b05d5d95cbba26c186e3361bd2b0aaaa9f9f7952fd502ff"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.aff",
+                "locator": "pl_PL/sjp-license-page.html",
+                "sha256": "c2c3cf8260d34262287bf1cfc505cb8a2aa5aa75411e750affb6c06e5e9ee9b8"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/CC-SA-1.0.txt",
+                "sha256": "fae7ba01de33fd09bef880f2265d71690247a024945d474b44a54ec0571a4228"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/COPYING_GPLv2",
+                "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/COPYING_LGPL_v2.1.txt",
+                "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/MPL-1.1.txt",
+                "sha256": "e039e3253cafabeea1aeabc4d0d14b28a56c470ecd3394c7f16ff23130c28860"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/debian-copyright-ipolish-20090225.txt",
+                "sha256": "27c531391a284a1e7b05d5d95cbba26c186e3361bd2b0aaaa9f9f7952fd502ff"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/pl_PL_Polish.txt",
+                "sha256": "9cf53ac8bbf47857f55e259430008e05ed9f987e10ad01abd14bb1ad22e5c6e2"
+              },
+              {
+                "type": "git-blob",
+                "path": "pl_PL/pl_PL.dic",
+                "locator": "pl_PL/sjp-license-page.html",
+                "sha256": "c2c3cf8260d34262287bf1cfc505cb8a2aa5aa75411e750affb6c06e5e9ee9b8"
               }
             ]
           },

@@ -564,22 +564,12 @@ class SourceResolverTests(unittest.TestCase):
     )
     findings = policy_findings(value)
     self.assertEqual(
-      ["build-tools-data", "core-fonts", "dictionaries"],
+      ["build-tools-data", "core-fonts"],
       [finding["repository"] for finding in findings],
     )
     report = audit_report(value)
     self.assertEqual("failed", report["status"])
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
-    self.assertEqual(
-      [
-        "pl_PL",
-      ],
-      next(
-        finding["unresolvedComponents"]
-        for finding in findings
-        if finding["repository"] == "dictionaries"
-      ),
-    )
     self.assertEqual(
       ["python", "qt"],
       next(
@@ -668,12 +658,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.21",
+        "ref": "refs/tags/v9.4.0-evidence.22",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "7f6209e0e0189440e7116174209ed92e04292295",
+      "3389ccf0811e9a51c8dd2a5e11e224ba436abe58",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -722,6 +712,7 @@ class SourceResolverTests(unittest.TestCase):
         "liberation",
         "lt_LT",
         "mn_MN",
+        "pl_PL",
         "pt_BR",
         "pt_PT",
         "ru_RU",
@@ -1227,7 +1218,7 @@ class SourceResolverTests(unittest.TestCase):
       component["id"]: component
       for component in dictionaries["license"]["reviewedComponents"]
     }
-    self.assertEqual(48, len(reviewed_dictionaries))
+    self.assertEqual(49, len(reviewed_dictionaries))
     expected_dictionary_licenses = {
       "az_Latn_AZ": (
         "GPL-2.0-or-later",
@@ -1386,6 +1377,20 @@ class SourceResolverTests(unittest.TestCase):
       "lb_LU": ("EUPL-1.1", {"lb_LU/Readme_lb_LU.txt"}, 2),
       "lt_LT": ("BSD-3-Clause", {"lt_LT/COPYING"}, 2),
       "mn_MN": ("LPPL-1.3c", {"mn_MN/LICENSE"}, 3),
+      "pl_PL": (
+        "(GPL-2.0-only OR LGPL-2.1-only OR MPL-1.1 OR CC-SA-1.0) AND "
+        "LGPL-2.1-only",
+        {
+          "pl_PL/CC-SA-1.0.txt",
+          "pl_PL/COPYING_GPLv2",
+          "pl_PL/COPYING_LGPL_v2.1.txt",
+          "pl_PL/MPL-1.1.txt",
+          "pl_PL/debian-copyright-ipolish-20090225.txt",
+          "pl_PL/pl_PL_Polish.txt",
+          "pl_PL/sjp-license-page.html",
+        },
+        16,
+      ),
       "nl_NL": (
         "BSD-3-Clause OR CC-BY-3.0", {"nl_NL/nl_NL_Dutch.txt"}, 3
       ),
@@ -1520,12 +1525,12 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      1, len(dictionaries["license"]["unresolvedComponents"])
+      0, len(dictionaries["license"]["unresolvedComponents"])
     )
     for component_id in (
       "az_Latn_AZ", "da_DK", "de_AT", "de_CH", "de_DE", "el_GR", "en_AU",
-      "en_GB", "id_ID", "it_IT", "kk_KZ", "lt_LT", "mn_MN", "pt_BR", "pt_PT",
-      "ru_RU", "sl_SI", "uz_Cyrl_UZ", "uz_Latn_UZ"
+      "en_GB", "id_ID", "it_IT", "kk_KZ", "lt_LT", "mn_MN", "pl_PL", "pt_BR",
+      "pt_PT", "ru_RU", "sl_SI", "uz_Cyrl_UZ", "uz_Latn_UZ"
     ):
       self.assertNotIn(
         component_id, dictionaries["license"]["unresolvedComponents"]
@@ -1552,9 +1557,7 @@ class SourceResolverTests(unittest.TestCase):
       review["id"]: review
       for review in dictionaries["license"]["blockingReviews"]
     }
-    expected_blocking_reviews = {
-      "pl_PL": ("AMBIGUOUS_VERSION", ["pl_PL/pl_PL_Polish.txt"]),
-    }
+    expected_blocking_reviews = {}
     self.assertEqual(sorted(expected_blocking_reviews), sorted(blocking_reviews))
     for component_id, (code, evidence_paths) in expected_blocking_reviews.items():
       self.assertEqual(code, blocking_reviews[component_id]["code"])
