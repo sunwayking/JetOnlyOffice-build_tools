@@ -516,6 +516,58 @@ class SourceResolverTests(unittest.TestCase):
       )
       self.assertNotEqual(0, result.returncode)
 
+  def test_cache_sync_reuses_fsck_state_when_refs_are_unchanged(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, remote, commit = create_repository(directory, "fsck-reuse")
+      repository = repository_input("fsck-reuse", commit)
+      repository["origin"] = str(remote)
+      cache_root = Path(directory) / "cache"
+      fsck_calls = []
+
+      original_run_git = _run_git
+
+      def counting_git(arguments, cwd=None, exit_code=4, environment=None):
+        if arguments and arguments[0] == "fsck":
+          fsck_calls.append(1)
+        return original_run_git(
+          arguments, cwd=cwd, exit_code=exit_code, environment=environment
+        )
+
+      with (
+        patch("source_resolver.verify_public_mirror"),
+        patch("source_resolver._run_git", side_effect=counting_git),
+      ):
+        sync_cache(repository, cache_root, commit)
+        sync_cache(repository, cache_root, commit)
+      self.assertEqual(1, len(fsck_calls))
+
+  def test_cache_sync_rechecks_fsck_after_ref_changes(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, remote, commit = create_repository(directory, "fsck-refresh")
+      repository = repository_input("fsck-refresh", commit)
+      repository["origin"] = str(remote)
+      cache_root = Path(directory) / "cache"
+      fsck_calls = []
+
+      original_run_git = _run_git
+
+      def counting_git(arguments, cwd=None, exit_code=4, environment=None):
+        if arguments and arguments[0] == "fsck":
+          fsck_calls.append(1)
+        return original_run_git(
+          arguments, cwd=cwd, exit_code=exit_code, environment=environment
+        )
+
+      with (
+        patch("source_resolver.verify_public_mirror"),
+        patch("source_resolver._run_git", side_effect=counting_git),
+      ):
+        sync_cache(repository, cache_root, commit)
+        run_git(checkout, "commit", "--allow-empty", "-m", "second")
+        run_git(remote, "fetch", str(checkout), "refs/heads/*:refs/heads/*")
+        sync_cache(repository, cache_root, commit)
+      self.assertEqual(2, len(fsck_calls))
+
   def test_repository_policy_is_strict_and_mirror_only(self):
     value = source_inputs()
     validate_inputs(value)

@@ -1491,6 +1491,15 @@ def _repository_cache_path(cache_directory, repository_id):
   return Path(cache_directory).resolve() / "git" / (repository_id + ".git")
 
 
+def _mirror_refs_digest(cache):
+  output = _run_git(["show-ref"], cwd=cache, exit_code=3)
+  return hashlib.sha256(output.encode("utf-8")).hexdigest()
+
+
+def _fsck_state_path(cache_directory, repository_id):
+  return Path(cache_directory) / "fsck-state" / f"{repository_id}.json"
+
+
 def sync_cache(repository, cache_directory, commit=None):
   verify_public_mirror(repository)
   cache = _repository_cache_path(cache_directory, repository["id"])
@@ -1516,7 +1525,30 @@ def sync_cache(repository, cache_directory, commit=None):
       cwd=cache,
       exit_code=3,
     )
+  # The mirror refs digest changes whenever a fetch moves any reference,
+  # so a previously verified mirror with an unchanged ref set can reuse
+  # its fsck result. Disk corruption between runs is not covered by this
+  # cache; a fresh cache directory or any ref change re-runs the check.
+  state_path = _fsck_state_path(cache_directory, repository["id"])
+  digest = _mirror_refs_digest(cache)
+  state = None
+  if state_path.is_file():
+    try:
+      state = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+      state = None
+  if (
+    state
+    and state.get("refsDigest") == digest
+    and state.get("fsck") == "ok"
+  ):
+    return cache
   _run_git(["fsck", "--full", "--strict"], cwd=cache)
+  state_path.parent.mkdir(parents=True, exist_ok=True)
+  state_path.write_text(
+    json.dumps({"refsDigest": digest, "fsck": "ok"}, sort_keys=True),
+    encoding="utf-8",
+  )
   return cache
 
 
