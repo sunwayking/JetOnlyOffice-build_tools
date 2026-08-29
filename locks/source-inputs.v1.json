@@ -4,7 +4,7 @@
   "releaseCutoff": 1778872303,
   "baseline": {
     "repository": "documentserver",
-    "commit": "3d78850a6b7aefdbddd30851bacc70d6750b6548"
+    "commit": "5395e326a6d7b9eb51f7ec7a62664985e8c06097"
   },
   "repositories": [
     {
@@ -4218,7 +4218,7 @@
       "checkoutPath": "sources/DocumentServer",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-DocumentServer.git",
       "upstream": "https://github.com/ONLYOFFICE/DocumentServer.git",
-      "commit": "3d78850a6b7aefdbddd30851bacc70d6750b6548",
+      "commit": "5395e326a6d7b9eb51f7ec7a62664985e8c06097",
       "refHint": "JetOnlyOffice develop integration head",
       "selection": {
         "type": "branch",
@@ -6189,7 +6189,7 @@
       "checkoutPath": "sources/web-apps",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-web-apps.git",
       "upstream": "https://github.com/ONLYOFFICE/web-apps.git",
-      "commit": "8284ffb239693acfe9b6058ebdfc66812b78190b",
+      "commit": "496f098a3406fc83e5e10e7179390a28ba049767",
       "refHint": "JetOnlyOffice DocumentServer develop gitlink",
       "selection": {
         "type": "gitlink",
