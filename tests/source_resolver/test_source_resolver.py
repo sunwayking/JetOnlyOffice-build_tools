@@ -3276,7 +3276,7 @@ class SourceResolverTests(unittest.TestCase):
     class FakeResult:
       pass
 
-    def fake_process(arguments, cwd=None, environment=None):
+    def fake_process(arguments, cwd=None, environment=None, timeout=None):
       attempts.append(list(arguments))
       result = FakeResult()
       if len(attempts) < 3:
@@ -3298,13 +3298,34 @@ class SourceResolverTests(unittest.TestCase):
       )
     self.assertEqual(3, len(attempts))
 
+  def test_git_run_retries_a_hung_command_timeout(self):
+    attempts = []
+
+    def fake_process(arguments, cwd=None, environment=None, timeout=None):
+      attempts.append(list(arguments))
+      if len(attempts) < 2:
+        raise subprocess.TimeoutExpired(cmd=arguments, timeout=timeout)
+
+      class FakeResult:
+        pass
+
+      result = FakeResult()
+      result.returncode = 0
+      result.stdout = b"ok\n"
+      result.stderr = b""
+      return result
+
+    with patch("source_resolver._run_git_process", side_effect=fake_process):
+      self.assertEqual("ok", _run_git(["ls-remote", "--refs", "origin"]))
+    self.assertEqual(2, len(attempts))
+
   def test_git_run_fails_immediately_on_non_transient_error(self):
     attempts = []
 
     class FakeResult:
       pass
 
-    def fake_process(arguments, cwd=None, environment=None):
+    def fake_process(arguments, cwd=None, environment=None, timeout=None):
       attempts.append(list(arguments))
       result = FakeResult()
       result.returncode = 128

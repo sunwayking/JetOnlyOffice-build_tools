@@ -758,7 +758,10 @@ def load_source_lock(path):
   return load_json(path)
 
 
-def _run_git_process(arguments, cwd=None, environment=None):
+GIT_COMMAND_TIMEOUT_SECONDS = 180
+
+
+def _run_git_process(arguments, cwd=None, environment=None, timeout=None):
   process_environment = os.environ.copy()
   if environment:
     for key, value in environment.items():
@@ -772,6 +775,7 @@ def _run_git_process(arguments, cwd=None, environment=None):
     capture_output=True,
     env=process_environment,
     check=False,
+    timeout=timeout,
   )
 
 
@@ -793,7 +797,18 @@ def _is_transient_git_network_error(stderr):
 
 def _run_git(arguments, cwd=None, exit_code=4, environment=None):
   for attempt in range(3):
-    result = _run_git_process(arguments, cwd=cwd, environment=environment)
+    try:
+      result = _run_git_process(
+        arguments,
+        cwd=cwd,
+        environment=environment,
+        timeout=GIT_COMMAND_TIMEOUT_SECONDS,
+      )
+    except subprocess.TimeoutExpired:
+      if attempt == 2:
+        raise ResolutionError("git command timed out", exit_code)
+      time.sleep(attempt + 1)
+      continue
     stdout = result.stdout.decode("utf-8", errors="replace")
     stderr = result.stderr.decode("utf-8", errors="replace")
     if result.returncode == 0:
