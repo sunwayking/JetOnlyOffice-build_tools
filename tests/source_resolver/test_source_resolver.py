@@ -3319,6 +3319,36 @@ class SourceResolverTests(unittest.TestCase):
       self.assertEqual("ok", _run_git(["ls-remote", "--refs", "origin"]))
     self.assertEqual(2, len(attempts))
 
+  def test_lfs_batch_fetch_retries_a_transient_http_error(self):
+    repository = repository_input("source")
+    content = b"public object\n"
+    oid = hashlib.sha256(content).hexdigest()
+    lfs_object = {"oid": oid, "size": len(content), "paths": ["asset.bin"]}
+    action = {oid: {"href": "https://objects.invalid/source", "headers": {}}}
+
+    attempts = []
+
+    def fetch_actions(_, objects):
+      attempts.append(list(objects))
+      if len(attempts) < 3:
+        raise ResolutionError("source: Git LFS batch: HTTP 405", 3)
+      return action
+
+    def download_once(_, __, ___, destination):
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      destination.write_bytes(content)
+
+    with tempfile.TemporaryDirectory() as directory:
+      cache = Path(directory) / "cache.git"
+      with (
+        patch("source_resolver._fetch_anonymous_lfs_actions", side_effect=fetch_actions),
+        patch("source_resolver._download_anonymous_lfs_object_once", side_effect=download_once),
+        patch("source_resolver._verify_lfs_cache"),
+      ):
+        fetch_lfs_objects(repository, cache, SHA1_A, [lfs_object])
+
+    self.assertEqual(3, len(attempts))
+
   def test_git_run_applies_timeout_only_to_network_commands(self):
     seen = []
 

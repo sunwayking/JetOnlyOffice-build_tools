@@ -1917,7 +1917,13 @@ def fetch_lfs_objects(repository, cache, commit, lfs_objects):
     storage = Path(directory)
     for lfs_object in lfs_objects:
       for attempt in range(3):
-        actions = _fetch_anonymous_lfs_actions(repository, [lfs_object])
+        try:
+          actions = _fetch_anonymous_lfs_actions(repository, [lfs_object])
+        except ResolutionError as error:
+          if attempt == 2 or "Git LFS batch" not in str(error):
+            raise
+          time.sleep(attempt + 1)
+          continue
         action = actions[lfs_object["oid"]]
         if _lfs_action_is_expired(action):
           if attempt == 2:
