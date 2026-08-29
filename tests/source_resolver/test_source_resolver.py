@@ -21,6 +21,7 @@ from source_resolver import (  # noqa: E402
   _derived_cef_pak_resource,
   _download_anonymous_lfs_object,
   _fetch_anonymous_lfs_actions,
+  _run_git,
   LfsActionRefreshRequired,
   ResolutionError,
   audit_report,
@@ -3268,6 +3269,53 @@ class SourceResolverTests(unittest.TestCase):
         fetch_lfs_objects(repository, cache, SHA1_A, [lfs_object])
 
     self.assertEqual(2, len(attempts))
+
+  def test_git_fetch_retries_a_transient_network_reset(self):
+    attempts = []
+
+    class FakeResult:
+      pass
+
+    def fake_process(arguments, cwd=None, environment=None):
+      attempts.append(list(arguments))
+      result = FakeResult()
+      if len(attempts) < 3:
+        result.returncode = 128
+        result.stdout = b""
+        result.stderr = (
+          b"fatal: RPC failed; curl 56 Recv failure: Connection was reset\n"
+        )
+      else:
+        result.returncode = 0
+        result.stdout = b"ok\n"
+        result.stderr = b""
+      return result
+
+    with patch("source_resolver._run_git_process", side_effect=fake_process):
+      self.assertEqual(
+        "ok",
+        _run_git(["fetch", "origin", "+refs/heads/*:refs/heads/*"]),
+      )
+    self.assertEqual(3, len(attempts))
+
+  def test_git_run_fails_immediately_on_non_transient_error(self):
+    attempts = []
+
+    class FakeResult:
+      pass
+
+    def fake_process(arguments, cwd=None, environment=None):
+      attempts.append(list(arguments))
+      result = FakeResult()
+      result.returncode = 128
+      result.stdout = b""
+      result.stderr = b"fatal: not a git repository\n"
+      return result
+
+    with patch("source_resolver._run_git_process", side_effect=fake_process):
+      with self.assertRaisesRegex(ResolutionError, "not a git repository"):
+        _run_git(["rev-parse", "--is-bare-repository"])
+    self.assertEqual(1, len(attempts))
 
   def test_public_mirror_probe_fails_when_anonymous_refs_are_unavailable(self):
     repository = repository_input("source")

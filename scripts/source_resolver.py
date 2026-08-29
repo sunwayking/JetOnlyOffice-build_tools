@@ -775,14 +775,33 @@ def _run_git_process(arguments, cwd=None, environment=None):
   )
 
 
+TRANSIENT_GIT_NETWORK_PATTERNS = (
+  "Connection was reset",
+  "unexpected disconnect while reading sideband packet",
+  "RPC failed",
+  "closed abruptly",
+  "expected flush after ref listing",
+  "unable to access",
+  "Recv failure",
+  "the remote end hung up unexpectedly",
+)
+
+
+def _is_transient_git_network_error(stderr):
+  return any(pattern in stderr for pattern in TRANSIENT_GIT_NETWORK_PATTERNS)
+
+
 def _run_git(arguments, cwd=None, exit_code=4, environment=None):
-  result = _run_git_process(arguments, cwd=cwd, environment=environment)
-  stdout = result.stdout.decode("utf-8", errors="replace")
-  stderr = result.stderr.decode("utf-8", errors="replace")
-  if result.returncode != 0:
-    detail = stderr.strip() or stdout.strip() or "git command failed"
-    raise ResolutionError(detail, exit_code)
-  return stdout.strip()
+  for attempt in range(3):
+    result = _run_git_process(arguments, cwd=cwd, environment=environment)
+    stdout = result.stdout.decode("utf-8", errors="replace")
+    stderr = result.stderr.decode("utf-8", errors="replace")
+    if result.returncode == 0:
+      return stdout.strip()
+    if attempt == 2 or not _is_transient_git_network_error(stderr):
+      detail = stderr.strip() or stdout.strip() or "git command failed"
+      raise ResolutionError(detail, exit_code)
+    time.sleep(attempt + 1)
 
 
 def _run_git_bytes(arguments, cwd=None, exit_code=3, environment=None):
