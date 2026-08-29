@@ -3652,6 +3652,81 @@ class SourceResolverTests(unittest.TestCase):
       with self.assertRaisesRegex(ResolutionError, "Git LFS size does not match"):
         verify_materialized(lock, source_root)
 
+  def test_materialize_retries_a_transient_rename_failure(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      bind_source_tree_manifest(lock, {"source": bare})
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      source_root = Path(directory) / "workspace"
+
+      real_rename = Path.rename
+      attempts = []
+
+      def flaky_rename(self, target):
+        attempts.append(1)
+        if len(attempts) < 3:
+          raise OSError("transient handle")
+        return real_rename(self, target)
+
+      with patch("pathlib.Path.rename", flaky_rename):
+        materialize(lock, {"source": bare}, source_root)
+      self.assertTrue(source_root.is_dir())
+      self.assertEqual(3, len(attempts))
+
+  def test_materialize_preserves_publish_error_and_retries_cleanup(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      bind_source_tree_manifest(lock, {"source": bare})
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      source_root = Path(directory) / "workspace"
+
+      def failing_rename(self, target):
+        raise OSError("handle held")
+
+      real_rmtree = shutil.rmtree
+      attempts = []
+
+      def flaky_rmtree(path, **kwargs):
+        attempts.append(1)
+        if len(attempts) < 3:
+          raise OSError("handle held")
+        return real_rmtree(path, **kwargs)
+
+      with (
+        patch("pathlib.Path.rename", failing_rename),
+        patch("source_resolver.shutil.rmtree", side_effect=flaky_rmtree),
+      ):
+        with self.assertRaisesRegex(
+          ResolutionError, "cannot clean source staging.*original failure"
+        ):
+          materialize(lock, {"source": bare}, source_root)
+      # The two injected failures plus the real rmtree exhausting the
+      # remaining backoff attempts (the test environment holds the
+      # handles through the whole loop).
+      self.assertEqual(5, len(attempts))
+
   @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
   def test_powershell_audit_passes_on_complete_license_evidence(self):
     with tempfile.TemporaryDirectory() as directory:

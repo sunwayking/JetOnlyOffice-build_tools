@@ -2958,28 +2958,41 @@ def materialize(lock, caches, source_directory):
     dir=source_directory.parent,
     prefix="." + source_directory.name + ".",
   ))
+  # Windows may briefly hold handles on freshly written Git objects
+  # (antivirus scans, lingering helper processes), so publish and cleanup
+  # retry with a growing backoff before failing closed.
+  publish_backoff = (1, 2, 4, 8, 16)
   try:
     _materialize_into(lock, caches, staging_directory)
-    try:
-      staging_directory.rename(source_directory)
-    except OSError as error:
-      if source_directory.exists():
-        verify_materialized(lock, source_directory)
-        return
-      raise ResolutionError(
-        f"{source_directory}: cannot publish locked source workspace: {error}",
-        3,
-      ) from error
+    for attempt, delay in enumerate(publish_backoff):
+      try:
+        staging_directory.rename(source_directory)
+        break
+      except OSError as error:
+        if source_directory.exists():
+          verify_materialized(lock, source_directory)
+          return
+        if attempt == len(publish_backoff) - 1:
+          raise ResolutionError(
+            f"{source_directory}: cannot publish locked source workspace: {error}",
+            3,
+          ) from error
+        time.sleep(delay)
     staging_directory = None
   finally:
     if staging_directory is not None:
-      try:
-        shutil.rmtree(staging_directory)
-      except OSError as error:
-        raise ResolutionError(
-          f"{staging_directory}: cannot clean source staging: {error}",
-          3,
-        ) from error
+      primary = sys.exc_info()[1]
+      for attempt, delay in enumerate(publish_backoff):
+        try:
+          shutil.rmtree(staging_directory)
+          break
+        except OSError as error:
+          if attempt == len(publish_backoff) - 1:
+            detail = f"{staging_directory}: cannot clean source staging: {error}"
+            if primary is not None:
+              detail += f"; original failure: {primary}"
+            raise ResolutionError(detail, 3) from error
+          time.sleep(delay)
 
 
 def verify_workspace_inventory(lock, source_directory):
