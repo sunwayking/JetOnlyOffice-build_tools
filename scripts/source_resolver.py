@@ -2924,6 +2924,11 @@ def _materialize_into(lock, caches, source_directory):
       environment={"GIT_LFS_SKIP_SMUDGE": "1"},
     )
     _run_git(["config", "core.autocrlf", "false"], cwd=destination)
+    if os.name == "nt":
+      # The staging prefix is long enough that repository paths near the
+      # Windows MAX_PATH limit would otherwise be skipped silently by
+      # git checkout, leaving the materialized tree dirty.
+      _run_git(["config", "core.longpaths", "true"], cwd=destination)
     _run_git(
       ["checkout", "--detach", repository["commit"]],
       cwd=destination,

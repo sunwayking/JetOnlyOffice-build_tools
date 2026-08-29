@@ -3652,6 +3652,34 @@ class SourceResolverTests(unittest.TestCase):
       with self.assertRaisesRegex(ResolutionError, "Git LFS size does not match"):
         verify_materialized(lock, source_root)
 
+  @unittest.skipUnless(os.name == "nt", "Windows long-path behaviour")
+  def test_materialize_enables_long_paths_on_windows(self):
+    with tempfile.TemporaryDirectory() as directory:
+      checkout, bare, commit = create_repository(directory)
+      repository = repository_input("source", commit)
+      record = repository_metadata(repository, bare, commit)
+      lock = {
+        "schemaVersion": 1,
+        "lockType": "source",
+        "productVersion": "9.4.0",
+        "baseline": {"repository": "source", "commit": commit},
+        "sourceDateEpoch": record["commitTime"],
+        "repositories": [record],
+        "relationships": [],
+      }
+      bind_source_tree_manifest(lock, {"source": bare})
+      validate_contract(lock, "source-lock", REPOSITORY_ROOT / "schemas")
+      source_root = Path(directory) / "workspace"
+      materialize(lock, {"source": bare}, source_root)
+      self.assertEqual(
+        "true",
+        run_git(
+          source_root / "sources" / "source",
+          "config",
+          "core.longpaths",
+        ),
+      )
+
   def test_materialize_retries_a_transient_rename_failure(self):
     with tempfile.TemporaryDirectory() as directory:
       checkout, bare, commit = create_repository(directory)
