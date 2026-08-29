@@ -548,7 +548,7 @@ class SourceResolverTests(unittest.TestCase):
       repository["id"]: repository for repository in value["repositories"]
     }
     self.assertEqual(
-      "3d78850a6b7aefdbddd30851bacc70d6750b6548",
+      "5395e326a6d7b9eb51f7ec7a62664985e8c06097",
       repositories_by_id["documentserver"]["commit"],
     )
     self.assertEqual(
