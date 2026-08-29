@@ -15,6 +15,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPOSITORY_ROOT))
 sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
 from offline_baseline import (  # noqa: E402
+  cache_toolchain_input,
   pinned_image_reference,
   verify as verify_offline_baseline,
 )
@@ -800,6 +801,58 @@ class OfflineBaselineEntrypointTests(unittest.TestCase):
 
       self.assertEqual(3, result.returncode, result.stderr)
       self.assertIn("locked toolchain cache digest mismatch", result.stderr)
+
+  def test_toolchain_download_retries_a_transient_size_header(self):
+    with tempfile.TemporaryDirectory() as directory:
+      cache_root = Path(directory) / "cache"
+      path = cache_root / "toolchain" / "node" / "digest"
+      tool = {
+        "id": "node",
+        "size": 4,
+        "sha256": hashlib.sha256(b"data").hexdigest(),
+        "sourceUrl": "https://example.test/node",
+      }
+
+      class FakeResponse:
+        def __init__(self, headers, body):
+          self._headers = headers
+          self._body = body
+
+        def geturl(self):
+          return "https://example.test/node"
+
+        @property
+        def headers(self):
+          return self._headers
+
+        def read(self, _):
+          chunk, self._body = self._body, b""
+          return chunk
+
+        def __enter__(self):
+          return self
+
+        def __exit__(self, *_):
+          return False
+
+      attempts = []
+
+      def flaky_urlopen(url, timeout=None):
+        attempts.append(1)
+        if len(attempts) == 1:
+          return FakeResponse({"Content-Length": "99"}, b"data")
+        return FakeResponse({"Content-Length": "4"}, b"data")
+
+      with (
+        patch("offline_baseline.urlopen", side_effect=flaky_urlopen),
+        patch(
+          "offline_baseline.os.link",
+          side_effect=lambda src, dst: shutil.copyfile(src, dst),
+        ),
+      ):
+        cache_toolchain_input(tool, path, cache_root)
+      self.assertEqual(2, len(attempts))
+      self.assertEqual(b"data", path.read_bytes())
 
   def test_package_rejects_build_manifest_from_different_toolchain(self):
     with tempfile.TemporaryDirectory() as directory:

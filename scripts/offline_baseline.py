@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
@@ -133,6 +134,23 @@ def cache_toolchain_input(tool, path, cache_root):
       raise BaselineError(f"locked toolchain cache is not a file: {path}", 3)
     return
 
+  for attempt in range(3):
+    try:
+      _cache_toolchain_input_once(tool, path, cache_root)
+      return
+    except BaselineError as error:
+      if attempt == 2 or "mismatch" not in str(error):
+        raise
+      time.sleep(attempt + 1)
+    except (OSError, ValueError) as error:
+      if attempt == 2:
+        raise BaselineError(
+          f"locked toolchain download failed for {tool['id']}: {error}", 3
+        ) from error
+      time.sleep(attempt + 1)
+
+
+def _cache_toolchain_input_once(tool, path, cache_root):
   path.parent.mkdir(parents=True, exist_ok=True)
   verify_unaliased_parents(path, cache_root, "locked toolchain cache", 3)
   temporary = None
