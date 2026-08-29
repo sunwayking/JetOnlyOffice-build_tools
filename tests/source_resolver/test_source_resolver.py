@@ -560,7 +560,7 @@ class SourceResolverTests(unittest.TestCase):
       repositories_by_id["sdkjs"]["commit"],
     )
     self.assertEqual(
-      "8284ffb239693acfe9b6058ebdfc66812b78190b",
+      "496f098a3406fc83e5e10e7179390a28ba049767",
       repositories_by_id["web-apps"]["commit"],
     )
     findings = policy_findings(value)
