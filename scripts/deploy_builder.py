@@ -127,7 +127,7 @@ def make():
     base.copy_dir(git_dir  + "/core-fonts/caladea",    root_dir + "/fonts/caladea")
     base.copy_dir(git_dir  + "/core-fonts/crosextra",  root_dir + "/fonts/crosextra")
     base.copy_dir(git_dir  + "/core-fonts/openoffice", root_dir + "/fonts/openoffice")
-    base.copy_file(git_dir + "/core-fonts/ASC.ttf",    root_dir + "/fonts/ASC.ttf")
+    base.copy_dir(git_dir  + "/core-fonts/dejavu",     root_dir + "/fonts/dejavu")
 
     # delete unnecessary builder files
     def delete_files(files):

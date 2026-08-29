@@ -170,11 +170,13 @@ The source resolver still reports `LICENSE_INCOMPLETE` for:
 
 Thirty-eight font components, forty-nine dictionary packs, the selected CEF
 payload, the Python bundle, and the Qt bundle now have payload-complete locked
-evidence mappings. External evidence is locked at `v9.4.0-evidence.26`. These
+evidence mappings. External evidence is locked at `v9.4.0-evidence.27`. These
 mappings pass contract and inventory regression tests; a complete cache-backed
-`LicenseAudit` remains required before source-lock generation. The remaining
-blocker is the `ASC.ttf` font component enumerated in
-`locks/source-inputs.v1.json`, for one unresolved component in total.
+`LicenseAudit` remains required before source-lock generation. The former
+`ASC.ttf` blocker is resolved by removal: the unlicensed marks font was
+dropped from the locked font set, and the product now draws paragraph marks,
+tab arrows and check-box glyphs with real Unicode codepoints through the run
+font and the bundled DejaVu Sans fallback, leaving zero unresolved components.
 The formal `server`/`linux_64`/`--sysroot 0` profile does not enter the Android
 V8, Ubuntu 16 sysroot, Windows Mobile GLEW, or Python extraction-helper paths;
 behavior tests bind those exclusions to the published entrypoint and upstream

@@ -10,7 +10,6 @@ def exclude_arch(directory, frameworks):
 
 def deploy_fonts(git_dir, root_dir, platform=""):
   base.create_dir(root_dir + "/fonts")
-  base.copy_file(git_dir + "/core-fonts/ASC.ttf", root_dir + "/fonts/ASC.ttf")
   base.copy_dir(git_dir + "/core-fonts/asana", root_dir + "/fonts/asana")
   base.copy_dir(git_dir + "/core-fonts/caladea", root_dir + "/fonts/caladea")
   base.copy_dir(git_dir + "/core-fonts/crosextra", root_dir + "/fonts/crosextra")

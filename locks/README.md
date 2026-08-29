@@ -112,10 +112,12 @@ maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `liberation`, `nanum`,
 font license records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
 `kacst-one` use byte-identical payload and license mappings from the
 immutable-tag-selected `license-evidence` repository, locked at
-`v9.4.0-evidence.26`. The selected `build-tools-data` CEF, Python, and Qt
-payloads are now closed from their embedded license resources. `ASC.ttf` is
-the only unresolved font component and remains blocked on missing
-redistribution terms.
+`v9.4.0-evidence.27`. The selected `build-tools-data` CEF, Python, and Qt
+payloads are now closed from their embedded license resources. The former
+`ASC.ttf` blocker is resolved by removal: the unlicensed marks font was
+dropped from the locked font set, and paragraph marks, tab arrows and
+check-box glyphs now render through real Unicode codepoints and the bundled
+DejaVu Sans fallback.
 A product name, copyright line, package family, external URL, or unrelated
 nearby license is not accepted as a substitute.
 
@@ -254,8 +256,8 @@ adaptation under LGPL 2.1, while the GPL/LGPL/MPL versions are pinned by the
 era-matched Debian `ipolish 20090225-1` copyright, the maintainer's own sjp.pl
 page, and the LibreOffice 2026-05-11 README. Complete GPL v2, LGPL 2.1,
 MPL 1.1, and CC-SA 1.0 texts are mirrored in the immutable evidence snapshot.
-Together with `ASC.ttf`, they account for the one unresolved component in
-the current lock.
+These payloads close the final unresolved component in the current lock; the
+former `ASC.ttf` blocker was resolved by removal from the locked font set.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every

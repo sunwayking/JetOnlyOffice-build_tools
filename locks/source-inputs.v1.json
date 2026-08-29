@@ -4,7 +4,7 @@
   "releaseCutoff": 1778872303,
   "baseline": {
     "repository": "documentserver",
-    "commit": "671c834813f8644f68e63ee28859d5aace5e9aa2"
+    "commit": "3d78850a6b7aefdbddd30851bacc70d6750b6548"
   },
   "repositories": [
     {
@@ -605,7 +605,7 @@
       "checkoutPath": "sources/core",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-core.git",
       "upstream": "https://github.com/ONLYOFFICE/core.git",
-      "commit": "3250a848ee4ef20c2fb8c38dc86350ec579124b8",
+      "commit": "d9f5f3f8df2c11e87bf7ce33ddd52e09c956f75d",
       "refHint": "DocumentServer v9.4.0 gitlink",
       "selection": {
         "type": "gitlink",
@@ -627,8 +627,8 @@
       "checkoutPath": "sources/core-fonts",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-core-fonts.git",
       "upstream": "https://github.com/ONLYOFFICE/core-fonts.git",
-      "commit": "7030c6681fb5bbed560675cb42422f91df15d5c9",
-      "refHint": "DocumentServer v9.4.0 gitlink",
+      "commit": "63288fa40c90fe41bc79ecf7117aa7733fd39b38",
+      "refHint": "JetOnlyOffice fork branch jetonlyoffice/v9.4.0 (ASC.ttf removed)",
       "selection": {
         "type": "gitlink",
         "parent": "documentserver",
@@ -648,23 +648,10 @@
           "**/COPYING*",
           "**/LICENSE*",
           "**/OFL*",
-          "ASC.ttf",
           "liberation/*.ttf"
         ],
-        "reason": "Thirty-eight font components are mapped to exact license grants; ASC.ttf lacks a redistribution grant.",
-        "blockingReviews": [
-          {
-            "id": "ASC.ttf",
-            "code": "MISSING_EVIDENCE",
-            "reason": "The locked font is ASCW3 by Ascensio System SIA; its name table reads \"Copyright (c) Ascensio System SIA 2012-2014. All rights reserved\" and no explicit copying, modification, or redistribution grant was found in the locked tree or upstream sources.",
-            "evidence": [
-              {
-                "path": "ASC.ttf",
-                "sha256": "35ff902a3b9c9254ce3c57d610dad9e57008b8a3351691c463bee775644c1e18"
-              }
-            ]
-          }
-        ],
+        "reason": "Thirty-eight font components are mapped to exact license grants. The unlicensed ASC.ttf (ASCW3 marks font) was removed from the tree; paragraph marks, tab arrows and check-box glyphs render through real Unicode codepoints and the bundled DejaVu Sans fallback.",
+        "blockingReviews": [],
         "reviewedComponents": [
           {
             "id": "abyssinica",
@@ -2281,9 +2268,7 @@
             ]
           }
         ],
-        "unresolvedComponents": [
-          "ASC.ttf"
-        ]
+        "unresolvedComponents": []
       }
     },
     {
@@ -4233,7 +4218,7 @@
       "checkoutPath": "sources/DocumentServer",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-DocumentServer.git",
       "upstream": "https://github.com/ONLYOFFICE/DocumentServer.git",
-      "commit": "671c834813f8644f68e63ee28859d5aace5e9aa2",
+      "commit": "3d78850a6b7aefdbddd30851bacc70d6750b6548",
       "refHint": "JetOnlyOffice develop integration head",
       "selection": {
         "type": "branch",
@@ -4280,7 +4265,7 @@
       "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 20",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.26"
+        "ref": "refs/tags/v9.4.0-evidence.27"
       },
       "projectFork": false,
       "buildInput": true,
@@ -6139,7 +6124,7 @@
       "checkoutPath": "sources/sdkjs",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-sdkjs.git",
       "upstream": "https://github.com/ONLYOFFICE/sdkjs.git",
-      "commit": "dc623fe01acd54c91a9a34a0badf52d5df374b7a",
+      "commit": "65cc0c13819b29017c7009032e62428b7ca5690d",
       "refHint": "JetOnlyOffice DocumentServer develop gitlink",
       "selection": {
         "type": "gitlink",
@@ -6204,7 +6189,7 @@
       "checkoutPath": "sources/web-apps",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-web-apps.git",
       "upstream": "https://github.com/ONLYOFFICE/web-apps.git",
-      "commit": "556883bc4fa13e6aef9247441e4477f27102ff60",
+      "commit": "8284ffb239693acfe9b6058ebdfc66812b78190b",
       "refHint": "JetOnlyOffice DocumentServer develop gitlink",
       "selection": {
         "type": "gitlink",

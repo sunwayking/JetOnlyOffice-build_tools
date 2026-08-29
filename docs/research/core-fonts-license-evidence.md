@@ -40,6 +40,12 @@ ASC.ttf  35ff902a3b9c9254ce3c57d610dad9e57008b8a3351691c463bee775644c1e18
 - 判定：**不可 reviewed**。公开 Git 提交、DocumentServer 的 AGPL 和
   `fsType=0` 都不是该字体的再分发授权。仍缺 Ascensio 对这一精确 payload 或
   `ASCW3` 字体系列的复制、修改和再分发许可，应保持 `MISSING_EVIDENCE`。
+- **已解决（2026-08-29，产品决策）**：`ASC.ttf` 从锁定字体集中移除
+  （`JetOnlyOffice-core-fonts` `jetonlyoffice/v9.4.0` @ `63288fa`）。产品不再
+  分发该字体；段落标记、tab 箭头与勾选框字形改用真实 Unicode 码位
+  （U+2190/U+2192、U+21B2/U+21B5、U+25CB/U+2610/U+2611）经 run 字体与既有
+  回退链渲染（随包 DejaVu Sans 全码位覆盖；sdkjs `65cc0c1`、core `d9f5f3f`）。
+  PDF 查看器保留内部旧名别名（内嵌 DejaVu）以兼容历史 metafile/PDF。
 
 ## `fonts-beng-extra`
 

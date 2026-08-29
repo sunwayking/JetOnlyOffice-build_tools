@@ -547,7 +547,7 @@ class SourceResolverTests(unittest.TestCase):
       repository["id"]: repository for repository in value["repositories"]
     }
     self.assertEqual(
-      "671c834813f8644f68e63ee28859d5aace5e9aa2",
+      "3d78850a6b7aefdbddd30851bacc70d6750b6548",
       repositories_by_id["documentserver"]["commit"],
     )
     self.assertEqual(
@@ -555,20 +555,20 @@ class SourceResolverTests(unittest.TestCase):
       repositories_by_id["documentserver"]["selection"],
     )
     self.assertEqual(
-      "dc623fe01acd54c91a9a34a0badf52d5df374b7a",
+      "65cc0c13819b29017c7009032e62428b7ca5690d",
       repositories_by_id["sdkjs"]["commit"],
     )
     self.assertEqual(
-      "556883bc4fa13e6aef9247441e4477f27102ff60",
+      "8284ffb239693acfe9b6058ebdfc66812b78190b",
       repositories_by_id["web-apps"]["commit"],
     )
     findings = policy_findings(value)
     self.assertEqual(
-      ["core-fonts"],
+      [],
       [finding["repository"] for finding in findings],
     )
     report = audit_report(value)
-    self.assertEqual("failed", report["status"])
+    self.assertEqual("passed", report["status"])
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
 
     build_tools_data = repositories_by_id["build-tools-data"]
@@ -632,17 +632,13 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      ["ASC.ttf"],
-      next(
-        finding["unresolvedComponents"]
-        for finding in findings
-        if finding["repository"] == "core-fonts"
-      ),
+      [],
+      [finding["unresolvedComponents"] for finding in findings],
     )
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.26",
+        "ref": "refs/tags/v9.4.0-evidence.27",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
@@ -1073,7 +1069,7 @@ class SourceResolverTests(unittest.TestCase):
       ],
     )
     self.assertEqual(
-      ["ASC.ttf"],
+      [],
       [
         review["id"]
         for review in repositories_by_id["core-fonts"]["license"][
@@ -3483,7 +3479,7 @@ class SourceResolverTests(unittest.TestCase):
         verify_materialized(lock, source_root)
 
   @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
-  def test_powershell_audit_returns_incomplete_exit_code_and_report(self):
+  def test_powershell_audit_passes_on_complete_license_evidence(self):
     with tempfile.TemporaryDirectory() as directory:
       report = Path(directory) / "audit.json"
       result = subprocess.run(
@@ -3502,8 +3498,8 @@ class SourceResolverTests(unittest.TestCase):
         errors="replace",
         check=False,
       )
-      self.assertEqual(3, result.returncode, result.stderr)
-      self.assertEqual("failed", json.loads(report.read_text(encoding="utf-8"))["status"])
+      self.assertEqual(0, result.returncode, result.stderr)
+      self.assertEqual("passed", json.loads(report.read_text(encoding="utf-8"))["status"])
 
   @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is not available")
   def test_powershell_wrapper_removes_stale_report_before_python_discovery(self):
