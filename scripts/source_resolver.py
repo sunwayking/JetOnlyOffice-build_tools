@@ -1835,12 +1835,19 @@ def _download_anonymous_lfs_object_once(repository, lfs_object, action, destinat
 
 
 def _download_anonymous_lfs_object(repository, lfs_object, action, destination):
-  _download_anonymous_lfs_object_once(
-    repository,
-    lfs_object,
-    action,
-    destination,
-  )
+  for attempt in range(3):
+    try:
+      _download_anonymous_lfs_object_once(
+        repository,
+        lfs_object,
+        action,
+        destination,
+      )
+      return
+    except (OSError, ResolutionError):
+      if attempt == 2:
+        raise
+      time.sleep(attempt + 1)
 
 
 def _lfs_action_is_expired(action):
@@ -1889,6 +1896,13 @@ def fetch_lfs_objects(repository, cache, commit, lfs_objects):
           break
         except LfsActionRefreshRequired:
           if attempt == 2:
+            raise
+        except ResolutionError as error:
+          if attempt == 2:
+            raise
+          if not str(error).startswith(
+            f"{repository['id']}: downloaded Git LFS object"
+          ):
             raise
       else:
         raise ResolutionError(

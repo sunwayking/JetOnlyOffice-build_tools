@@ -564,20 +564,13 @@ class SourceResolverTests(unittest.TestCase):
     )
     findings = policy_findings(value)
     self.assertEqual(
-      ["build-tools-data", "core-fonts"],
+      ["core-fonts"],
       [finding["repository"] for finding in findings],
     )
     report = audit_report(value)
     self.assertEqual("failed", report["status"])
     self.assertTrue(all(finding["code"] == "LICENSE_INCOMPLETE" for finding in findings))
-    self.assertEqual(
-      ["qt"],
-      next(
-        finding["unresolvedComponents"]
-        for finding in findings
-        if finding["repository"] == "build-tools-data"
-      ),
-    )
+
     build_tools_data = repositories_by_id["build-tools-data"]
     self.assertEqual(
       [
@@ -591,12 +584,7 @@ class SourceResolverTests(unittest.TestCase):
       review["id"]: review
       for review in build_tools_data["license"]["blockingReviews"]
     }
-    expected_build_tools_blockers = {
-      "qt": (
-        "qt/qt_binary_5.9.9_gcc_64.7z",
-        "2602239b1040af3ff1ee889b77740ef2c5f80a5eebb8630acf4d1d1dea900415",
-      ),
-    }
+    expected_build_tools_blockers = {}
     self.assertEqual(
       sorted(expected_build_tools_blockers), sorted(build_tools_blockers)
     )
@@ -654,12 +642,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.25",
+        "ref": "refs/tags/v9.4.0-evidence.26",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "d436820cb63c021dbec6d3fbf7a2b58663a5b9d6",
+      "0c7236a1c43eda68d0ea4e322d48c5e49baa47d3",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
@@ -673,6 +661,7 @@ class SourceResolverTests(unittest.TestCase):
         "cef/LICENSE.txt",
         "cef/chromium-credits.html",
         "python/python3.tar.gz",
+        "qt/qt_binary_5.9.9_gcc_64.7z",
       ],
       evidence_repository["license"]["payloadPatterns"],
     )
@@ -684,6 +673,10 @@ class SourceResolverTests(unittest.TestCase):
         "**/COPYRIGHT", "**/LICENSE*",
         "liberation/License.txt",
         "liberation/LicenseRef-Liberation.toml",
+        "qt/*.json",
+        "qt/pcre2-LICENCE.txt",
+        "qt/png.h",
+        "qt/zlib.h",
       ],
       evidence_repository["license"]["patterns"],
     )
@@ -713,6 +706,7 @@ class SourceResolverTests(unittest.TestCase):
         "pt_BR",
         "pt_PT",
         "python",
+        "qt",
         "ru_RU",
         "sl_SI",
         "uk_UA",
@@ -3247,6 +3241,37 @@ class SourceResolverTests(unittest.TestCase):
 
       with self.assertRaises(ResolutionError):
         fetch_lfs_objects(repository, bare, commit, lfs_objects)
+
+  def test_lfs_fetch_retries_a_truncated_object_download(self):
+    repository = repository_input("source")
+    content = b"public object\n"
+    oid = hashlib.sha256(content).hexdigest()
+    lfs_object = {"oid": oid, "size": len(content), "paths": ["asset.bin"]}
+    action = {oid: {"href": "https://objects.invalid/source", "headers": {}}}
+
+    attempts = []
+
+    def download_once(_, __, ___, destination):
+      destination.parent.mkdir(parents=True, exist_ok=True)
+      attempts.append(1)
+      if len(attempts) == 1:
+        destination.write_bytes(b"truncated")
+        raise ResolutionError(
+          f"{repository['id']}: downloaded Git LFS object does not match lock: {oid}",
+          3,
+        )
+      destination.write_bytes(content)
+
+    with tempfile.TemporaryDirectory() as directory:
+      cache = Path(directory) / "cache.git"
+      with (
+        patch("source_resolver._fetch_anonymous_lfs_actions", return_value=action),
+        patch("source_resolver._download_anonymous_lfs_object_once", side_effect=download_once),
+        patch("source_resolver._verify_lfs_cache"),
+      ):
+        fetch_lfs_objects(repository, cache, SHA1_A, [lfs_object])
+
+    self.assertEqual(2, len(attempts))
 
   def test_public_mirror_probe_fails_when_anonymous_refs_are_unavailable(self):
     repository = repository_input("source")

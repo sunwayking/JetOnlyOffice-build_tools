@@ -58,19 +58,7 @@
           "qt/qt_binary_5.9.9_gcc_64.7z"
         ],
         "reason": "The upstream repository contains no repository license. This release inventory is restricted to the exact linux_64 server payload candidates: Android is unreachable for the selected platform, sysroot is disabled by --sysroot 0, the Windows Mobile GLEW path returns immediately on Linux, and the locked Python is materialized without the upstream extraction helper. The selected CEF archive is closed from embedded license resources; Python and Qt still lack complete reviewed inventories.",
-        "blockingReviews": [
-          {
-            "id": "qt",
-            "code": "INCOMPLETE_SCOPE",
-            "reason": "The locked Qt binary bundle contains multiple Qt modules and third-party runtime payloads but no license files or complete binary-to-source license inventory.",
-            "evidence": [
-              {
-                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
-                "sha256": "2602239b1040af3ff1ee889b77740ef2c5f80a5eebb8630acf4d1d1dea900415"
-              }
-            ]
-          }
-        ],
+        "blockingReviews": [],
         "reviewedComponents": [
           {
             "id": "cef",
@@ -297,11 +285,318 @@
                 "sha256": "045cf777c6c9109b28ddcf3a413c5ca15e39fc513c13ef87bd9a3132a59d1b51"
               }
             ]
+          },
+          {
+            "id": "qt",
+            "spdx": "GPL-3.0-only AND MIT AND BSD-3-Clause AND BSD-2-Clause AND Zlib AND Libpng AND libpng-2.0 AND IJG AND libtiff AND CC0-1.0 AND LicenseRef-Public-Domain",
+            "evidence": [
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LGPL_EXCEPTION.txt",
+                "sha256": "438c1f9a2b256e47dac33249f2ad6d4a9df643f1ec5312216d528a2f7ad82084",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LICENSE.GPLv2",
+                "sha256": "edfe70e99be2a7c109d860b19204609e582720b211c50caedac729da372a1253",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LICENSE.GPLv3",
+                "sha256": "245248009fd0af1725d183248380e476c1283383909358a13686606352bf2a17",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LICENSE.LGPLv3",
+                "sha256": "5ceb37d1c7c1d92878b82af3c0fd5558087f3d5a08a3a4d43850bad4ad265a52",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/charts-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/datavis3d-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/double-conversion-LICENSE.txt",
+                "sha256": "4af93c12062c58058378de2397dc1c92bbff9ddfb1d583a01c84127557ce97ca",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/double-conversion-qt_attribution.json",
+                "sha256": "0d7d1b0f129d96f98d3a4abcc16a73eba7437467f2cf6c65ae12c8feeba21705",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/easing-qt_attribution.json",
+                "sha256": "5aba46e2269772d77ae4bc30684d85292875484194cc454035c0ace2043c68d1",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/forkfd-qt_attribution.json",
+                "sha256": "8b3f573518db58fa284abc474553d1257a367d94766516055b6498d7335350e9",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/freebsd-qt_attribution.json",
+                "sha256": "eb90169ae840982398447d4b77d3656d46dba74439472727f64920535121c61e",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/harfbuzz-MIT.txt",
+                "sha256": "2a886915de4f296cdae5ed67064f86dba01d0c55286d86e8487f2a5caaf40216",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/harfbuzz-qt_attribution.json",
+                "sha256": "f6fdb755a37f37ef8736258b4a20d23cff2756c6ccf147798e49b236065578cc",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libjpeg-8c-README.txt",
+                "sha256": "a746ea327c2edb33a5a1800dc968c41a40af4ec0daee4810a0622e9c9373d1b7",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libjpeg-qt_attribution.json",
+                "sha256": "a40e71b240964afd3c90db313c5cdd6962c65ba1d4c8d01db99fd3fd1706e786",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libpng-1.6.37-notice.txt",
+                "sha256": "835ac6f3a0fdd565546cef4fa032a801c35b56fe9bb3ab1806e4279c16341510",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libpng-qt_attribution.json",
+                "sha256": "35255d50f5ac75e2e8e39b7b0698addbbad54ecb23deac626e847d0f11bcba70",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libtiff-4.1.0-COPYRIGHT.txt",
+                "sha256": "fbd6fed7938541d2c809c0826225fc85e551fdbfa8732b10f0c87e0847acafd7",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libwebp-COPYING.txt",
+                "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libwebp-qt_attribution.json",
+                "sha256": "da0cd1a07e3107985c87d9335f9fe1c91759513b01220aabba72d6c016948ea4",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/md4-qt_attribution.json",
+                "sha256": "af6c4058ed0b314935b2d19f5b34c54cbf7cb76f8bb26ad398db281613f8efe9",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/md5-qt_attribution.json",
+                "sha256": "8f0722672546fda215ccffb7ca0146a4202947f2d016b4bf58b92dd9cf208270",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/networkauth-LICENSE.GPL3-EXCEPT.txt",
+                "sha256": "0dbe024961f6ab5c52689cbd036c977975d0d0f6a67ff97762d96cb819dd5652",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/networkauth-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/pcre2-LICENCE.txt",
+                "sha256": "c4a8b89cd38d6a7501d5b11a472fa15e71a051b66d6331c6cda364101389d6ee",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/pcre2-qt_attribution.json",
+                "sha256": "1a1312c7ad1a0a3b15792c4b4774e5d454ad327f11640f1b7065ac7c4cf105f1",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/png.h",
+                "sha256": "f8e248049a97831f5e9fb24ec0c7c6b7cacb3b3ba7303300b4f5b2b90bae3c40",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/rfc6234-qt_attribution.json",
+                "sha256": "b3b00fe4cdab7d088d762b09a0de0a24ee5597e830f67afa0c2d970cf09a45bc",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/sha1-qt_attribution.json",
+                "sha256": "6dac3a89f50e6680063d171dfed9bd65ca19f2230c93385ee2a6c7a8c82e8eac",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/sha3-qt_attribution.json",
+                "sha256": "67973071a4899d696503da95f08b8aceba694ebccb604f9ba1ca7c33a0a4d12e",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/virtualkeyboard-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/zlib-qt_attribution.json",
+                "sha256": "f13d7a92a3074c95a0e855355a3b09ba422ebbebf9c84643f39532ba40d7cae8",
+                "licenseRefs": []
+              },
+              {
+                "type": "repository-git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "repository": "license-evidence",
+                "referencePath": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/zlib.h",
+                "sha256": "51657b6b7c08966958e6f2ee325c04e17e1d0a9e9cc9da97363000b8e31707df",
+                "licenseRefs": []
+              }
+            ]
           }
         ],
-        "unresolvedComponents": [
-          "qt"
-        ]
+        "unresolvedComponents": []
       }
     },
     {
@@ -3981,11 +4276,11 @@
       "checkoutPath": "sources/license-evidence",
       "origin": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
       "upstream": "https://github.com/sunwayking/JetOnlyOffice-license-evidence.git",
-      "commit": "d436820cb63c021dbec6d3fbf7a2b58663a5b9d6",
+      "commit": "0c7236a1c43eda68d0ea4e322d48c5e49baa47d3",
       "refHint": "JetOnlyOffice v9.4.0 evidence snapshot 20",
       "selection": {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.25"
+        "ref": "refs/tags/v9.4.0-evidence.26"
       },
       "projectFork": false,
       "buildInput": true,
@@ -4000,7 +4295,8 @@
           "**/*.ttf",
           "cef/LICENSE.txt",
           "cef/chromium-credits.html",
-          "python/python3.tar.gz"
+          "python/python3.tar.gz",
+          "qt/qt_binary_5.9.9_gcc_64.7z"
         ],
         "patterns": [
           "**/*.README",
@@ -4016,7 +4312,11 @@
           "**/COPYRIGHT",
           "**/LICENSE*",
           "liberation/License.txt",
-          "liberation/LicenseRef-Liberation.toml"
+          "liberation/LicenseRef-Liberation.toml",
+          "qt/*.json",
+          "qt/pcre2-LICENCE.txt",
+          "qt/png.h",
+          "qt/zlib.h"
         ],
         "reason": "All mirrored payloads have an exact component-scoped license mapping.",
         "reviewedComponents": [
@@ -5342,6 +5642,249 @@
                 "path": "python/python3.tar.gz",
                 "locator": "python/zlib-1.2.12-LICENSE.txt",
                 "sha256": "045cf777c6c9109b28ddcf3a413c5ca15e39fc513c13ef87bd9a3132a59d1b51"
+              }
+            ]
+          },
+          {
+            "id": "qt",
+            "spdx": "GPL-3.0-only AND MIT AND BSD-3-Clause AND BSD-2-Clause AND Zlib AND Libpng AND libpng-2.0 AND IJG AND libtiff AND CC0-1.0 AND LicenseRef-Public-Domain",
+            "evidence": [
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LGPL_EXCEPTION.txt",
+                "sha256": "438c1f9a2b256e47dac33249f2ad6d4a9df643f1ec5312216d528a2f7ad82084",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LICENSE.GPLv2",
+                "sha256": "edfe70e99be2a7c109d860b19204609e582720b211c50caedac729da372a1253",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LICENSE.GPLv3",
+                "sha256": "245248009fd0af1725d183248380e476c1283383909358a13686606352bf2a17",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/LICENSE.LGPLv3",
+                "sha256": "5ceb37d1c7c1d92878b82af3c0fd5558087f3d5a08a3a4d43850bad4ad265a52",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/charts-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/datavis3d-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/double-conversion-LICENSE.txt",
+                "sha256": "4af93c12062c58058378de2397dc1c92bbff9ddfb1d583a01c84127557ce97ca",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/double-conversion-qt_attribution.json",
+                "sha256": "0d7d1b0f129d96f98d3a4abcc16a73eba7437467f2cf6c65ae12c8feeba21705",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/easing-qt_attribution.json",
+                "sha256": "5aba46e2269772d77ae4bc30684d85292875484194cc454035c0ace2043c68d1",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/forkfd-qt_attribution.json",
+                "sha256": "8b3f573518db58fa284abc474553d1257a367d94766516055b6498d7335350e9",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/freebsd-qt_attribution.json",
+                "sha256": "eb90169ae840982398447d4b77d3656d46dba74439472727f64920535121c61e",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/harfbuzz-MIT.txt",
+                "sha256": "2a886915de4f296cdae5ed67064f86dba01d0c55286d86e8487f2a5caaf40216",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/harfbuzz-qt_attribution.json",
+                "sha256": "f6fdb755a37f37ef8736258b4a20d23cff2756c6ccf147798e49b236065578cc",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libjpeg-8c-README.txt",
+                "sha256": "a746ea327c2edb33a5a1800dc968c41a40af4ec0daee4810a0622e9c9373d1b7",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libjpeg-qt_attribution.json",
+                "sha256": "a40e71b240964afd3c90db313c5cdd6962c65ba1d4c8d01db99fd3fd1706e786",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libpng-1.6.37-notice.txt",
+                "sha256": "835ac6f3a0fdd565546cef4fa032a801c35b56fe9bb3ab1806e4279c16341510",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libpng-qt_attribution.json",
+                "sha256": "35255d50f5ac75e2e8e39b7b0698addbbad54ecb23deac626e847d0f11bcba70",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libtiff-4.1.0-COPYRIGHT.txt",
+                "sha256": "fbd6fed7938541d2c809c0826225fc85e551fdbfa8732b10f0c87e0847acafd7",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libwebp-COPYING.txt",
+                "sha256": "5aec868f669e384a22372a4e8a1a6cd7d44c64cd451f960ca69cc170d1e13acf",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/libwebp-qt_attribution.json",
+                "sha256": "da0cd1a07e3107985c87d9335f9fe1c91759513b01220aabba72d6c016948ea4",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/md4-qt_attribution.json",
+                "sha256": "af6c4058ed0b314935b2d19f5b34c54cbf7cb76f8bb26ad398db281613f8efe9",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/md5-qt_attribution.json",
+                "sha256": "8f0722672546fda215ccffb7ca0146a4202947f2d016b4bf58b92dd9cf208270",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/networkauth-LICENSE.GPL3-EXCEPT.txt",
+                "sha256": "0dbe024961f6ab5c52689cbd036c977975d0d0f6a67ff97762d96cb819dd5652",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/networkauth-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/pcre2-LICENCE.txt",
+                "sha256": "c4a8b89cd38d6a7501d5b11a472fa15e71a051b66d6331c6cda364101389d6ee",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/pcre2-qt_attribution.json",
+                "sha256": "1a1312c7ad1a0a3b15792c4b4774e5d454ad327f11640f1b7065ac7c4cf105f1",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/png.h",
+                "sha256": "f8e248049a97831f5e9fb24ec0c7c6b7cacb3b3ba7303300b4f5b2b90bae3c40",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/rfc6234-qt_attribution.json",
+                "sha256": "b3b00fe4cdab7d088d762b09a0de0a24ee5597e830f67afa0c2d970cf09a45bc",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/sha1-qt_attribution.json",
+                "sha256": "6dac3a89f50e6680063d171dfed9bd65ca19f2230c93385ee2a6c7a8c82e8eac",
+                "licenseRefs": [
+                  "LicenseRef-Public-Domain"
+                ]
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/sha3-qt_attribution.json",
+                "sha256": "67973071a4899d696503da95f08b8aceba694ebccb604f9ba1ca7c33a0a4d12e",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/virtualkeyboard-LICENSE.GPL3.txt",
+                "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/zlib-qt_attribution.json",
+                "sha256": "f13d7a92a3074c95a0e855355a3b09ba422ebbebf9c84643f39532ba40d7cae8",
+                "licenseRefs": []
+              },
+              {
+                "type": "git-blob",
+                "path": "qt/qt_binary_5.9.9_gcc_64.7z",
+                "locator": "qt/zlib.h",
+                "sha256": "51657b6b7c08966958e6f2ee325c04e17e1d0a9e9cc9da97363000b8e31707df",
+                "licenseRefs": []
               }
             ]
           },

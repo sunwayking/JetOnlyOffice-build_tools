@@ -112,10 +112,10 @@ maps `ancient-scripts`, `arphic-ukai`, `dejavu`, `liberation`, `nanum`,
 font license records. `fonts-beng-extra`, `fonts-gujr-extra`, `kacst`, and
 `kacst-one` use byte-identical payload and license mappings from the
 immutable-tag-selected `license-evidence` repository, locked at
-`v9.4.0-evidence.24`. The selected `build-tools-data` CEF and Python payloads
-are now closed from their embedded license resources. The release gate remains
-blocked for the selected Qt payload. `ASC.ttf` is the only unresolved font
-component and remains blocked on missing redistribution terms.
+`v9.4.0-evidence.26`. The selected `build-tools-data` CEF, Python, and Qt
+payloads are now closed from their embedded license resources. `ASC.ttf` is
+the only unresolved font component and remains blocked on missing
+redistribution terms.
 A product name, copyright line, package family, external URL, or unrelated
 nearby license is not accepted as a substitute.
 
@@ -144,9 +144,18 @@ GRIT writer and resource loader define this 2-byte magic plus 6-byte length
 framing rather than an opaque eight-byte prefix.
 The selected Qt 5.9.9 Linux archive (LFS/SHA-256
 `84181f983a5e76c2f8a63f8bf06d5ce27675f543c45febe014514633a1289f0e`)
-still has no complete reviewed binary-to-source license inventory. Qt
-therefore remains unresolved; no SPDX expression is inferred from product
-identity or adjacent upstream sources.
+now has a complete reviewed binary-to-source inventory. The bundle contains
+GPLv3-only modules (Charts, Data Visualization, NetworkAuth, VirtualKeyboard),
+so the conservative reviewed expression treats the whole Qt payload as
+GPL-3.0-only and ANDs the compatible third-party licenses of the statically
+integrated components: zlib 1.2.11 (Zlib), libpng 1.6.37 (Libpng AND
+libpng-2.0), libjpeg 8c (IJG), libtiff 4.1.0 (libtiff), libwebp 1.0.3
+(BSD-3-Clause), PCRE2 10.32, double-conversion 2.0.1, old HarfBuzz (MIT),
+easing, forkfd, FreeBSD strtoll/strtoull, RFC6234, MD4/MD5/SHA-1 (public
+domain), and SHA-3 brg_endian/Keccak (CC0-1.0). External runtime libraries
+(ICU, OpenSSL via dlopen, FreeType, fontconfig, xcb, GLib, GStreamer, ALSA,
+PulseAudio, CUPS, GTK, D-Bus, Wayland) are not packaged in the 7z and are
+audited with the runtime image.
 
 Forty-nine dictionary language packs are mapped payload by payload to exact
 license blobs in the locked tree or immutable `license-evidence` snapshot:
@@ -245,8 +254,8 @@ adaptation under LGPL 2.1, while the GPL/LGPL/MPL versions are pinned by the
 era-matched Debian `ipolish 20090225-1` copyright, the maintainer's own sjp.pl
 page, and the LibreOffice 2026-05-11 README. Complete GPL v2, LGPL 2.1,
 MPL 1.1, and CC-SA 1.0 texts are mirrored in the immutable evidence snapshot.
-Together with the selected Qt payload and `ASC.ttf`, they account for the
-two unresolved components in the current lock.
+Together with `ASC.ttf`, they account for the one unresolved component in
+the current lock.
 
 `resolve-sources.ps1 -Command LfsAudit` independently enumerates the LFS
 pointers reachable from an explicitly selected locked commit, downloads every
