@@ -2625,7 +2625,7 @@ def _locked_component_license_metadata(
     for component in license_record["components"]
     for path in component["payloadPaths"]
   ]
-  if actual_payloads != locked_payloads:
+  if sorted(actual_payloads) != sorted(locked_payloads):
     raise ResolutionError("component license payload inventory does not match the lock", 3)
   for component in license_record["components"]:
     for evidence in component["license"]["evidence"]:
