@@ -638,12 +638,12 @@ class SourceResolverTests(unittest.TestCase):
     self.assertEqual(
       {
         "type": "tag",
-        "ref": "refs/tags/v9.4.0-evidence.27",
+        "ref": "refs/tags/v9.4.0-evidence.28",
       },
       repositories_by_id["license-evidence"]["selection"],
     )
     self.assertEqual(
-      "0c7236a1c43eda68d0ea4e322d48c5e49baa47d3",
+      "e2150472fd72a0bb72b163c0ff6da3e73ccb822e",
       repositories_by_id["license-evidence"]["commit"],
     )
     evidence_repository = repositories_by_id["license-evidence"]
