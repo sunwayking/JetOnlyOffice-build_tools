@@ -760,6 +760,8 @@ def load_source_lock(path):
 
 GIT_COMMAND_TIMEOUT_SECONDS = 180
 
+NETWORK_GIT_COMMANDS = ("fetch", "clone", "ls-remote", "push", "pull")
+
 
 def _run_git_process(arguments, cwd=None, environment=None, timeout=None):
   process_environment = os.environ.copy()
@@ -802,7 +804,11 @@ def _run_git(arguments, cwd=None, exit_code=4, environment=None):
         arguments,
         cwd=cwd,
         environment=environment,
-        timeout=GIT_COMMAND_TIMEOUT_SECONDS,
+        timeout=(
+          GIT_COMMAND_TIMEOUT_SECONDS
+          if arguments and arguments[0] in NETWORK_GIT_COMMANDS
+          else None
+        ),
       )
     except subprocess.TimeoutExpired:
       if attempt == 2:

@@ -3319,6 +3319,29 @@ class SourceResolverTests(unittest.TestCase):
       self.assertEqual("ok", _run_git(["ls-remote", "--refs", "origin"]))
     self.assertEqual(2, len(attempts))
 
+  def test_git_run_applies_timeout_only_to_network_commands(self):
+    seen = []
+
+    def fake_process(arguments, cwd=None, environment=None, timeout=None):
+      seen.append((arguments[0], timeout))
+
+      class FakeResult:
+        pass
+
+      result = FakeResult()
+      result.returncode = 0
+      result.stdout = b"ok\n"
+      result.stderr = b""
+      return result
+
+    with patch("source_resolver._run_git_process", side_effect=fake_process):
+      self.assertEqual("ok", _run_git(["fsck", "--full", "--strict"]))
+      self.assertEqual("ok", _run_git(["fetch", "origin", "+refs/heads/*"]))
+    self.assertEqual(
+      [("fsck", None), ("fetch", 180)],
+      seen,
+    )
+
   def test_git_run_fails_immediately_on_non_transient_error(self):
     attempts = []
 
