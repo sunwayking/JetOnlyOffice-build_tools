@@ -39,6 +39,11 @@ reject_alias_path() {
 }
 
 tab=$(printf '\t')
+sorted_plan=$(mktemp)
+sort -t "$tab" -k1,1 "$plan" > "$sorted_plan"
+trap 'rm -f "$sorted_plan"' EXIT
+# Deb records sort first alphabetically, so their binaries are available
+# to the archive extractions that follow (xz, dpkg-deb).
 while IFS="$tab" read -r archive_type source root destination strip_components mode; do
   test -n "$archive_type"
   case "$source" in
@@ -122,4 +127,4 @@ while IFS="$tab" read -r archive_type source root destination strip_components m
       return 3
       ;;
   esac
-done < "$plan"
+done < "$sorted_plan"
