@@ -790,6 +790,9 @@ TRANSIENT_GIT_NETWORK_PATTERNS = (
   "unable to access",
   "Recv failure",
   "the remote end hung up unexpectedly",
+  "Failed to connect",
+  "Could not connect",
+  "Connection timed out",
 )
 
 
